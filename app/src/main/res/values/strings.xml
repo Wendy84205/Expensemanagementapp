@@ -1,0 +1,11 @@
+<resources>
+    <!-- Tên app -->
+    <string name="app_name">Wendy AI</string>
+
+    <!-- Facebook SDK -->
+    <string name="facebook_app_id">1896096931250707</string>
+    <string name="fb_login_protocol_scheme">fb123456789012345</string>
+
+    <!-- Google SDK -->
+    <string name="default_web_client_id">397779842229-dqp2k3qtiaupus7jule3p472gltmmfe3.apps.googleusercontent.com</string>
+</resources>

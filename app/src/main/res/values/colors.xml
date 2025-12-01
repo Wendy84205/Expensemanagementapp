@@ -1,0 +1,11 @@
+<resources>
+    <!-- Màu thương hiệu chính của app -->
+    <color name="purple_500">#6200EE</color>
+
+    <!-- Các màu khác có thể thêm sau -->
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="splash_background_color">#FFE91E63</color>
+    <color name="splash_status_bar_color">#FFC2185B</color>
+    <color name="splash_navigation_bar_color">#FFAD1457</color>
+</resources>
