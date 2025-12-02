@@ -1,144 +1,130 @@
-Ứng Dụng Quản Lý Tài Chính Cá Nhân 💰
+# Ứng Dụng Quản Lý Tài Chính Cá Nhân 💰
 
-https://img.shields.io/badge/Kotlin-1.9.0-blue.svg
-https://img.shields.io/badge/Compose-1.5.0-brightgreen.svg
-https://img.shields.io/badge/License-MIT-yellow.svg
-https://img.shields.io/badge/minSdk-24-orange.svg
-https://img.shields.io/badge/Firebase-%C4%90%C3%A3%2520k%C3%ADch%2520ho%E1%BA%A1t-red.svg
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-blue.svg)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Compose-1.5.0-brightgreen.svg)](https://developer.android.com/jetpack/compose)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Min SDK](https://img.shields.io/badge/minSdk-24-orange.svg)](https://developer.android.com/about/versions/android-7.0)
+[![Firebase](https://img.shields.io/badge/Firebase-Đã%20kích%20hoạt-red.svg)](https://firebase.google.com)
 
 Ứng dụng quản lý tài chính cá nhân hiện đại, giúp bạn theo dõi thu chi, lập ngân sách và quản lý tài chính thông minh.
 
-📋 Mục Lục
+## 📋 Mục Lục
+- [Tính Năng](#tính-năng)
+- [Hình Ảnh](#hình-ảnh)
+- [Kiến Trúc](#kiến-trúc)
+- [Cài Đặt](#cài-đặt)
+- [Cấu Hình](#cấu-hình)
+- [Đóng Góp](#đóng-góp)
+- [Giấy Phép](#giấy-phép)
 
-Tính Năng
-Hình Ảnh
-Kiến Trúc
-Cài Đặt
-Cấu Hình
-Đóng Góp
-Giấy Phép
-✨ Tính Năng Chính
+## ✨ Tính Năng Chính
 
-Quản Lý Cơ Bản
+### Quản Lý Cơ Bản
+- **Theo dõi thu chi**: Thêm, sửa, xóa giao dịch dễ dàng
+- **Phân loại danh mục**: Tùy chỉnh danh mục thu chi
+- **Chi tiêu định kỳ**: Tự động ghi nhận chi tiêu hàng tháng
+- **Đa tiền tệ**: Hỗ trợ nhiều loại tiền tệ khác nhau
+- **Xuất dữ liệu**: Xuất file CSV, Excel, PDF
 
-Theo dõi thu chi: Thêm, sửa, xóa giao dịch dễ dàng
-Phân loại danh mục: Tùy chỉnh danh mục thu chi
-Chi tiêu định kỳ: Tự động ghi nhận chi tiêu hàng tháng
-Đa tiền tệ: Hỗ trợ nhiều loại tiền tệ khác nhau
-Xuất dữ liệu: Xuất file CSV, Excel, PDF
-Phân Tích & Báo Cáo
+### Phân Tích & Báo Cáo
+- **Dashboard trực quan**: Biểu đồ và thống kê sinh động
+- **Phân tích danh mục**: Xem chi tiêu theo từng hạng mục
+- **Xu hướng chi tiêu**: Theo dõi thói quen chi tiêu theo thời gian
+- **Báo cáo chi tiết**: Báo cáo tuần, tháng, năm
+- **Mục tiêu tiết kiệm**: Đặt và theo dõi mục tiêu tài chính
 
-Dashboard trực quan: Biểu đồ và thống kê sinh động
-Phân tích danh mục: Xem chi tiêu theo từng hạng mục
-Xu hướng chi tiêu: Theo dõi thói quen chi tiêu theo thời gian
-Báo cáo chi tiết: Báo cáo tuần, tháng, năm
-Mục tiêu tiết kiệm: Đặt và theo dõi mục tiêu tài chính
-Tính Năng Thông Minh
+### Tính Năng Thông Minh
+- **Gợi ý từ AI**: Đề xuất tối ưu ngân sách thông minh
+- **Quét hóa đơn**: Tự động nhập liệu từ ảnh hóa đơn
+- **Nhắc nhở thanh toán**: Không bỏ lỡ hạn thanh toán
+- **Dự báo tài chính**: Dự đoán chi tiêu dựa trên lịch sử
+- **Cảnh báo chi tiêu**: Thông báo khi chi tiêu bất thường
 
-Gợi ý từ AI: Đề xuất tối ưu ngân sách thông minh
-Quét hóa đơn: Tự động nhập liệu từ ảnh hóa đơn
-Nhắc nhở thanh toán: Không bỏ lỡ hạn thanh toán
-Dự báo tài chính: Dự đoán chi tiêu dựa trên lịch sử
-Cảnh báo chi tiêu: Thông báo khi chi tiêu bất thường
-Trải Nghiệm Người Dùng
+### Trải Nghiệm Người Dùng
+- **Giao diện hiện đại**: Thiết kế Material 3 đẹp mắt
+- **Chế độ sáng/tối**: Tự động thay đổi theo hệ thống
+- **Bảo mật vân tay**: Đăng nhập bằng vân tay/face ID
+- **Hoạt động offline**: Sử dụng không cần internet
+- **Đa ngôn ngữ**: Tiếng Việt và Tiếng Anh
 
-Giao diện hiện đại: Thiết kế Material 3 đẹp mắt
-Chế độ sáng/tối: Tự động thay đổi theo hệ thống
-Bảo mật vân tay: Đăng nhập bằng vân tay/face ID
-Hoạt động offline: Sử dụng không cần internet
-Đa ngôn ngữ: Tiếng Việt và Tiếng Anh
-Bảo Mật & Đồng Bộ
+### Bảo Mật & Đồng Bộ
+- **Mã hóa dữ liệu**: Bảo vệ thông tin tài chính
+- **Sao lưu đám mây**: Đồng bộ với Firebase
+- **Lưu trữ cục bộ**: Tùy chọn lưu dữ liệu local
+- **Bảo mật riêng tư**: Không thu thập dữ liệu cá nhân
 
-Mã hóa dữ liệu: Bảo vệ thông tin tài chính
-Sao lưu đám mây: Đồng bộ với Firebase
-Lưu trữ cục bộ: Tùy chọn lưu dữ liệu local
-Bảo mật riêng tư: Không thu thập dữ liệu cá nhân
-📱 Hình Ảnh Ứng Dụng
+## 🏗️ Kiến Trúc Ứng Dụng
 
-Màn Hình Chính
+### Công Nghệ Sử Dụng
+- **Ngôn ngữ**: Kotlin 1.9.0
+- **Giao diện**: Jetpack Compose 1.5.0
+- **Kiến trúc**: Clean Architecture với MVVM
+- **Dependency Injection**: Dagger Hilt
+- **Database local**: Room
+- **Database cloud**: Firebase Firestore
+- **Xác thực**: Firebase Auth
+- **Xử lý ảnh**: ML Kit
+- **Thông báo**: WorkManager + AlarmManager
 
-Dashboard	Thống Kê	Ngân Sách
-https://via.placeholder.com/300x600/4CAF50/FFFFFF?text=Dashboard	https://via.placeholder.com/300x600/2196F3/FFFFFF?text=Th%E1%BB%91ng+K%C3%AA	https://via.placeholder.com/300x600/FF9800/FFFFFF?text=Ng%C3%A2n+S%C3%A1ch
-Quản Lý Giao Dịch
-
-Thêm Giao Dịch	Danh Mục	Chi Tiêu Định Kỳ
-https://via.placeholder.com/300x600/9C27B0/FFFFFF?text=Th%C3%AAm+Giao+D%E1%BB%8Bch	https://via.placeholder.com/300x600/3F51B5/FFFFFF?text=Danh+M%E1%BB%A5c	https://via.placeholder.com/300x600/00BCD4/FFFFFF?text=Chi+Ti%C3%AAu+%C4%90%E1%BB%8Bnh+K%E1%BB%B3
-Cài Đặt & AI
-
-Cài Đặt	Trợ Lý AI	Báo Cáo
-https://via.placeholder.com/300x600/607D8B/FFFFFF?text=C%C3%A0i+%C4%90%E1%BA%B7t	https://via.placeholder.com/300x600/009688/FFFFFF?text=Tr%E1%BB%A3+L%C3%BD+AI	https://via.placeholder.com/300x600/E91E63/FFFFFF?text=B%C3%A1o+C%C3%A1o
-🏗️ Kiến Trúc Ứng Dụng
-
-Công Nghệ Sử Dụng
-
-Ngôn ngữ: Kotlin 1.9.0
-Giao diện: Jetpack Compose 1.5.0
-Kiến trúc: Clean Architecture với MVVM
-Dependency Injection: Dagger Hilt
-Database local: Room
-Database cloud: Firebase Firestore
-Xác thực: Firebase Auth
-Xử lý ảnh: ML Kit
-Thông báo: WorkManager + AlarmManager
-Cấu Trúc Thư Mục
-
-text
+### Cấu Trúc Thư Mục
 app/
 ├── src/main/java/com/example/financeapp/
-│   ├── MainActivity.kt           # Activity chính
-│   ├── FinanceApp.kt            # Ứng dụng chính
-│   │
-│   ├── di/                       # Dependency Injection
-│   │   └── AppModule.kt         # Module DI
-│   │
-│   ├── navigation/               # Điều hướng
-│   │   └── NavGraph.kt          # Graph điều hướng
-│   │
-│   ├── screen/                   # Các màn hình
-│   │   ├── auth/                 # Màn hình đăng nhập
-│   │   ├── main/                 # Màn hình chính
-│   │   │   ├── dashboard/       # Trang chủ
-│   │   │   ├── transaction/     # Giao dịch
-│   │   │   ├── budget/          # Ngân sách
-│   │   │   └── statistics/      # Thống kê
-│   │   ├── settings/            # Cài đặt
-│   │   └── features/            # Tính năng
-│   │
-│   ├── viewmodel/                # ViewModels
-│   │   ├── auth/                 # Xác thực
-│   │   ├── transaction/          # Giao dịch
-│   │   ├── budget/               # Ngân sách
-│   │   ├── user/                 # Người dùng
-│   │   └── ai/                   # AI
-│   │
-│   ├── data/                     # Tầng dữ liệu
-│   │   ├── models/               # Data classes
-│   │   ├── repository/           # Repository
-│   │   ├── local/                # Local data
-│   │   └── remote/               # Remote data
-│   │
-│   ├── components/               # UI Components
-│   │   ├── ui/                   # Component tái sử dụng
-│   │   ├── theme/                # Giao diện
-│   │   └── utils/                # Tiện ích
-│   │
-│   └── utils/                    # Tiện ích
-│       ├── language/             # Đa ngôn ngữ
-│       └── notification/         # Thông báo
+│ ├── MainActivity.kt # Activity chính
+│ ├── FinanceApp.kt # Ứng dụng chính
+│ │
+│ ├── di/ # Dependency Injection
+│ │ └── AppModule.kt # Module DI
+│ │
+│ ├── navigation/ # Điều hướng
+│ │ └── NavGraph.kt # Graph điều hướng
+│ │
+│ ├── screen/ # Các màn hình
+│ │ ├── auth/ # Màn hình đăng nhập
+│ │ ├── main/ # Màn hình chính
+│ │ │ ├── dashboard/ # Trang chủ
+│ │ │ ├── transaction/ # Giao dịch
+│ │ │ ├── budget/ # Ngân sách
+│ │ │ └── statistics/ # Thống kê
+│ │ ├── settings/ # Cài đặt
+│ │ └── features/ # Tính năng
+│ │
+│ ├── viewmodel/ # ViewModels
+│ │ ├── auth/ # Xác thực
+│ │ ├── transaction/ # Giao dịch
+│ │ ├── budget/ # Ngân sách
+│ │ ├── user/ # Người dùng
+│ │ └── ai/ # AI
+│ │
+│ ├── data/ # Tầng dữ liệu
+│ │ ├── models/ # Data classes
+│ │ ├── repository/ # Repository
+│ │ ├── local/ # Local data
+│ │ └── remote/ # Remote data
+│ │
+│ ├── components/ # UI Components
+│ │ ├── ui/ # Component tái sử dụng
+│ │ ├── theme/ # Giao diện
+│ │ └── utils/ # Tiện ích
+│ │
+│ └── utils/ # Tiện ích
+│ ├── language/ # Đa ngôn ngữ
+│ └── notification/ # Thông báo
 │
-├── build.gradle.kts              # Cấu hình build
-└── google-services.json          # Firebase config
-🚀 Hướng Dẫn Cài Đặt
+├── build.gradle.kts # Cấu hình build
+└── google-services.json # Firebase config
 
-Yêu Cầu Hệ Thống
+text
 
-Android Studio 2022.2.1 trở lên
-JDK 17 trở lên
-Android SDK 33 (API Level 33)
-Kotlin 1.9.0
-Bước 1: Clone Dự Án
+## 🚀 Hướng Dẫn Cài Đặt
 
-bash
+### Yêu Cầu Hệ Thống
+- Android Studio 2022.2.1 trở lên
+- JDK 17 trở lên
+- Android SDK 33 (API Level 33)
+- Kotlin 1.9.0
+
+### Bước 1: Clone Dự Án
+```bash
 git clone https://github.com/Wendy84205/Expensemanagementapp.git
 cd Expensemanagementapp
 Bước 2: Mở Trong Android Studio
@@ -221,23 +207,6 @@ UI Test
 
 Dự án có đầy đủ UI test sử dụng Espresso và Compose testing.
 
-📊 Thông Số Hiệu Suất
-
-Kích Thước Ứng Dụng
-
-Kích thước APK: ~15MB
-Kích thước cài đặt: ~25MB
-Hiệu Suất
-
-Khởi động lạnh: < 2 giây
-Chuyển màn hình: < 300ms
-Thao tác database: < 100ms
-Xử lý ảnh: < 2 giây
-Tiêu Thụ Pin
-
-Sử dụng nền: Tối thiểu
-Đồng bộ: Tối ưu cho pin
-Wake Locks: Chỉ dùng cho thao tác quan trọng
 🤝 Đóng Góp Cho Dự Án
 
 Chúng tôi hoan nghênh mọi đóng góp từ cộng đồng!
@@ -301,51 +270,41 @@ Tính năng bảo mật nâng cao
 API cho developer
 Hệ thống plugin
 Tính năng cộng đồng
-🔧 Xử Lý Sự Cố
-
-Vấn Đề Thường Gặp
-
-Lỗi Kết Nối Firebase
-
-Kiểm tra vị trí file google-services.json
-Kiểm tra cấu hình Firebase project
-Xác nhận package name khớp với đăng ký
-Kiểm tra kết nối internet
-Lỗi Build
-
-Clean project: ./gradlew clean
-Invalidate caches trong Android Studio
-Cập nhật dependencies
-Kiểm tra phiên bản JDK
-Ứng Dụng Bị Crash
-
-Kiểm tra logcat để xem lỗi
-Kiểm tra tương thích thiết bị
-Xóa dữ liệu app
-Cài đặt lại app
-Hỗ Trợ
-
-Xem Wiki
-Tìm kiếm trong Issues
-Tạo issue mới cho lỗi
-Sử dụng Discussions cho câu hỏi
-📚 Tài Liệu
-
-API Documentation
-
-Firebase API Reference
-Jetpack Compose Documentation
-Room Database Guide
-Hướng Dẫn Người Dùng
-
-Hướng dẫn bắt đầu
-Hướng dẫn sử dụng
-Câu hỏi thường gặp
-Hướng Dẫn Phát Triển
-
-Tổng quan kiến trúc
-Hướng dẫn code style
-Hướng dẫn kiểm thử
 📄 Giấy Phép
 
 Dự án được phân phối dưới giấy phép MIT - xem file LICENSE để biết chi tiết.
+
+text
+MIT License
+
+Copyright (c) 2024 Wendy
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+📞 Liên Hệ
+
+GitHub: Wendy84205
+Issues: GitHub Issues
+🌟 Hỗ Trợ Dự Án
+
+Nếu bạn thấy dự án hữu ích, hãy:
+
+Cho ⭐ trên GitHub
+Chia sẻ với người khác
+Đóng góp code hoặc tài liệu
+Báo cáo lỗi và đề xuất tính năng
