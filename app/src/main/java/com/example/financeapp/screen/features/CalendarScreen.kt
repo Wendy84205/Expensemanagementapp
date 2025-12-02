@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.features
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,7 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.rememberLanguageText
 import com.kizitonwose.calendar.compose.CalendarState
 import com.kizitonwose.calendar.compose.HorizontalCalendar

@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.features.category
 
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
@@ -27,10 +27,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.financeapp.viewmodel.Category
-import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.viewmodel.transaction.Category
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.LocalLanguageViewModel
-import com.example.financeapp.viewmodel.LanguageViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

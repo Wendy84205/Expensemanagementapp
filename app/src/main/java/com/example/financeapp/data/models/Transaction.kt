@@ -1,6 +1,6 @@
-package com.example.financeapp.data
+package com.example.financeapp.data.models
 
-import com.example.financeapp.viewmodel.Category
+import com.example.financeapp.viewmodel.transaction.Category
 
 data class Transaction(
     val id: String = "",

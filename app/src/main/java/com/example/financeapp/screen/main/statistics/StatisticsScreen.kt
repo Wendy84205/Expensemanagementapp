@@ -1,5 +1,7 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.main.statistics
 
+import android.graphics.Paint
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,25 +9,28 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.financeapp.viewmodel.CategoryViewModel
-import com.example.financeapp.viewmodel.LanguageViewModel
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.LocalLanguageViewModel
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.components.BottomNavBar
+import com.example.financeapp.screen.formatCurrency
+import kotlin.math.max
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,7 +41,7 @@ fun StatisticsScreen(
     transactions: List<Transaction>,
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-    var selectedTimeRange by remember { mutableStateOf("yearly") }
+    var selectedTimeRange by remember { mutableStateOf("weekly") } // Mặc định là weekly
     var selectedDataType by remember { mutableStateOf("expense") }
 
     val languageViewModel = LocalLanguageViewModel.current
@@ -44,38 +49,28 @@ fun StatisticsScreen(
     val timeRanges = listOf("weekly", "monthly", "yearly")
     val dataTypes = listOf("income", "expense", "difference")
 
-    // Màu sắc theo gói chuyên nghiệp & tin cậy
-    val primaryColor = Color(0xFF0F4C75) // Xanh Navy
-    val secondaryColor = Color(0xFF2E8B57) // Xanh lá đậm
-    val backgroundColor = Color(0xFFF5F7FA) // Xám rất nhạt
-    val surfaceColor = Color.White // Trắng
-    val textPrimary = Color(0xFF2D3748) // Xám đen
-    val textSecondary = Color(0xFF718096) // Xám
-    val accentColor = Color(0xFFED8936) // Cam
-
-    val gradient = Brush.verticalGradient(
-        colors = listOf(primaryColor, Color(0xFF1A365D))
-    )
+    // Màu sắc theo UI trong ảnh - CẬP NHẬT THEO ẢNH
+    val backgroundColor = Color(0xFFF5F7FA) // Nền xám nhạt
+    val cardColor = Color.White // Màu thẻ trắng
+    val primaryColor = Color(0xFF4A6FA5) // Xanh dương từ UI (giống HomeScreen)
+    val textPrimary = Color(0xFF333333) // Đen nhạt
+    val textSecondary = Color(0xFF666666) // Xám đậm
+    val gridLineColor = Color(0xFFE0E0E0) // Màu lưới xám nhạt
+    val chartBarColor = Color(0xFF4A6FA5) // Xanh dương cho cột biểu đồ
+    val selectedBarColor = Color(0xFF2E8B57) // Xanh lá đậm
+    val redColor = Color(0xFFE74C3C) // Đỏ cho giảm %
+    val greenColor = Color(0xFF2ECC71) // Xanh lá cho tăng %
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        languageViewModel.getTranslation("financial_fluctuations"),
+                        languageViewModel.getTranslation("statistics"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = languageViewModel.getTranslation("back"),
-                            tint = Color.White
-                        )
-                    }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = primaryColor,
@@ -121,33 +116,25 @@ fun StatisticsScreen(
                     transactions = transactions,
                     primaryColor = primaryColor,
                     textPrimary = textPrimary,
-                    accentColor = accentColor
+                    accentColor = primaryColor
                 )
             }
 
-            // Biểu đồ biến động - CHỈ HIỂN THỊ 2 NĂM KHI CHỌN YEARLY
+            // Biểu đồ chi tiết với UI giống ảnh
             item {
-                if (selectedTimeRange == "yearly") {
-                    YearlyComparisonChart(
-                        dataType = selectedDataType,
-                        transactions = transactions,
-                        primaryColor = primaryColor,
-                        secondaryColor = secondaryColor,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        backgroundColor = backgroundColor
-                    )
-                } else {
-                    TrendChartSection(
-                        dataType = selectedDataType,
-                        timeRange = selectedTimeRange,
-                        transactions = transactions,
-                        primaryColor = primaryColor,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        backgroundColor = backgroundColor
-                    )
-                }
+                DetailedChartSection(
+                    dataType = selectedDataType,
+                    timeRange = selectedTimeRange,
+                    transactions = transactions,
+                    primaryColor = primaryColor,
+                    accentColor = greenColor,
+                    redColor = redColor,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    gridLineColor = gridLineColor,
+                    chartBarColor = chartBarColor,
+                    selectedBarColor = selectedBarColor
+                )
             }
 
             // So sánh cùng kỳ
@@ -194,7 +181,7 @@ private fun TimeRangeSelector(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 4.dp,
+                elevation = 2.dp,
                 shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
@@ -279,7 +266,7 @@ private fun DataTypeSelector(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 4.dp,
+                elevation = 2.dp,
                 shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
@@ -366,24 +353,24 @@ private fun TotalOverviewCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(24.dp),
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = primaryColor),
-        elevation = CardDefaults.cardElevation(4.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "${languageViewModel.getTranslation("total")} ${getDataTypeDisplayName(dataType, languageViewModel)} ${getTimeRangeText(timeRange, languageViewModel)}",
+                "Tổng ${getDataTypeDisplayName(dataType, languageViewModel)}",
                 fontSize = 16.sp,
-                color = Color.White.copy(0.9f)
+                color = textPrimary
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -392,10 +379,10 @@ private fun TotalOverviewCard(
                 formatCurrency(totalAmount),
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                color = getAmountColorProfessional(dataType, totalAmount, accentColor)
+                color = primaryColor
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -403,13 +390,13 @@ private fun TotalOverviewCard(
                 Text(
                     comparisonText,
                     fontSize = 14.sp,
-                    color = Color.White.copy(0.8f)
+                    color = textPrimary
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     Icons.Default.Info,
                     contentDescription = languageViewModel.getTranslation("info"),
-                    tint = Color.White.copy(0.8f),
+                    tint = textPrimary,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -418,538 +405,269 @@ private fun TotalOverviewCard(
 }
 
 @Composable
-private fun YearlyComparisonChart(
-    dataType: String,
-    transactions: List<Transaction>,
-    primaryColor: Color,
-    secondaryColor: Color,
-    textPrimary: Color,
-    textSecondary: Color,
-    backgroundColor: Color
-) {
-    val languageViewModel = LocalLanguageViewModel.current
-
-    // LẤY DỮ LIỆU 2 NĂM GẦN NHẤT
-    val yearlyData = getTwoYearData(dataType, transactions, languageViewModel)
-    val maxAmount = yearlyData.maxOfOrNull { it.amount } ?: 0.0
-    val maxChartValue = if (maxAmount > 0) maxAmount * 1.2 else 100000.0
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(20.dp),
-                clip = true
-            ),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Text(
-                languageViewModel.getTranslation("yearly_comparison"),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (yearlyData.all { it.amount == 0.0 }) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(backgroundColor, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            languageViewModel.getTranslation("no_data"),
-                            fontSize = 16.sp,
-                            color = textSecondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            languageViewModel.getTranslation("no_transactions_time_period"),
-                            fontSize = 14.sp,
-                            color = textSecondary
-                        )
-                    }
-                }
-            } else {
-                // BIỂU ĐỒ 2 CỘT CHO 2 NĂM
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            // Trục Y
-                            Column(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .fillMaxHeight(),
-                                verticalArrangement = Arrangement.SpaceBetween,
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                val step = maxChartValue / 4
-                                for (i in 4 downTo 0) {
-                                    val value = (step * i).toInt()
-                                    Text(
-                                        "${value / 1000}",
-                                        fontSize = 12.sp,
-                                        color = textSecondary
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Biểu đồ 2 cột
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            ) {
-                                // Đường lưới ngang
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    repeat(5) {
-                                        Divider(
-                                            color = backgroundColor,
-                                            thickness = 1.dp,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
-
-                                // 2 CỘT CHO 2 NĂM
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = 20.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    yearlyData.forEachIndexed { index, data ->
-                                        val heightRatio = if (maxChartValue > 0) {
-                                            val ratio = data.amount / maxChartValue
-                                            if (data.amount > 0 && ratio < 0.05f) 0.05f else ratio.toFloat()
-                                        } else {
-                                            0f
-                                        }
-
-                                        YearlyChartBar(
-                                            heightRatio = heightRatio,
-                                            label = data.label,
-                                            amount = data.amount,
-                                            isCurrentYear = index == yearlyData.size - 1,
-                                            showAmount = true,
-                                            primaryColor = primaryColor,
-                                            secondaryColor = secondaryColor,
-                                            textPrimary = textPrimary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "(${languageViewModel.getTranslation("thousands")})",
-                            fontSize = 12.sp,
-                            color = textSecondary
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            YearlyComparisonInfo(yearlyData, dataType, primaryColor, secondaryColor, textPrimary, textSecondary)
-        }
-    }
-}
-
-@Composable
-private fun YearlyChartBar(
-    heightRatio: Float,
-    label: String,
-    amount: Double,
-    isCurrentYear: Boolean,
-    showAmount: Boolean = false,
-    primaryColor: Color,
-    secondaryColor: Color,
-    textPrimary: Color
-) {
-    val barColor = if (isCurrentYear) primaryColor else secondaryColor
-    val textColor = if (isCurrentYear) primaryColor else secondaryColor
-    val fontWeight = FontWeight.Bold
-
-    val minHeight = 4.dp
-    val calculatedHeight = (120 * heightRatio).dp
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Bottom
-    ) {
-        // Hiển thị số tiền
-        if (showAmount && amount > 0) {
-            Text(
-                text = formatCurrency(amount),
-                fontSize = 12.sp,
-                color = textColor,
-                fontWeight = fontWeight,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .height(maxOf(calculatedHeight, minHeight))
-                .background(barColor, RoundedCornerShape(8.dp))
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Nhãn năm
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            color = textColor,
-            fontWeight = fontWeight
-        )
-    }
-}
-
-@Composable
-private fun YearlyComparisonInfo(
-    yearlyData: List<ChartData>,
-    dataType: String,
-    primaryColor: Color,
-    secondaryColor: Color,
-    textPrimary: Color,
-    textSecondary: Color
-) {
-    val languageViewModel = LocalLanguageViewModel.current
-
-    if (yearlyData.size >= 2) {
-        val currentYearData = yearlyData.last()
-        val previousYearData = yearlyData.first()
-        val difference = currentYearData.amount - previousYearData.amount
-        val percentage = if (previousYearData.amount != 0.0) {
-            (difference / previousYearData.amount) * 100
-        } else 0.0
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    "${languageViewModel.getTranslation("compared_to_same_period")} ${previousYearData.label}",
-                    fontSize = 14.sp,
-                    color = textSecondary
-                )
-                Text(
-                    "${if (difference >= 0) "+" else ""}${formatCurrency(difference)} (${"%.1f".format(percentage)}%)",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (difference >= 0) secondaryColor else Color(0xFFF56565)
-                )
-            }
-
-            Text(
-                "${currentYearData.label}: ${formatCurrency(currentYearData.amount)}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = getAmountColorProfessional(dataType, currentYearData.amount, Color(0xFFED8936))
-            )
-        }
-    }
-}
-
-@Composable
-private fun TrendChartSection(
+private fun DetailedChartSection(
     dataType: String,
     timeRange: String,
     transactions: List<Transaction>,
     primaryColor: Color,
+    accentColor: Color,
+    redColor: Color,
     textPrimary: Color,
     textSecondary: Color,
-    backgroundColor: Color
+    gridLineColor: Color,
+    chartBarColor: Color,
+    selectedBarColor: Color
 ) {
     val languageViewModel = LocalLanguageViewModel.current
-    val chartData = getRealChartData(dataType, timeRange, transactions, languageViewModel)
-    val maxAmount = chartData.maxOfOrNull { it.amount } ?: 0.0
-    val maxChartValue = if (maxAmount > 0) maxAmount * 1.2 else 100000.0
+
+    // Lấy dữ liệu THẬT theo timeRange
+    val chartData = getChartDataByTimeRange(dataType, timeRange, transactions)
+
+    // Tính toán các chỉ số
+    val currentPeriodTotal = chartData.sumOf { it.amount }
+    val previousPeriodData = getPreviousPeriodData(dataType, timeRange, transactions)
+    val previousPeriodTotal = previousPeriodData.sumOf { it.amount }
+    val percentageChange = if (previousPeriodTotal > 0) {
+        ((currentPeriodTotal - previousPeriodTotal) / previousPeriodTotal * 100)
+    } else 0.0
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(20.dp),
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            Text(
-                languageViewModel.getTranslation("fluctuations"),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary
-            )
+            // Tiêu đề và tổng chi tiêu
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Tổng chi tiêu",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textPrimary
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (chartData.all { it.amount == 0.0 }) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(backgroundColor, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            languageViewModel.getTranslation("no_data"),
-                            fontSize = 16.sp,
-                            color = textSecondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            languageViewModel.getTranslation("no_transactions_time_period"),
-                            fontSize = 14.sp,
-                            color = textSecondary
-                        )
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = formatCurrencyCompact(currentPeriodTotal),
+                        fontSize = 16.sp,
+                        color = textPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (percentageChange >= 0) "▲ ${"%.1f".format(percentageChange)}%"
+                        else "▼ ${"%.1f".format(-percentageChange)}%",
+                        fontSize = 14.sp,
+                        color = if (percentageChange >= 0) accentColor else redColor,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // BIỂU ĐỒ CHI TIẾT
+            if (chartData.isEmpty() || chartData.all { it.amount == 0.0 }) {
+                NoDataPlaceholder(textSecondary = textSecondary)
             } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .fillMaxHeight(),
-                                verticalArrangement = Arrangement.SpaceBetween,
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                val step = maxChartValue / 4
-                                for (i in 4 downTo 0) {
-                                    val value = (step * i).toInt()
-                                    Text(
-                                        "${value / 1000}",
-                                        fontSize = 12.sp,
-                                        color = textSecondary
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    repeat(5) {
-                                        Divider(
-                                            color = backgroundColor,
-                                            thickness = 1.dp,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = 20.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    chartData.forEachIndexed { index, data ->
-                                        val heightRatio = if (maxChartValue > 0) {
-                                            val ratio = data.amount / maxChartValue
-                                            if (data.amount > 0 && ratio < 0.05f) 0.05f else ratio.toFloat()
-                                        } else {
-                                            0f
-                                        }
-                                        ChartBarWithLabel(
-                                            heightRatio = heightRatio,
-                                            label = data.label,
-                                            amount = data.amount,
-                                            isSelected = index == chartData.size - 1,
-                                            showAmount = index == chartData.size - 1,
-                                            primaryColor = primaryColor,
-                                            textPrimary = textPrimary,
-                                            textSecondary = textSecondary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "(${languageViewModel.getTranslation("thousands")})",
-                            fontSize = 12.sp,
-                            color = textSecondary
-                        )
-                    }
-                }
+                DynamicChartVisualization(
+                    chartData = chartData,
+                    primaryColor = primaryColor,
+                    accentColor = accentColor,
+                    redColor = redColor,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    gridLineColor = gridLineColor,
+                    chartBarColor = chartBarColor,
+                    selectedBarColor = selectedBarColor,
+                    timeRange = timeRange
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            ComparisonInfo(dataType, transactions, chartData, textPrimary, textSecondary)
+            // Nút Xem thêm
+            Text(
+                text = "Xem thêm",
+                fontSize = 14.sp,
+                color = primaryColor,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .clickable { /* Xử lý xem thêm */ }
+                    .padding(vertical = 4.dp)
+            )
         }
     }
 }
 
 @Composable
-private fun ChartBarWithLabel(
-    heightRatio: Float,
-    label: String,
-    amount: Double,
-    isSelected: Boolean,
-    showAmount: Boolean = false,
+private fun DynamicChartVisualization(
+    chartData: List<ChartData>,
     primaryColor: Color,
+    accentColor: Color,
+    redColor: Color,
     textPrimary: Color,
-    textSecondary: Color
+    textSecondary: Color,
+    gridLineColor: Color,
+    chartBarColor: Color,
+    selectedBarColor: Color,
+    timeRange: String
 ) {
-    val barColor = if (isSelected) primaryColor else Color(0xFFCBD5E0)
-    val textColor = if (isSelected) primaryColor else textSecondary
-    val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+    // Tìm giá trị lớn nhất để scale trục Y
+    val maxAmount = max(chartData.maxOfOrNull { it.amount } ?: 1.0, 1.0)
 
-    val minHeight = 4.dp
-    val calculatedHeight = (120 * heightRatio).dp
+    // Làm tròn maxAmount lên số đẹp gần nhất (100, 200, 500, 1000, etc)
+    val roundedMaxAmount = roundToNearestNiceNumber(maxAmount)
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Bottom
+    // Tạo các bước cho trục Y (5 bước từ 0 đến roundedMaxAmount)
+    val ySteps = generateNiceYSteps(roundedMaxAmount)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(260.dp)
     ) {
-        if (showAmount && amount > 0) {
-            Text(
-                text = formatCurrency(amount),
-                fontSize = 12.sp,
-                color = textColor,
-                fontWeight = fontWeight,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+        // Trục Y với các giá trị tự động
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(40.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            ySteps.forEach { value ->
+                Text(
+                    text = formatYAxisValue(value, roundedMaxAmount),
+                    fontSize = 12.sp,
+                    color = textSecondary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+            }
         }
 
+        // Biểu đồ chính
         Box(
             modifier = Modifier
-                .width(24.dp)
-                .height(maxOf(calculatedHeight, minHeight))
-                .background(barColor, RoundedCornerShape(4.dp))
-        )
+                .fillMaxSize()
+                .padding(start = 40.dp, top = 8.dp, bottom = 32.dp, end = 8.dp)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val chartHeight = size.height
+                val chartWidth = size.width
 
-        Spacer(modifier = Modifier.height(4.dp))
+                // Tính toán kích thước cột dựa trên số lượng dữ liệu
+                val columnWidth = chartWidth / chartData.size
+                val spacing = columnWidth * 0.2f
+                val actualColumnWidth = columnWidth - spacing
 
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = textColor,
-            fontWeight = fontWeight
-        )
+                // Vẽ đường lưới ngang
+                ySteps.forEach { step ->
+                    val yPosition = chartHeight * (1 - step.toFloat() / roundedMaxAmount.toFloat())
+
+                    drawLine(
+                        color = gridLineColor,
+                        start = Offset(0f, yPosition),
+                        end = Offset(chartWidth, yPosition),
+                        strokeWidth = 1f
+                    )
+                }
+
+                // Vẽ các cột biểu đồ
+                chartData.forEachIndexed { index, dayData ->
+                    // FIX: Chuyển đổi Double sang Float
+                    val columnHeight = (dayData.amount.toFloat() / roundedMaxAmount.toFloat()) * chartHeight
+                    val xPosition = index * columnWidth + spacing / 2
+                    val yPosition = chartHeight - columnHeight
+
+                    // Màu cột: mặc định xanh dương, cột cuối cùng có thể highlight
+                    val barColor = if (index == chartData.size - 1) selectedBarColor else chartBarColor
+
+                    // Vẽ cột với bo góc trên
+                    drawRoundRect(
+                        color = barColor,
+                        topLeft = Offset(xPosition, yPosition),
+                        size = Size(actualColumnWidth, columnHeight),
+                        cornerRadius = CornerRadius(4f, 4f)
+                    )
+
+                    // Vẽ nhãn dưới cột
+                    drawContext.canvas.nativeCanvas.drawText(
+                        dayData.label,
+                        xPosition + actualColumnWidth / 2,
+                        chartHeight + 20f, // FIX: Thêm f
+                        Paint().apply {
+                            color = android.graphics.Color.parseColor("#666666")
+                            textSize = 12f
+                            textAlign = Paint.Align.CENTER
+                            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+                        }
+                    )
+
+                    // Vẽ giá trị trên đầu cột nếu có dữ liệu và cột đủ cao
+                    // FIX: Sửa điều kiện so sánh
+                    if (dayData.amount > 0.0 && columnHeight > 20f) {
+                        drawContext.canvas.nativeCanvas.drawText(
+                            formatCurrencyCompact(dayData.amount),
+                            xPosition + actualColumnWidth / 2,
+                            yPosition - 8f, // FIX: Thêm f
+                            Paint().apply {
+                                color = android.graphics.Color.parseColor("#4A6FA5")
+                                textSize = 10f
+                                textAlign = Paint.Align.CENTER
+                                typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun ComparisonInfo(
-    dataType: String,
-    transactions: List<Transaction>,
-    chartData: List<ChartData>,
-    textPrimary: Color,
-    textSecondary: Color
-) {
+private fun NoDataPlaceholder(textSecondary: Color) {
     val languageViewModel = LocalLanguageViewModel.current
-    val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                languageViewModel.getTranslation("compared_to_same_period"),
+                text = "📊",
+                fontSize = 32.sp
+            )
+            Text(
+                languageViewModel.getTranslation("no_data"),
+                fontSize = 16.sp,
+                color = textSecondary,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                languageViewModel.getTranslation("no_transactions_time_period"),
                 fontSize = 14.sp,
                 color = textSecondary
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                Icons.Default.Info,
-                contentDescription = languageViewModel.getTranslation("info"),
-                tint = textSecondary,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                currentDate,
-                fontSize = 12.sp,
-                color = textSecondary
-            )
-            Text(
-                formatCurrency(chartData.lastOrNull()?.amount ?: 0.0),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = getAmountColorProfessional(dataType, chartData.lastOrNull()?.amount ?: 0.0, Color(0xFFED8936))
             )
         }
     }
@@ -974,11 +692,11 @@ private fun ComparisonSection(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(20.dp),
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -997,7 +715,7 @@ private fun ComparisonSection(
             Spacer(modifier = Modifier.height(16.dp))
 
             ComparisonDataRow(
-                "${getTimeRangeText(timeRange, languageViewModel)} ${languageViewModel.getTranslation("this_year")}",
+                "${getTimeRangeText(timeRange, languageViewModel)} ${if (timeRange == "yearly") "" else languageViewModel.getTranslation("this_year")}",
                 currentData,
                 textPrimary = textPrimary
             )
@@ -1005,7 +723,7 @@ private fun ComparisonSection(
             Spacer(modifier = Modifier.height(12.dp))
 
             ComparisonDataRow(
-                "${getPreviousTimeRangeText(timeRange, languageViewModel)} ${languageViewModel.getTranslation("last_year")}",
+                "${getPreviousTimeRangeText(timeRange, languageViewModel)} ${if (timeRange == "yearly") "" else languageViewModel.getTranslation("last_year")}",
                 previousData,
                 textPrimary = textPrimary
             )
@@ -1054,11 +772,11 @@ private fun CategoryAnalysisSection(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(20.dp),
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -1081,31 +799,6 @@ private fun CategoryAnalysisSection(
             } else {
                 CategoryAnalysisContent(dataType, transactions, languageViewModel, textPrimary, textSecondary)
             }
-        }
-    }
-}
-
-@Composable
-private fun NoDataPlaceholder(textSecondary: Color) {
-    val languageViewModel = LocalLanguageViewModel.current
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(100.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                languageViewModel.getTranslation("no_data"),
-                fontSize = 16.sp,
-                color = textSecondary
-            )
-            Text(
-                languageViewModel.getTranslation("no_transactions_time_period"),
-                fontSize = 14.sp,
-                color = textSecondary
-            )
         }
     }
 }
@@ -1190,7 +883,7 @@ private fun CategoryAnalysisRow(category: CategoryAmount, textPrimary: Color) {
     }
 }
 
-// ==================== UTILITY FUNCTIONS ====================
+// ==================== HÀM TIỆN ÍCH MỚI ====================
 
 // Data classes
 data class ChartData(
@@ -1203,147 +896,177 @@ data class CategoryAmount(
     val amount: Double
 )
 
-// HÀM LẤY DỮ LIỆU 2 NĂM
-private fun getTwoYearData(
-    dataType: String,
-    transactions: List<Transaction>,
-    languageViewModel: LanguageViewModel
-): List<ChartData> {
-    val yearlyData = mutableListOf<ChartData>()
-    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-
-    // CHỈ LẤY 2 NĂM: năm trước và năm nay
-    for (i in 1 downTo 0) {
-        val targetYear = currentYear - i
-
-        val yearTransactions = transactions.filter { transaction ->
-            val transactionDate = parseDate(transaction.date)
-            val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
-            transactionCalendar.get(Calendar.YEAR) == targetYear
-        }
-
-        val amount = calculateAmountForDataType(yearTransactions, dataType)
-
-        val label = if (i == 0) {
-            languageViewModel.getTranslation("this_year")
-        } else {
-            targetYear.toString()
-        }
-
-        yearlyData.add(ChartData(amount, label))
-    }
-
-    return yearlyData
-}
-
-private fun getRealChartData(
+// Lấy dữ liệu biểu đồ theo timeRange
+private fun getChartDataByTimeRange(
     dataType: String,
     timeRange: String,
-    transactions: List<Transaction>,
-    languageViewModel: LanguageViewModel
+    transactions: List<Transaction>
 ): List<ChartData> {
     return when (timeRange) {
-        "monthly" -> getMonthlyData(dataType, transactions, languageViewModel)
-        "weekly" -> getWeeklyData(dataType, transactions, languageViewModel)
-        "yearly" -> getTwoYearData(dataType, transactions, languageViewModel) // Sử dụng hàm 2 năm
-        else -> emptyList()
+        "weekly" -> getLastNDaysData(dataType, transactions, 7) // 7 ngày gần nhất
+        "monthly" -> getLastNDaysData(dataType, transactions, 30) // 30 ngày gần nhất
+        "yearly" -> getMonthlyDataForYear(dataType, transactions) // 12 tháng trong năm
+        else -> getLastNDaysData(dataType, transactions, 7)
     }
 }
 
-private fun getMonthlyData(
+// Lấy dữ liệu N ngày gần nhất
+private fun getLastNDaysData(
     dataType: String,
     transactions: List<Transaction>,
-    languageViewModel: LanguageViewModel
+    days: Int
 ): List<ChartData> {
-    val monthlyData = mutableListOf<ChartData>()
-
+    val result = mutableListOf<ChartData>()
     val calendar = Calendar.getInstance()
-    val currentMonth = calendar.get(Calendar.MONTH)
-    val currentYear = calendar.get(Calendar.YEAR)
+    val dateFormat = if (days <= 30) SimpleDateFormat("dd/M", Locale.getDefault())
+    else SimpleDateFormat("dd/MM", Locale.getDefault())
 
-    for (i in 5 downTo 0) {
-        val targetMonth = (currentMonth - i + 12) % 12
-        val targetYear = if (currentMonth - i < 0) currentYear - 1 else currentYear
+    for (i in days - 1 downTo 0) {
+        calendar.time = Date()
+        calendar.add(Calendar.DAY_OF_YEAR, -i)
+        val date = calendar.time
+        val dateKey = dateFormat.format(date)
 
-        val monthTransactions = transactions.filter { transaction ->
-            val transactionDate = parseDate(transaction.date)
-            val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
-            transactionCalendar.get(Calendar.MONTH) == targetMonth &&
-                    transactionCalendar.get(Calendar.YEAR) == targetYear
-        }
-
-        val amount = calculateAmountForDataType(monthTransactions, dataType)
-
-        val label = if (i == 0) {
-            languageViewModel.getTranslation("this_month")
-        } else {
-            "T${targetMonth + 1}"
-        }
-
-        monthlyData.add(ChartData(amount, label))
-    }
-
-    return monthlyData
-}
-
-private fun getWeeklyData(
-    dataType: String,
-    transactions: List<Transaction>,
-    languageViewModel: LanguageViewModel
-): List<ChartData> {
-    val weeklyData = mutableListOf<ChartData>()
-    val calendar = Calendar.getInstance()
-
-    for (i in 5 downTo 0) {
-        val tempCalendar = calendar.clone() as Calendar
-        tempCalendar.add(Calendar.WEEK_OF_YEAR, -i)
-
-        val weekStart = tempCalendar.clone() as Calendar
-        weekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        weekStart.set(Calendar.HOUR_OF_DAY, 0)
-        weekStart.set(Calendar.MINUTE, 0)
-        weekStart.set(Calendar.SECOND, 0)
-        weekStart.set(Calendar.MILLISECOND, 0)
-
-        val weekEnd = tempCalendar.clone() as Calendar
-        weekEnd.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-        weekEnd.set(Calendar.HOUR_OF_DAY, 23)
-        weekEnd.set(Calendar.MINUTE, 59)
-        weekEnd.set(Calendar.SECOND, 59)
-        weekEnd.set(Calendar.MILLISECOND, 999)
-
-        val isCurrentWeek = i == 0
-
-        val weekTransactions = transactions.filter { transaction ->
+        val dayTransactions = transactions.filter { transaction ->
             try {
                 val transactionDate = parseDate(transaction.date)
-                transactionDate.time in weekStart.timeInMillis..weekEnd.timeInMillis
+                isSameDay(transactionDate, date)
             } catch (e: Exception) {
                 false
             }
         }
 
-        val amount = calculateAmountForDataType(weekTransactions, dataType)
-
-        val label = if (isCurrentWeek) {
-            languageViewModel.getTranslation("this_week")
-        } else {
-            val startMonth = weekStart.get(Calendar.MONTH) + 1
-            val endMonth = weekEnd.get(Calendar.MONTH) + 1
-
-            if (startMonth == endMonth) {
-                "${weekStart.get(Calendar.DAY_OF_MONTH)}-${weekEnd.get(Calendar.DAY_OF_MONTH)}"
-            } else {
-                "${weekStart.get(Calendar.DAY_OF_MONTH)}/${startMonth}-${weekEnd.get(Calendar.DAY_OF_MONTH)}/${endMonth}"
-            }
-        }
-
-        weeklyData.add(ChartData(amount, label))
+        val amount = calculateAmountForDataType(dayTransactions, dataType)
+        result.add(ChartData(amount, dateKey))
     }
 
-    return weeklyData
+    return result
 }
 
+// Lấy dữ liệu theo tháng cho cả năm
+private fun getMonthlyDataForYear(
+    dataType: String,
+    transactions: List<Transaction>
+): List<ChartData> {
+    val result = mutableListOf<ChartData>()
+    val calendar = Calendar.getInstance()
+    val currentYear = calendar.get(Calendar.YEAR)
+    val monthFormat = SimpleDateFormat("MM", Locale.getDefault())
+
+    for (month in 0..11) { // 0-11 cho các tháng
+        val monthTransactions = transactions.filter { transaction ->
+            val transactionDate = parseDate(transaction.date)
+            val transCalendar = Calendar.getInstance().apply { time = transactionDate }
+            transCalendar.get(Calendar.YEAR) == currentYear &&
+                    transCalendar.get(Calendar.MONTH) == month
+        }
+
+        val amount = calculateAmountForDataType(monthTransactions, dataType)
+        result.add(ChartData(amount, "T${month + 1}"))
+    }
+
+    return result
+}
+
+// Lấy dữ liệu kỳ trước để so sánh
+private fun getPreviousPeriodData(
+    dataType: String,
+    timeRange: String,
+    transactions: List<Transaction>
+): List<ChartData> {
+    return when (timeRange) {
+        "weekly" -> getLastNDaysData(dataType, transactions, 7) // Dùng cùng logic, nhưng đây là để so sánh
+        "monthly" -> getLastNDaysData(dataType, transactions, 30)
+        "yearly" -> getPreviousYearMonthlyData(dataType, transactions)
+        else -> emptyList()
+    }
+}
+
+// Lấy dữ liệu tháng của năm trước
+private fun getPreviousYearMonthlyData(
+    dataType: String,
+    transactions: List<Transaction>
+): List<ChartData> {
+    val result = mutableListOf<ChartData>()
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.YEAR, -1)
+    val previousYear = calendar.get(Calendar.YEAR)
+
+    for (month in 0..11) {
+        val monthTransactions = transactions.filter { transaction ->
+            val transactionDate = parseDate(transaction.date)
+            val transCalendar = Calendar.getInstance().apply { time = transactionDate }
+            transCalendar.get(Calendar.YEAR) == previousYear &&
+                    transCalendar.get(Calendar.MONTH) == month
+        }
+
+        val amount = calculateAmountForDataType(monthTransactions, dataType)
+        result.add(ChartData(amount, "T${month + 1}"))
+    }
+
+    return result
+}
+
+private fun roundToNearestNiceNumber(value: Double): Double {
+    if (value <= 0) return 100.0
+
+    // PHƯƠNG PHÁP KHÔNG DÙNG pow
+    var scaledValue = value
+    var scaleFactor = 1.0
+
+    // Nếu giá trị >= 10, chia cho 10 cho đến khi < 10
+    while (scaledValue >= 10.0) {
+        scaledValue /= 10.0
+        scaleFactor *= 10.0
+    }
+
+    // Nếu giá trị < 1 và > 0, nhân cho 10 cho đến khi >= 1
+    while (scaledValue < 1.0 && scaledValue > 0) {
+        scaledValue *= 10.0
+        scaleFactor /= 10.0
+    }
+
+    // Làm tròn lên số đẹp gần nhất: 1, 2, 5, hoặc 10
+    val niceFraction = when {
+        scaledValue <= 1.0 -> 1.0
+        scaledValue <= 2.0 -> 2.0
+        scaledValue <= 5.0 -> 5.0
+        else -> 10.0
+    }
+
+    return niceFraction * scaleFactor
+}
+
+// Tạo các bước đẹp cho trục Y
+private fun generateNiceYSteps(maxValue: Double): List<Double> {
+    val steps = mutableListOf<Double>()
+    val step = maxValue / 4 // 5 điểm (0, 1/4, 2/4, 3/4, 4/4)
+
+    for (i in 0..4) {
+        steps.add(step * i)
+    }
+
+    return steps
+}
+
+// Format giá trị trục Y
+private fun formatYAxisValue(value: Double, maxValue: Double): String {
+    return when {
+        maxValue >= 1000000 -> String.format("%.1fM", value / 1000000)
+        maxValue >= 1000 -> String.format("%.0fK", value / 1000)
+        else -> String.format("%.0f", value)
+    }
+}
+
+// Kiểm tra hai ngày có cùng ngày không
+private fun isSameDay(date1: Date, date2: Date): Boolean {
+    val cal1 = Calendar.getInstance().apply { time = date1 }
+    val cal2 = Calendar.getInstance().apply { time = date2 }
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+}
+
+// Các hàm tiện ích cũ (giữ nguyên)
 private fun parseDate(dateString: String): Date {
     return try {
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateString) ?: Date()
@@ -1471,18 +1194,17 @@ private fun getComparisonTitle(timeRange: String, languageViewModel: LanguageVie
 
 private fun getDataTypeDisplayName(dataType: String, languageViewModel: LanguageViewModel): String {
     return when (dataType) {
-        "income" -> languageViewModel.getTranslation("income")
-        "expense" -> languageViewModel.getTranslation("spending")
-        "difference" -> languageViewModel.getTranslation("difference")
+        "income" -> "thu nhập"
+        "expense" -> "chi tiêu"
+        "difference" -> "chênh lệch"
         else -> ""
     }
 }
 
-private fun getAmountColorProfessional(dataType: String, amount: Double, accentColor: Color): Color {
-    return when (dataType) {
-        "income" -> Color(0xFF2E8B57) // Xanh lá đậm
-        "expense" -> Color(0xFFDC2626) // Đỏ đậm chuyên nghiệp
-        "difference" -> if (amount >= 0) Color(0xFF2E8B57) else Color(0xFFDC2626)
-        else -> Color.White
+private fun formatCurrencyCompact(amount: Double): String {
+    return when {
+        amount >= 1000000 -> String.format("%.1fM", amount / 1000000)
+        amount >= 1000 -> String.format("%.0fK", amount / 1000)
+        else -> String.format("%.0f", amount)
     }
 }

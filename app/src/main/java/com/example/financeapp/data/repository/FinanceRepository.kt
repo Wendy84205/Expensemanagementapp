@@ -3,7 +3,7 @@ package com.example.financeapp
 import android.app.Application
 import android.util.Log
 import com.example.financeapp.data.FinancialData
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.data.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query

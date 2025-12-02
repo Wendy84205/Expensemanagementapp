@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.navigation
 
 import android.app.Activity
 import androidx.compose.runtime.collectAsState
@@ -12,30 +12,34 @@ import androidx.navigation.compose.composable
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.financeapp.screen.AccountSettingsScreen
-import com.example.financeapp.screen.AddBudgetScreen
-import com.example.financeapp.screen.AddCategoryScreen
-import com.example.financeapp.screen.AddRecurringExpenseScreen
-import com.example.financeapp.screen.AddTransactionScreen
+import com.example.financeapp.screen.main.budget.AddBudgetScreen
+import com.example.financeapp.screen.features.category.AddCategoryScreen
+import com.example.financeapp.screen.features.recurring.AddRecurringExpenseScreen
+import com.example.financeapp.screen.main.transaction.AddTransactionScreen
 import com.example.financeapp.screen.auth.AuthScreen
-import com.example.financeapp.screen.BudgetScreen
-import com.example.financeapp.screen.CalendarScreen
-import com.example.financeapp.screen.CategoryScreen
+import com.example.financeapp.screen.main.budget.BudgetScreen
+import com.example.financeapp.screen.features.CalendarScreen
+import com.example.financeapp.screen.features.category.CategoryScreen
 import com.example.financeapp.screen.ExtensionsScreen
 import com.example.financeapp.screen.HomeScreen
 import com.example.financeapp.screen.LanguageSettingsScreen
-import com.example.financeapp.screen.RecurringExpenseScreen
+import com.example.financeapp.screen.features.recurring.RecurringExpenseScreen
 import com.example.financeapp.screen.auth.RegisterScreen
 import com.example.financeapp.screen.SettingsScreen
-import com.example.financeapp.screen.StatisticsScreen
-import com.example.financeapp.screen.TransactionScreen
+import com.example.financeapp.screen.main.statistics.StatisticsScreen
+import com.example.financeapp.screen.main.transaction.TransactionScreen
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.auth.AuthViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
-import com.example.financeapp.viewmodel.LanguageViewModel
-import com.example.financeapp.viewmodel.RecurringExpenseViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
+import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
+import com.example.financeapp.screen.settings.HelpScreen
+import com.example.financeapp.components.ui.CategorySelectionScreen
+import com.example.financeapp.screen.features.ChatAIScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
 
 @Composable
 fun NavGraph(
@@ -45,7 +49,7 @@ fun NavGraph(
     aiViewModel: AIViewModel,
     activity: Activity,
     languageViewModel: LanguageViewModel,
-    categoryViewModel: com.example.financeapp.viewmodel.CategoryViewModel,
+    categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel,
     recurringExpenseViewModel: RecurringExpenseViewModel,
     budgetViewModel: BudgetViewModel
 ) {

@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.main.budget
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -35,8 +35,8 @@ import androidx.core.graphics.toColorInt
 import com.example.financeapp.data.Budget
 import com.example.financeapp.data.BudgetPeriodType
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
-import com.example.financeapp.viewmodel.Category
-import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.viewmodel.transaction.Category
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.data.calculateBudgetEndDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -191,7 +191,7 @@ private fun AddBudgetFormContent(
     modifier: Modifier = Modifier,
     categories: List<Category>,
     selectedCategory: Category?,
-    onCategorySelected: (com.example.financeapp.viewmodel.Category) -> Unit,
+    onCategorySelected: (com.example.financeapp.viewmodel.transaction.Category) -> Unit,
     amount: String,
     onAmountChange: (String) -> Unit,
     selectedPeriod: BudgetPeriodType,
@@ -410,9 +410,9 @@ private fun AddBudgetFormContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BudgetCategorySelectionBottomSheet(
-    categories: List<com.example.financeapp.viewmodel.Category>,
-    selectedCategory: com.example.financeapp.viewmodel.Category?,
-    onCategorySelected: (com.example.financeapp.viewmodel.Category) -> Unit,
+    categories: List<com.example.financeapp.viewmodel.transaction.Category>,
+    selectedCategory: com.example.financeapp.viewmodel.transaction.Category?,
+    onCategorySelected: (com.example.financeapp.viewmodel.transaction.Category) -> Unit,
     onDismiss: () -> Unit,
     primaryColor: Color,
     backgroundColor: Color
@@ -458,7 +458,7 @@ private fun BudgetCategorySelectionBottomSheet(
 
 @Composable
 private fun CategorySelectionItem(
-    category: com.example.financeapp.viewmodel.Category,
+    category: com.example.financeapp.viewmodel.transaction.Category,
     isSelected: Boolean,
     onClick: () -> Unit,
     primaryColor: Color
@@ -544,7 +544,7 @@ private fun CategorySelectionItem(
 
 @Composable
 private fun CategorySelectionCard(
-    selectedCategory: com.example.financeapp.viewmodel.Category?,
+    selectedCategory: com.example.financeapp.viewmodel.transaction.Category?,
     onClick: () -> Unit,
     primaryColor: Color,
     textColor: Color,

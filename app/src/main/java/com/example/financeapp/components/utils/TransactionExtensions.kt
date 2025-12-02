@@ -1,6 +1,6 @@
 package com.example.financeapp
 
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.data.TransactionData
 
 // Extension function để convert TransactionData sang Transaction

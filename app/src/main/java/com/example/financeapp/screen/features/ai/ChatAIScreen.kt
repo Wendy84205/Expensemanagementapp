@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.screen.features
 
 import android.os.Build
 import androidx.annotation.RequiresApi

@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.features.recurring
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,9 +24,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.model.RecurringExpense
 import com.example.financeapp.model.RecurringFrequency
-import com.example.financeapp.viewmodel.RecurringExpenseViewModel
+import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import androidx.core.graphics.toColorInt
-import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.screen.features.formatCurrency
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

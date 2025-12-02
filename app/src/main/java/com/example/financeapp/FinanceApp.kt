@@ -3,14 +3,15 @@ package com.example.financeapp
 import android.app.Application
 import androidx.lifecycle.ViewModelProvider
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
-import com.example.financeapp.viewmodel.RecurringExpenseViewModel
+import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 
 /**
  * Application toàn cục để chia sẻ ViewModel cho AI.
  */
 class FinanceApp : Application() {
-    val categoryViewModel: com.example.financeapp.viewmodel.CategoryViewModel by lazy { _root_ide_package_.com.example.financeapp.viewmodel.CategoryViewModel() }
+    val categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel by lazy { _root_ide_package_.com.example.financeapp.viewmodel.transaction.CategoryViewModel() }
     lateinit var transactionViewModel: TransactionViewModel
     lateinit var budgetViewModel: BudgetViewModel
     lateinit var recurringExpenseViewModel: RecurringExpenseViewModel

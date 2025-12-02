@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.viewmodel.auth
 
 import android.app.Activity
 import android.util.Log

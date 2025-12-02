@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.main.budget
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -25,12 +25,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.data.Budget
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
-import com.example.financeapp.viewmodel.Category
-import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.viewmodel.transaction.Category
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.data.getDisplayName
 import com.example.financeapp.data.isOverBudget
 import com.example.financeapp.data.progressPercentage
 import com.example.financeapp.data.remainingAmount
+import com.example.financeapp.screen.features.formatCurrency
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,4 +1,4 @@
-package com.example.financeapp.viewmodel
+package com.example.financeapp.viewmodel.settings
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +42,44 @@ class LanguageViewModel : ViewModel() {
             "extensions" to "Tiện ích mở rộng",
             "extra_tools_like_ai_calendar_scan" to "Các công cụ bổ sung như Danh Mục, Ngân Sách, Chi Tiêu Định Kỳ",
 
+            // ========== MỚI: THÊM TỪ HOME SCREEN ==========
+            // HomeScreen specific
+            "greeting" to "Xin chào",
+            "user" to "Người dùng",
+            "monthly_spending_title" to "Số tiền bạn đã chi trong tháng",
+            "view_details" to "Xem chi tiết",
+            "spent_this_month" to "Số tiền đã chi tiêu trong tháng này",
+            "classification_by_type" to "Chi theo phân loại",
+            "recent_transactions" to "Giao dịch gần đây",
+            "view_all" to "Xem tất cả",
+            "income" to "Thu",
+            "expense" to "Chi",
+            "no_recent_transactions" to "Bạn chưa có giao dịch gần đây",
+            "create_transaction" to "Tạo giao dịch",
+            "overview" to "Tổng quan",
+            "this_month" to "Tháng này",
+            "spending_limit" to "Hạn mức chi tiêu",
+            "create_or_select_fund_for_limit" to "Tạo hoặc lựa chọn quỹ tiết kiệm",
+            "limit_description" to "để chúng tôi tính toán hạn mức chi tiêu",
+            "select_or_create_fund" to "Lựa chọn / Tạo quỹ tiết kiệm",
+            "no_chart_data" to "Chưa có dữ liệu biểu đồ",
+            "spending_by_category" to "Chi theo phân loại", // Mới
+            "daily_spending" to "Chi tiêu hằng ngày", // Mới
+            "savings_fund" to "Tiền sâu TH", // Mới
+            "needs" to "Cần thiết", // Mới
+            "training" to "Đào tạo", // Mới
+            "entertainment" to "Hoan hỉ", // Mới
+            "savings" to "Tiết kiệm", // Mới
+            "self_care" to "Tự thẩm", // Mới
+            "free_spending" to "Tự do", // Mới
+            "limit" to "Hạn mức", // Mới
+            "spent" to "Đã tiêu", // Mới
+            "see_more" to "Xem thêm", // Mới
+            "monthly_spending_total" to "Số tiền đã chi tiêu trong tháng", // Mới
+            "transactions" to "Giao dịch", // Mới cho bottom nav
+            "profile" to "Cá nhân", // Mới cho bottom nav
+            // =============================================
+
             // Main navigation
             "home" to "Trang chủ",
             "statistics" to "Thống kê",
@@ -51,9 +89,8 @@ class LanguageViewModel : ViewModel() {
             "settings" to "Cài đặt",
             "account" to "Tài khoản",
 
-            // HomeScreen
+            // HomeScreen (phần cũ - giữ lại cho tương thích)
             "greeting" to "Xin chào 👋",
-            "user" to "Người dùng",
             "total_balance" to "Tổng số dư",
             "need_attention" to "Cần chú ý",
             "stable" to "Ổn định",
@@ -68,8 +105,6 @@ class LanguageViewModel : ViewModel() {
             "pie_chart" to "Biểu đồ tròn",
             "no_data" to "Chưa có dữ liệu để hiển thị",
             "no_spending_data" to "Chưa có dữ liệu chi tiêu để hiển thị",
-            "recent_transactions" to "Giao dịch gần đây",
-            "view_all" to "Xem tất cả",
             "no_transactions" to "Chưa có giao dịch nào",
             "reset_password" to "Thay đổi mật khẩu",
             "time_range" to "Khoảng thời gian",
@@ -118,7 +153,6 @@ class LanguageViewModel : ViewModel() {
 
             // Calendar Screen
             "calendar" to "Lịch",
-            "this_month" to "Tháng này",
             "difference" to "Chênh lệch",
             "transaction_list" to "Danh sách giao dịch",
             "select_other_day" to "Chọn ngày khác để xem giao dịch",
@@ -194,7 +228,6 @@ class LanguageViewModel : ViewModel() {
             "add_transaction" to "Thêm giao dịch",
             "total_income" to "Tổng thu",
             "total_expense" to "Tổng chi",
-            "this_month" to "Tháng này",
             "this_week" to "Tuần này",
             "this_year" to "Năm nay",
             "trend_analysis" to "Phân tích xu hướng",
@@ -221,20 +254,9 @@ class LanguageViewModel : ViewModel() {
             "notifications" to "Thông báo",
             "enable_disable_notifications" to "Bật / tắt thông báo",
             "theme_mode" to "Chế độ giao diện",
-            "help_support" to "Trợ giúp & Hỗ trợ",
-            "faq" to "Câu hỏi thường gặp",
             "about_app" to "Về ứng dụng",
             "sign_out" to "Đăng xuất",
             "logout_account" to "Thoát khỏi tài khoản của bạn",
-            "extensions" to "Tiện ích mở rộng",
-            "manage_tools" to "Quản lý tiện ích",
-            "expense_categories" to "Danh mục chi tiêu",
-            "customize_spending_categories" to "Tùy chỉnh danh mục chi tiêu",
-            "budgets" to "Ngân sách",
-            "set_and_track_monthly_budget" to "Đặt và theo dõi ngân sách hàng tháng",
-            "update_success" to "Cập nhật thành công",
-            "saving" to "Đang lưu...",
-            "save_changes" to "Lưu thay đổi",
 
             // StatisticsScreen
             "financial_fluctuations" to "Biến động thu chi",
@@ -245,7 +267,6 @@ class LanguageViewModel : ViewModel() {
             "data_type_expense" to "Chi tiêu",
             "data_type_difference" to "Chênh lệch",
             "fluctuations" to "Biến động",
-            "category_analysis" to "Phân tích danh mục",
             "compared_to_same_period" to "So với cùng kỳ",
             "same_period_as" to "Bằng cùng kỳ",
             "sub_category" to "Danh mục con",
@@ -256,7 +277,6 @@ class LanguageViewModel : ViewModel() {
             "last_week" to "tuần trước",
             "last_month" to "tháng trước",
             "last_year" to "năm trước",
-            "difference" to "Chênh lệch",
 
             "balance" to "Số dư",
             "current_balance" to "Số dư hiện tại",
@@ -269,7 +289,6 @@ class LanguageViewModel : ViewModel() {
             "account_info" to "Thông tin tài khoản",
             "update_personal_info" to "Cập nhật thông tin cá nhân",
             "full_name" to "Họ và tên",
-            "email" to "Email",
             "phone_number" to "Số điện thoại",
             "read_only" to "Chỉ đọc",
             "update_success" to "Cập nhật thành công",
@@ -288,7 +307,6 @@ class LanguageViewModel : ViewModel() {
             "email_password" to "Email/Mật khẩu",
             "google" to "Google",
             "facebook" to "Facebook",
-            "phone" to "Số điện thoại",
 
             // Category Management
             "create_category" to "Tạo danh mục",
@@ -347,7 +365,6 @@ class LanguageViewModel : ViewModel() {
             "available_balance" to "Available Balance",
             "remaining_balance" to "Remaining Balance",
             "calendar" to "Calendar",
-            "this_month" to "This Month",
             "difference" to "Difference",
             "transaction_list" to "Transaction List",
             "select_other_day" to "Select another day to view transactions",
@@ -355,6 +372,44 @@ class LanguageViewModel : ViewModel() {
             "next_month" to "Next Month",
             "extensions" to "Extensions",
             "extra_tools_like_ai_calendar_scan" to "Extra tools like Category, Budget, Any Spend",
+
+            // ========== MỚI: THÊM TỪ HOME SCREEN ==========
+            // HomeScreen specific
+            "greeting" to "Hello",
+            "user" to "User",
+            "monthly_spending_title" to "Your monthly spending",
+            "view_details" to "View details",
+            "spent_this_month" to "Amount spent this month",
+            "classification_by_type" to "Spending by category",
+            "recent_transactions" to "Recent transactions",
+            "view_all" to "View all",
+            "income" to "Income",
+            "expense" to "Expense",
+            "no_recent_transactions" to "No recent transactions",
+            "create_transaction" to "Create transaction",
+            "overview" to "Overview",
+            "this_month" to "This month",
+            "spending_limit" to "Spending limit",
+            "create_or_select_fund_for_limit" to "Create or select savings fund",
+            "limit_description" to "to help calculate spending limit",
+            "select_or_create_fund" to "Select / Create fund",
+            "no_chart_data" to "No chart data",
+            "spending_by_category" to "Spending by category", // Mới
+            "daily_spending" to "Daily spending", // Mới
+            "savings_fund" to "Savings fund", // Mới
+            "needs" to "Necessary", // Mới
+            "training" to "Training", // Mới
+            "entertainment" to "Entertainment", // Mới
+            "savings" to "Savings", // Mới
+            "self_care" to "Self-care", // Mới
+            "free_spending" to "Free spending", // Mới
+            "limit" to "Limit", // Mới
+            "spent" to "Spent", // Mới
+            "see_more" to "See more", // Mới
+            "monthly_spending_total" to "Monthly spending total", // Mới
+            "transactions" to "Transactions", // Mới cho bottom nav
+            "profile" to "Profile", // Mới cho bottom nav
+            // =============================================
 
             // Days of week (short)
             "monday_short" to "Mon",
@@ -439,9 +494,8 @@ class LanguageViewModel : ViewModel() {
             "settings" to "Settings",
             "account" to "Account",
 
-            // HomeScreen
+            // HomeScreen (phần cũ - giữ lại cho tương thích)
             "greeting" to "Hello 👋",
-            "user" to "User",
             "total_balance" to "Total balance",
             "need_attention" to "Need attention",
             "stable" to "Stable",
@@ -456,8 +510,6 @@ class LanguageViewModel : ViewModel() {
             "pie_chart" to "Pie chart",
             "no_data" to "No data to display",
             "no_spending_data" to "No spending data to display",
-            "recent_transactions" to "Recent transactions",
-            "view_all" to "View all",
             "no_transactions" to "No transactions",
 
             // TransactionScreen
@@ -536,7 +588,6 @@ class LanguageViewModel : ViewModel() {
             "add_transaction" to "Add transaction",
             "total_income" to "Total income",
             "total_expense" to "Total expense",
-            "this_month" to "This month",
             "this_week" to "This week",
             "this_year" to "This year",
             "trend_analysis" to "Trend analysis",
@@ -547,8 +598,6 @@ class LanguageViewModel : ViewModel() {
             "notifications" to "Notifications",
             "enable_disable_notifications" to "Enable / disable notifications",
             "theme_mode" to "Theme mode",
-            "help_support" to "Help & Support",
-            "faq" to "FAQ",
             "about_app" to "About app",
             "sign_out" to "Sign out",
             "logout_account" to "Log out of your account",
@@ -573,7 +622,6 @@ class LanguageViewModel : ViewModel() {
             "last_week" to "last week",
             "last_month" to "last month",
             "last_year" to "last year",
-            "difference" to "Difference",
             "extensions" to "Extensions",
             "manage_tools" to "Manage Tools",
             "expense_categories" to "Expense Categories",

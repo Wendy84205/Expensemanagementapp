@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.example.financeapp.viewmodel.LanguageViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.LocalLanguageViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest

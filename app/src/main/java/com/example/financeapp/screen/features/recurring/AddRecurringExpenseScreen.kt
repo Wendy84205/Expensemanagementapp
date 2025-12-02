@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.features.recurring
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,11 +27,11 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.financeapp.viewmodel.Category
-import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.viewmodel.transaction.Category
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.model.RecurringExpense
 import com.example.financeapp.model.RecurringFrequency
-import com.example.financeapp.viewmodel.RecurringExpenseViewModel
+import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -392,7 +392,7 @@ private fun EnhancedTitleAmountSection(
 private fun EnhancedCategorySelectionSection(
     categories: List<Category>,
     selectedCategory: Category?,
-    onCategorySelected: (com.example.financeapp.viewmodel.Category) -> Unit
+    onCategorySelected: (com.example.financeapp.viewmodel.transaction.Category) -> Unit
 ) {
     Column {
         Text(
@@ -430,7 +430,7 @@ private fun EnhancedCategorySelectionSection(
 
 @Composable
 private fun EnhancedCategoryChip(
-    category: com.example.financeapp.viewmodel.Category,
+    category: com.example.financeapp.viewmodel.transaction.Category,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -479,7 +479,7 @@ private fun EnhancedCategoryChip(
 }
 
 @Composable
-private fun SelectedCategoryPreview(category: com.example.financeapp.viewmodel.Category) {
+private fun SelectedCategoryPreview(category: com.example.financeapp.viewmodel.transaction.Category) {
     Card(
         modifier = Modifier
             .fillMaxWidth()

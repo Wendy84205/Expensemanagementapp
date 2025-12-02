@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.features.category
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,8 +21,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.financeapp.viewmodel.Category
-import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.viewmodel.transaction.Category
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.LocalLanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

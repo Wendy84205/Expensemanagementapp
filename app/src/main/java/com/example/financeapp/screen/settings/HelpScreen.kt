@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.screen.settings
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.financeapp.LocalLanguageViewModel
 
 // 🎨 Màu theo HomeScreen
 private val Navy = Color(0xFF0F4C75)

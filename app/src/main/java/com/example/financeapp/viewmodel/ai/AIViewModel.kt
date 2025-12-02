@@ -11,11 +11,11 @@ import com.example.financeapp.data.Budget
 import com.example.financeapp.data.BudgetPeriodType
 import com.example.financeapp.BuildConfig
 import com.example.financeapp.FinanceApp
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.data.getDisplayName
 import com.example.financeapp.data.isOverBudget
-import com.example.financeapp.viewmodel.CategoryViewModel
-import com.example.financeapp.viewmodel.RecurringExpenseViewModel
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
+import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.google.ai.client.generativeai.GenerativeModel

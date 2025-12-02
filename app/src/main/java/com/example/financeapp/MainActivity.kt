@@ -10,13 +10,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.models.Transaction
+import com.example.financeapp.navigation.NavGraph
 import com.example.financeapp.screen.UserSession
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.auth.AuthViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
-import com.example.financeapp.viewmodel.LanguageViewModel
-import com.example.financeapp.viewmodel.RecurringExpenseViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
+import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -32,7 +33,7 @@ class MainActivity : ComponentActivity() {
     private val aiViewModel: AIViewModel by viewModels()
 
     private val budgetViewModel: BudgetViewModel by viewModels()
-    private val categoryViewModel: com.example.financeapp.viewmodel.CategoryViewModel by viewModels()
+    private val categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel by viewModels()
     private val recurringExpenseViewModel: RecurringExpenseViewModel by viewModels()
 
     private lateinit var userPrefs: UserPreferencesDataStore

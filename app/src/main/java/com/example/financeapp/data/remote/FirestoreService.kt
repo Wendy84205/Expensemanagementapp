@@ -1,6 +1,6 @@
 package com.example.financeapp
 
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.models.Transaction
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase

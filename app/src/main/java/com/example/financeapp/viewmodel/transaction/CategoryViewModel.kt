@@ -1,4 +1,4 @@
-package com.example.financeapp.viewmodel
+package com.example.financeapp.viewmodel.transaction
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

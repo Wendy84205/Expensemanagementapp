@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.main.transaction
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,9 +30,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
-import com.example.financeapp.viewmodel.Category
-import com.example.financeapp.viewmodel.CategoryViewModel
-import com.example.financeapp.data.Transaction
+import com.example.financeapp.viewmodel.transaction.Category
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
+import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import com.example.financeapp.components.BottomNavBar
 import com.example.financeapp.getAppColors
@@ -50,10 +51,45 @@ fun TransactionScreen(
     budgetViewModel: BudgetViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-    val transactions by transactionViewModel.transactions.collectAsState()
+    val allTransactions by transactionViewModel.transactions.collectAsState()
     val categories by categoryViewModel.categories.collectAsState()
     val errorMessage by transactionViewModel.errorMessage.collectAsState()
     val successMessage by transactionViewModel.successMessage.collectAsState()
+
+    // State cho bộ lọc
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var selectedDateFilter by remember { mutableStateOf("Tháng này") }
+
+    // Danh sách date filter options
+    val dateFilterOptions = listOf(
+        "Hôm nay",
+        "Hôm qua",
+        "Tuần này",
+        "Tháng này",
+        "Tháng trước",
+        "Năm nay",
+        "Tất cả"
+    )
+
+    // Lọc transactions dựa trên các tiêu chí
+    val filteredTransactions = remember(
+        allTransactions,
+        selectedDateFilter
+    ) {
+        allTransactions.filter { transaction ->
+            val matchesDate = when (selectedDateFilter) {
+                "Hôm nay" -> isToday(transaction.date)
+                "Hôm qua" -> isYesterday(transaction.date)
+                "Tuần này" -> isThisWeek(transaction.date)
+                "Tháng này" -> isThisMonth(transaction.date)
+                "Tháng trước" -> isLastMonth(transaction.date)
+                "Năm nay" -> isThisYear(transaction.date)
+                else -> true // "Tất cả"
+            }
+
+            matchesDate
+        }
+    }
 
     // ✅ Reload transactions khi vào màn hình để đảm bảo dữ liệu mới nhất
     LaunchedEffect(Unit) {
@@ -68,7 +104,7 @@ fun TransactionScreen(
     }
 
     // ✅ Reload summary data khi transactions thay đổi
-    LaunchedEffect(transactions.size) {
+    LaunchedEffect(allTransactions.size) {
         transactionViewModel.refreshTransactions()
     }
 
@@ -120,11 +156,11 @@ fun TransactionScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddTransaction,
-                containerColor = colors.warningColor,
+                containerColor = Color(0xFFED8936), // Màu cam theo UI
                 shape = CircleShape,
                 elevation = FloatingActionButtonDefaults.elevation(12.dp),
             ) {
-                Icon(Icons.Default.Add, contentDescription = addTransactionText, tint = colors.onPrimary)
+                Icon(Icons.Default.Add, contentDescription = addTransactionText, tint = Color.White)
             }
         },
         bottomBar = { BottomNavBar(navController = navController) },
@@ -151,8 +187,8 @@ fun TransactionScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        transactionBookText,
-                        color = colors.textPrimary,
+                        "Thu - chi", // Thay đổi theo UI
+                        color = Color(0xFF2D3748),
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -160,22 +196,22 @@ fun TransactionScreen(
                         onClick = { navController.navigate("calendar") },
                         modifier = Modifier
                             .size(42.dp)
-                            .background(colors.surface, CircleShape)
+                            .background(Color.White, CircleShape)
                             .clip(CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.DateRange,
                             contentDescription = "Calendar",
-                            tint = colors.textPrimary
+                            tint = Color(0xFF718096)
                         )
                     }
                 }
 
                 Spacer(Modifier.height(0.dp))
 
-                // Summary Card
+                // Summary Card - Cập nhật theo UI
                 TransactionSummaryCard(
-                    transactions = transactions,
+                    transactions = filteredTransactions,
                     transactionViewModel = transactionViewModel,
                     totalIncomeText = totalIncomeText,
                     totalExpenseText = totalExpenseText,
@@ -189,63 +225,215 @@ fun TransactionScreen(
 
                 Spacer(Modifier.height(20.dp))
 
+                // Row chứa icon filter và text hiển thị filter hiện tại
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Hiển thị bộ lọc hiện tại
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filter",
+                            tint = Color(0xFF718096),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            selectedDateFilter,
+                            color = Color(0xFF718096),
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    // Icon filter để mở bottom sheet
+                    IconButton(
+                        onClick = { showFilterSheet = true },
+                        modifier = Modifier
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Filter Options",
+                            tint = Color(0xFF718096)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
                 // Hiển thị giao dịch hoặc Empty State
-                if (transactions.isEmpty()) {
+                if (filteredTransactions.isEmpty()) {
                     EmptyTransactionState(
                         noTransactionsText = noTransactionsText,
                         noTransactionsDescriptionText = noTransactionsDescriptionText
                     )
                 } else {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 24.dp)
                     ) {
-                        val groupedTransactions = transactions.groupBy { it.date }
+                        val groupedTransactions = filteredTransactions.groupBy { it.date }
                             .toList()
-                            .sortedByDescending { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(it.first) }
+                            .sortedByDescending {
+                                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(it.first) ?: Date()
+                            }
 
                         groupedTransactions.forEach { (date, dailyTransactions) ->
                             item {
                                 Text(
                                     formatDateHeader(date),
-                                    color = colors.textSecondary,
+                                    color = Color(0xFF718096),
                                     fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
                             }
-                            dailyTransactions.forEach { transaction ->
-                                item {
-                                    AnimatedVisibility(
-                                        visible = true,
-                                        enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { it },
-                                        exit = fadeOut(animationSpec = tween(500)) + slideOutVertically(animationSpec = tween(500)) { it }
-                                    ) {
-                                        TransactionListItem(
-                                            transaction = transaction,
-                                            categories = categories,
-                                            onClick = { onTransactionClick(transaction) },
-                                            onDelete = {
-                                                transactionViewModel.deleteTransaction(
-                                                    transactionId = transaction.id,
-                                                    budgetViewModel = budgetViewModel
-                                                )
-                                            },
-                                            noNoteText = noNoteText,
-                                            editText = editText,
-                                            deleteText = deleteText,
-                                            deleteTransactionText = deleteTransactionText,
-                                            deleteConfirmationText = deleteConfirmationText,
-                                            confirmDeleteText = confirmDeleteText,
-                                            cancelText = cancelText
-                                        )
-                                    }
+                            items(dailyTransactions) { transaction ->
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = fadeIn(animationSpec = tween(500)) + slideInVertically(animationSpec = tween(500)) { it },
+                                    exit = fadeOut(animationSpec = tween(500)) + slideOutVertically(animationSpec = tween(500)) { it }
+                                ) {
+                                    TransactionListItem(
+                                        transaction = transaction,
+                                        categories = categories,
+                                        onClick = { onTransactionClick(transaction) },
+                                        onDelete = {
+                                            transactionViewModel.deleteTransaction(
+                                                transactionId = transaction.id,
+                                                budgetViewModel = budgetViewModel
+                                            )
+                                        },
+                                        noNoteText = noNoteText,
+                                        editText = editText,
+                                        deleteText = deleteText,
+                                        deleteTransactionText = deleteTransactionText,
+                                        deleteConfirmationText = deleteConfirmationText,
+                                        confirmDeleteText = confirmDeleteText,
+                                        cancelText = cancelText
+                                    )
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Filter Bottom Sheet
+    if (showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = Color.White,
+            tonalElevation = 8.dp,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 20.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Lọc theo thời gian",
+                        color = Color(0xFF2D3748),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(
+                        onClick = { showFilterSheet = false },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF718096)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Danh sách các tùy chọn lọc
+                Column {
+                    dateFilterOptions.forEach { filter ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedDateFilter = filter
+                                    showFilterSheet = false
+                                }
+                                .padding(vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedDateFilter == filter,
+                                onClick = {
+                                    selectedDateFilter = filter
+                                    showFilterSheet = false
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color(0xFFED8936)
+                                )
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                filter,
+                                color = Color(0xFF4A5568),
+                                fontSize = 16.sp,
+                                fontWeight = if (selectedDateFilter == filter) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+
+                        // Divider giữa các item (trừ item cuối cùng)
+                        if (filter != dateFilterOptions.last()) {
+                            Divider(
+                                color = Color(0xFFE2E8F0),
+                                thickness = 0.5.dp,
+                                modifier = Modifier.padding(start = 48.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Nút áp dụng (nếu muốn giữ lại)
+                Button(
+                    onClick = { showFilterSheet = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFED8936)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        "Áp dụng",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -277,103 +465,86 @@ private fun TransactionSummaryCard(
         totalIncome - totalExpense
     }
 
-    val calendar = Calendar.getInstance()
-    val currentMonth = calendar.get(Calendar.MONTH) + 1
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
+            .padding(horizontal = 24.dp)
+            .shadow(4.dp, RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Layout 2 hàng: Chi tiêu bên trái, Thu nhập bên phải
             Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    "Tình hình thu chi", // Hardcode như trong hình
-                    color = Color(0xFF2D3748),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "Tháng $currentMonth", // Hardcode như trong hình
-                    color = Color(0xFF718096),
-                    fontSize = 12.sp
-                )
-            }
-            Spacer(Modifier.height(16.dp))
+                // Tiền chi (bên trái)
+                Column(
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        "Tiền chi",
+                        color = Color(0xFF718096),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${formatCurrency(totalExpense.toLong())}",
+                        color = Color(0xFFED8936), // Màu cam
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            // Layout 3 cột ngang giống hình
+                // Tiền thu (bên phải)
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        "Tiền thu",
+                        color = Color(0xFF718096),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${formatCurrency(totalIncome.toLong())}",
+                        color = Color(0xFF2E8B57), // Màu xanh lá
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Dấu gạch ngang phân cách
+            Spacer(Modifier.height(12.dp))
+            Divider(
+                color = Color(0xFFE2E8F0),
+                thickness = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+
+            // Tổng cộng (Chênh lệch)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 80.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Cột 1: Chi tiêu
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        "Chi tiêu", // Hardcode như trong hình
-                        color = Color(0xFF718096),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "${formatCurrency(totalExpense)}",
-                        color = Color(0xFFED8936),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Cột 2: Thu nhập
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        "Thu nhập", // Hardcode như trong hình
-                        color = Color(0xFF718096),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "${formatCurrency(totalIncome)}",
-                        color = Color(0xFF2E8B57),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Cột 3: Tổng
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        "Tổng", // Hardcode như trong hình
-                        color = Color(0xFF718096),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "${formatCurrency(difference)}",
-                        color = if(difference >= 0) Color(0xFF2E8B57) else Color(0xFFED8936),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    "Tổng cộng",
+                    color = Color(0xFF2D3748),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "${if (difference >= 0) "+" else ""}${formatCurrency(difference.toLong())}",
+                    color = if (difference >= 0) Color(0xFF2E8B57) else Color(0xFFED8936),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -381,7 +552,6 @@ private fun TransactionSummaryCard(
 
 @Composable
 private fun EmptyTransactionState(noTransactionsText: String, noTransactionsDescriptionText: String) {
-    val colors = getAppColors()
     Box(
         modifier = Modifier.fillMaxSize().padding(vertical = 80.dp),
         contentAlignment = Alignment.Center
@@ -389,9 +559,9 @@ private fun EmptyTransactionState(noTransactionsText: String, noTransactionsDesc
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 40.dp)) {
             Text("💸", fontSize = 64.sp)
             Spacer(Modifier.height(16.dp))
-            Text(noTransactionsText, color = colors.textPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(noTransactionsText, color = Color(0xFF2D3748), fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
-            Text(noTransactionsDescriptionText, color = colors.textSecondary, fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
+            Text(noTransactionsDescriptionText, color = Color(0xFF718096), fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
         }
     }
 }
@@ -412,31 +582,134 @@ fun TransactionListItem(
     cancelText: String
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    val colors = getAppColors()
-    // ✅ Sửa: Tìm category bằng id hoặc name
-    val categoryName = categories.find { 
-        it.id == transaction.categoryId || 
-        it.id == transaction.category || 
-        it.name.equals(transaction.category, ignoreCase = true)
+    // Tìm category
+    val categoryName = categories.find {
+        it.id == transaction.categoryId ||
+                it.id == transaction.category ||
+                it.name.equals(transaction.category, ignoreCase = true)
     }?.name ?: transaction.category.ifBlank { "Không xác định" }
 
+    // Delete Dialog - Cập nhật theo UI mẫu
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text(deleteTransactionText, fontWeight = FontWeight.Bold, color = colors.textPrimary) },
-            text = { Text("$deleteConfirmationText $categoryName?", color = colors.textSecondary) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    "Bạn có chắc chắn muốn xóa giao dịch này?",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2D3748),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Hiển thị thông tin giao dịch
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7FAFC))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        if(transaction.isIncome) Color(0xFFC6F6D5) else Color(0xFFFED7D7),
+                                        CircleShape
+                                    )
+                                    .clip(CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(if(transaction.isIncome) "↑" else "↓",
+                                    color = if(transaction.isIncome) Color(0xFF2E8B57) else Color(0xFFED8936),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+
+                            Spacer(Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(categoryName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF2D3748))
+                                Text(
+                                    transaction.date,
+                                    color = Color(0xFF718096),
+                                    fontSize = 12.sp
+                                )
+                            }
+
+                            Text(
+                                (if(transaction.isIncome) "+" else "-") + formatCurrency(transaction.amount.toLong()),
+                                color = if(transaction.isIncome) Color(0xFF2E8B57) else Color(0xFFED8936),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Text(
+                        deleteConfirmationText,
+                        color = Color(0xFF718096),
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { showDeleteDialog = false; onDelete() }) {
-                    Text(confirmDeleteText, color = colors.warningColor, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Button(
+                        onClick = { showDeleteDialog = false },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE2E8F0)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "Quay lại",
+                            color = Color(0xFF4A5568),
+                            fontSize = 16.sp
+                        )
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Button(
+                        onClick = {
+                            showDeleteDialog = false
+                            onDelete()
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFED8936)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "Xóa",
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(cancelText, color = colors.primary)
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = colors.cardColor
+            }
         )
     }
 
@@ -444,9 +717,9 @@ fun TransactionListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .shadow(4.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.cardColor)
+            .shadow(2.dp, RoundedCornerShape(12.dp)),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
             Modifier
@@ -458,15 +731,14 @@ fun TransactionListItem(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        if(transaction.isIncome) colors.incomeColor.copy(alpha = 0.2f) 
-                        else colors.expenseColor.copy(alpha = 0.2f), 
+                        if(transaction.isIncome) Color(0xFFC6F6D5) else Color(0xFFFED7D7),
                         CircleShape
                     )
                     .clip(CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(if(transaction.isIncome) "↑" else "↓",
-                    color = if(transaction.isIncome) colors.incomeColor else colors.expenseColor,
+                    color = if(transaction.isIncome) Color(0xFF2E8B57) else Color(0xFFED8936),
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
@@ -475,26 +747,26 @@ fun TransactionListItem(
             Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(categoryName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = colors.textPrimary)
+                Text(categoryName, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color(0xFF2D3748))
                 Text(
                     "${transaction.wallet} • ${if(transaction.description.isNotBlank()) transaction.description else noNoteText}",
-                    color = colors.textSecondary,
+                    color = Color(0xFF718096),
                     fontSize = 12.sp
                 )
             }
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    (if(transaction.isIncome) "+" else "-") + formatCurrency(transaction.amount),
-                    color = if(transaction.isIncome) colors.incomeColor else colors.expenseColor,
+                    (if(transaction.isIncome) "+" else "-") + formatCurrency(transaction.amount.toLong()),
+                    color = if(transaction.isIncome) Color(0xFF2E8B57) else Color(0xFFED8936),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
                 Spacer(Modifier.height(4.dp))
                 Row {
-                    Icon(Icons.Default.Edit, contentDescription = editText, tint = colors.primary, modifier = Modifier.size(20.dp).clickable { onClick() })
+                    Icon(Icons.Default.Edit, contentDescription = editText, tint = Color(0xFF4A5568), modifier = Modifier.size(20.dp).clickable { onClick() })
                     Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.Delete, contentDescription = deleteText, tint = colors.warningColor, modifier = Modifier.size(20.dp).clickable { showDeleteDialog = true })
+                    Icon(Icons.Default.Delete, contentDescription = deleteText, tint = Color(0xFFED8936), modifier = Modifier.size(20.dp).clickable { showDeleteDialog = true })
                 }
             }
         }
@@ -503,9 +775,112 @@ fun TransactionListItem(
 
 private fun formatDateHeader(dateString: String): String {
     return try {
-        val inputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
-        val date = inputFormat.parse(dateString)
-        outputFormat.format(date!!)
-    } catch (e: Exception) { dateString }
+        when (dateString) {
+            "Hôm nay" -> "Hôm nay"
+            "Hôm qua" -> "Hôm qua"
+            else -> {
+                val inputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
+                val date = inputFormat.parse(dateString)
+                outputFormat.format(date!!)
+            }
+        }
+    } catch (e: Exception) {
+        dateString
+    }
+}
+
+// Hàm helper để định dạng tiền tệ
+private fun formatCurrency(amount: Long): String {
+    return String.format("%,d", amount).replace(",", ".") + "đ"
+}
+
+// Hàm helper để kiểm tra ngày
+private fun isToday(dateString: String): Boolean {
+    return dateString == "Hôm nay" || isDateInRange(dateString, 0)
+}
+
+private fun isYesterday(dateString: String): Boolean {
+    return dateString == "Hôm qua" || isDateInRange(dateString, -1)
+}
+
+private fun isThisWeek(dateString: String): Boolean {
+    return try {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val transactionDate = sdf.parse(dateString) ?: return false
+        val calendar = Calendar.getInstance()
+        calendar.time = transactionDate
+
+        val today = Calendar.getInstance()
+        val weekStart = Calendar.getInstance()
+        weekStart.add(Calendar.DAY_OF_WEEK, today.get(Calendar.DAY_OF_WEEK) * -1 + 1)
+        val weekEnd = Calendar.getInstance()
+        weekEnd.add(Calendar.DAY_OF_WEEK, 7 - today.get(Calendar.DAY_OF_WEEK))
+
+        !calendar.before(weekStart) && !calendar.after(weekEnd)
+    } catch (e: Exception) {
+        false
+    }
+}
+
+private fun isThisMonth(dateString: String): Boolean {
+    return try {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val transactionDate = sdf.parse(dateString) ?: return false
+        val calendar = Calendar.getInstance()
+        calendar.time = transactionDate
+
+        val today = Calendar.getInstance()
+
+        calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                calendar.get(Calendar.MONTH) == today.get(Calendar.MONTH)
+    } catch (e: Exception) {
+        false
+    }
+}
+
+private fun isLastMonth(dateString: String): Boolean {
+    return try {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val transactionDate = sdf.parse(dateString) ?: return false
+        val calendar = Calendar.getInstance()
+        calendar.time = transactionDate
+
+        val today = Calendar.getInstance()
+        today.add(Calendar.MONTH, -1)
+
+        calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                calendar.get(Calendar.MONTH) == today.get(Calendar.MONTH)
+    } catch (e: Exception) {
+        false
+    }
+}
+
+private fun isThisYear(dateString: String): Boolean {
+    return try {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val transactionDate = sdf.parse(dateString) ?: return false
+        val calendar = Calendar.getInstance()
+        calendar.time = transactionDate
+
+        val today = Calendar.getInstance()
+
+        calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+    } catch (e: Exception) {
+        false
+    }
+}
+
+private fun isDateInRange(dateString: String, daysOffset: Int): Boolean {
+    return try {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val transactionDate = sdf.parse(dateString) ?: return false
+        val targetDate = Calendar.getInstance()
+        targetDate.add(Calendar.DAY_OF_YEAR, daysOffset)
+
+        val targetDateFormat = sdf.format(targetDate.time)
+        dateString == targetDateFormat
+    } catch (e: Exception) {
+        false
+    }
 }

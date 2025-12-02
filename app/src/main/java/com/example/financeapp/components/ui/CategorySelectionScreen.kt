@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.components.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -23,8 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.financeapp.viewmodel.Category
-import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.AppColorConstants
+import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.viewmodel.transaction.Category
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
+import kotlin.collections.isNotEmpty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,7 +115,7 @@ fun CategorySelectionScreen(
 private fun CategoryGroupSection(
     groupName: String,
     categories: List<Category>,
-    onCategorySelected: (com.example.financeapp.viewmodel.Category) -> Unit,
+    onCategorySelected: (com.example.financeapp.viewmodel.transaction.Category) -> Unit,
     groupColor: Color
 ) {
     Card(
@@ -191,7 +194,7 @@ private fun CategoryGroupSection(
 
 @Composable
 private fun CategorySelectionItem(
-    category: com.example.financeapp.viewmodel.Category,
+    category: com.example.financeapp.viewmodel.transaction.Category,
     onClick: () -> Unit
 ) {
     Column(
@@ -259,7 +262,7 @@ private fun getGroupIcon(groupName: String): String {
 
 data class CategoryGroupData(
     val name: String,
-    val subCategories: List<com.example.financeapp.viewmodel.Category>,
+    val subCategories: List<com.example.financeapp.viewmodel.transaction.Category>,
     val color: Color
 )
 

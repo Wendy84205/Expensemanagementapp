@@ -1,7 +1,8 @@
-package com.example.financeapp.viewmodel
+package com.example.financeapp.viewmodel.features
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.model.RecurringExpense
 import com.example.financeapp.model.RecurringFrequency
 import com.google.firebase.auth.FirebaseAuth
@@ -17,6 +18,9 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+
+// Định nghĩa typealias để tránh confusion
+typealias FinanceCategory = com.example.financeapp.viewmodel.transaction.Category
 
 class RecurringExpenseViewModel : ViewModel() {
 
@@ -35,8 +39,8 @@ class RecurringExpenseViewModel : ViewModel() {
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage
 
-    private val _availableSubCategories = MutableStateFlow<Map<String, List<Category>>>(emptyMap())
-    val availableSubCategories: StateFlow<Map<String, List<Category>>> = _availableSubCategories
+    private val _availableSubCategories = MutableStateFlow<Map<String, List<FinanceCategory>>>(emptyMap())
+    val availableSubCategories: StateFlow<Map<String, List<FinanceCategory>>> = _availableSubCategories
 
     private var isListenerSetup = false
 
@@ -234,10 +238,18 @@ class RecurringExpenseViewModel : ViewModel() {
 
     private fun findCategoryIdByName(categoryName: String): String? {
         return try {
-            val allSubCategories = categoryViewModel.getAllSubCategories("expense") + categoryViewModel.getAllSubCategories("income")
+            val allSubCategories = getAllSubCategories()
             allSubCategories.find { it.name == categoryName }?.id
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private fun getAllSubCategories(): List<FinanceCategory> {
+        return try {
+            categoryViewModel.getAllSubCategories("expense") + categoryViewModel.getAllSubCategories("income")
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 
@@ -250,7 +262,7 @@ class RecurringExpenseViewModel : ViewModel() {
         }
     }
 
-    fun getExpenseSubCategoriesForSelection(): List<Category> {
+    fun getExpenseSubCategoriesForSelection(): List<FinanceCategory> {
         return try {
             categoryViewModel.getSubCategoriesForRecurringExpense("expense")
         } catch (e: Exception) {
@@ -258,7 +270,7 @@ class RecurringExpenseViewModel : ViewModel() {
         }
     }
 
-    fun getIncomeSubCategoriesForSelection(): List<Category> {
+    fun getIncomeSubCategoriesForSelection(): List<FinanceCategory> {
         return try {
             categoryViewModel.getSubCategoriesForRecurringExpense("income")
         } catch (e: Exception) {
@@ -332,7 +344,6 @@ class RecurringExpenseViewModel : ViewModel() {
         }
     }
 
-    // THÊM HÀM NÀY VÀO - ĐÃ THIẾU
     fun processDueRecurringExpenses(
         onTransactionCreated: (RecurringExpense) -> Unit
     ) {
@@ -414,17 +425,14 @@ class RecurringExpenseViewModel : ViewModel() {
         return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     }
 
-    // FIX: Deprecated Locale constructor
     private fun formatCurrency(amount: Double): String {
         return try {
-            // Sử dụng Locale.Builder thay vì constructor deprecated
             val locale = Locale.Builder()
                 .setLanguage("vi")
                 .setRegion("VN")
                 .build()
             NumberFormat.getCurrencyInstance(locale).format(amount)
         } catch (e: Exception) {
-            // Fallback
             NumberFormat.getCurrencyInstance().apply {
                 maximumFractionDigits = 0
             }.format(amount)
@@ -435,5 +443,26 @@ class RecurringExpenseViewModel : ViewModel() {
         super.onCleared()
         expensesListener?.remove()
         isListenerSetup = false
+    }
+}
+
+// Nếu bạn cần interface để phân biệt, có thể tạo một class wrapper
+data class CategoryItem(
+    val id: String,
+    val name: String,
+    val type: String,
+    val icon: String,
+    val color: String
+) {
+    companion object {
+        fun fromFinanceCategory(category: FinanceCategory): CategoryItem {
+            return CategoryItem(
+                id = category.id,
+                name = category.name,
+                type = category.type,
+                icon = category.icon,
+                color = category.color
+            )
+        }
     }
 }
