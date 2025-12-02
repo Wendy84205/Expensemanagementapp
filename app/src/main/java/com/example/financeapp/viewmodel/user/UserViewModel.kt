@@ -1,8 +1,8 @@
-package com.example.financeapp.viewmodel
+package com.example.financeapp.viewmodel.user
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.financeapp.User
+import com.example.financeapp.data.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch

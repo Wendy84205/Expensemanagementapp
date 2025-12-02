@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.auth
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -22,7 +22,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.financeapp.viewmodel.AuthViewModel
+import com.example.financeapp.viewmodel.auth.AuthViewModel
 import kotlinx.coroutines.delay
 
 @Composable

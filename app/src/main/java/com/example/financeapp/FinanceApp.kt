@@ -2,9 +2,9 @@ package com.example.financeapp
 
 import android.app.Application
 import androidx.lifecycle.ViewModelProvider
-import com.example.financeapp.viewmodel.BudgetViewModel
+import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.example.financeapp.viewmodel.RecurringExpenseViewModel
-import com.example.financeapp.viewmodel.TransactionViewModel
+import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 
 /**
  * Application toàn cục để chia sẻ ViewModel cho AI.

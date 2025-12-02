@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.auth
 
 import android.app.Activity
 import android.content.Context
@@ -28,7 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.financeapp.viewmodel.AuthViewModel
+import com.example.financeapp.viewmodel.auth.AuthViewModel
 import com.example.financeapp.R
 import com.facebook.CallbackManager
 import com.facebook.FacebookCallback

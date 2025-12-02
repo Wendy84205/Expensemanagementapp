@@ -1,5 +1,5 @@
 // AI_System_Complete.kt
-package com.example.financeapp.viewmodel
+package com.example.financeapp.viewmodel.ai
 
 import android.app.Application
 import android.util.Log
@@ -7,13 +7,17 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.financeapp.Budget
-import com.example.financeapp.BudgetPeriodType
+import com.example.financeapp.data.Budget
+import com.example.financeapp.data.BudgetPeriodType
 import com.example.financeapp.BuildConfig
 import com.example.financeapp.FinanceApp
-import com.example.financeapp.Transaction
-import com.example.financeapp.getDisplayName
-import com.example.financeapp.isOverBudget
+import com.example.financeapp.data.Transaction
+import com.example.financeapp.data.getDisplayName
+import com.example.financeapp.data.isOverBudget
+import com.example.financeapp.viewmodel.CategoryViewModel
+import com.example.financeapp.viewmodel.RecurringExpenseViewModel
+import com.example.financeapp.viewmodel.transaction.TransactionViewModel
+import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow

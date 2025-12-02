@@ -1,10 +1,12 @@
-package com.example.financeapp.viewmodel
+package com.example.financeapp.viewmodel.transaction
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financeapp.FirestoreService
-import com.example.financeapp.Transaction
+import com.example.financeapp.data.Transaction
+import com.example.financeapp.viewmodel.ai.AICommandResult
+import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

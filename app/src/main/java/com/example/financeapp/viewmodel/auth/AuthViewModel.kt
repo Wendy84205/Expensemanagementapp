@@ -1,4 +1,4 @@
-package com.example.financeapp.viewmodel
+package com.example.financeapp.viewmodel.auth
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel

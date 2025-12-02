@@ -1,14 +1,22 @@
-package com.example.financeapp
+package com.example.financeapp.viewmodel.ai
 
 import android.app.Application
 import android.content.Context
 import android.util.Log
-import com.example.financeapp.viewmodel.BudgetViewModel
-import com.example.financeapp.viewmodel.TransactionViewModel
+import com.example.financeapp.FinanceApp
+import com.example.financeapp.NotificationHelper
+import com.example.financeapp.data.isOverBudget
+import com.example.financeapp.viewmodel.budget.BudgetViewModel
+import com.example.financeapp.viewmodel.transaction.TransactionViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
  * AI Butler Service - Quản gia thông minh
@@ -24,7 +32,7 @@ class AIButlerService(private val application: Application) {
         (application as FinanceApp).transactionViewModel
     }
 
-    
+
 
     private val budgetViewModel: BudgetViewModel by lazy {
         (application as FinanceApp).budgetViewModel
@@ -94,7 +102,7 @@ class AIButlerService(private val application: Application) {
      */
     private suspend fun checkAndSendNotifications() {
         val now = System.currentTimeMillis()
-        
+
         // Kiểm tra xem có nên gửi thông báo không (tránh spam)
         if (now - lastCheckTime < 300000) { // 5 phút
             return
@@ -126,7 +134,7 @@ class AIButlerService(private val application: Application) {
      */
     private suspend fun checkBudgetExceeded() {
         val budgets = budgetViewModel.budgets.value.filter { it.isActive && it.isOverBudget }
-        
+
         if (budgets.isNotEmpty()) {
             val categoryNames = budgets.mapNotNull { budget ->
                 // Lấy tên category từ categoryId
@@ -188,12 +196,12 @@ class AIButlerService(private val application: Application) {
     private suspend fun checkMonthlySummary() {
         val calendar = Calendar.getInstance()
         val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
-        
+
         // Gửi tổng kết vào ngày cuối tháng
         if (dayOfMonth == calendar.getActualMaximum(Calendar.DAY_OF_MONTH)) {
             val currentMonthTransactions = transactionViewModel.transactions.value
                 .filter { isInCurrentMonth(it.date) }
-            
+
             val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.amount }
             val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.amount }
             val savings = totalIncome - totalExpense
@@ -270,11 +278,10 @@ class AIButlerService(private val application: Application) {
     }
 
     // ✅ CoroutineScope cho service
-    private val serviceScope = kotlinx.coroutines.CoroutineScope(
-        kotlinx.coroutines.Dispatchers.Main + kotlinx.coroutines.SupervisorJob()
+    private val serviceScope = CoroutineScope(
+        Dispatchers.Main + SupervisorJob()
     )
-    
+
     // ✅ Alias để dễ sử dụng
     private val viewModelScope = serviceScope
 }
-
