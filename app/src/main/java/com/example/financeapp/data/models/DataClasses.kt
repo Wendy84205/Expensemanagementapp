@@ -4,6 +4,7 @@ import com.example.financeapp.SavingsGoal
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.data.models.User
 import com.example.financeapp.UserProfile
+import com.example.financeapp.data.models.Budget
 
 // Data class mở rộng cho FinancialData
 data class FinancialData(

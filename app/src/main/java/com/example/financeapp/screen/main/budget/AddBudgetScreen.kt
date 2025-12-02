@@ -20,16 +20,18 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.financeapp.LocalLanguageViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
-import com.example.financeapp.data.Budget
-import com.example.financeapp.data.BudgetPeriodType
+import com.example.financeapp.data.models.Budget
+import com.example.financeapp.data.models.BudgetPeriodType
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
-import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
-import com.example.financeapp.data.calculateBudgetEndDate
-import java.text.NumberFormat
+import com.example.financeapp.data.models.calculateBudgetEndDate
+import com.example.financeapp.data.models.getDisplayName
+import com.example.financeapp.screen.features.formatCurrency
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +42,7 @@ fun AddBudgetScreen(
     categoryViewModel: CategoryViewModel = viewModel(),
     existingBudget: Budget? = null
 ) {
+    val languageViewModel = LocalLanguageViewModel.current
     val categories by categoryViewModel.categories.collectAsState()
     val subCategories = remember(categories) {
         categories.filter { !it.isMainCategory }
@@ -77,7 +80,8 @@ fun AddBudgetScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        if (existingBudget == null) "Thêm ngân sách" else "Chỉnh sửa ngân sách",
+                        if (existingBudget == null) languageViewModel.getTranslation("add_budget")
+                        else languageViewModel.getTranslation("edit_budget"),
                         fontWeight = FontWeight.Bold,
                         color = textColor,
                         fontSize = 18.sp
@@ -87,7 +91,7 @@ fun AddBudgetScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Quay lại",
+                            contentDescription = languageViewModel.getTranslation("back"),
                             tint = textColor
                         )
                     }
@@ -127,7 +131,7 @@ fun AddBudgetScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            "Ngân sách",
+                            languageViewModel.getTranslation("budget"),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.White.copy(alpha = 0.9f)
@@ -194,7 +198,7 @@ fun AddBudgetScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     Text(
-                        "Thiết lập ngân sách",
+                        languageViewModel.getTranslation("setup_budget"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
@@ -203,7 +207,7 @@ fun AddBudgetScreen(
                     // Danh mục với DropdownMenu
                     Column {
                         Text(
-                            "Danh mục",
+                            languageViewModel.getTranslation("category"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -215,7 +219,7 @@ fun AddBudgetScreen(
                         ) {
                             // Custom ExposedDropdownMenuBox
                             OutlinedTextField(
-                                value = selectedCategory?.name ?: "Chọn danh mục",
+                                value = selectedCategory?.name ?: languageViewModel.getTranslation("select_category"),
                                 onValueChange = {},
                                 readOnly = true,
                                 modifier = Modifier
@@ -250,7 +254,7 @@ fun AddBudgetScreen(
                                 trailingIcon = {
                                     Icon(
                                         Icons.Default.KeyboardArrowDown,
-                                        contentDescription = "Chọn danh mục",
+                                        contentDescription = languageViewModel.getTranslation("select_category"),
                                         tint = Color(0xFF666666),
                                         modifier = Modifier.clickable { expanded = !expanded }
                                     )
@@ -268,7 +272,7 @@ fun AddBudgetScreen(
                             ) {
                                 if (subCategories.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text("Không có danh mục") },
+                                        text = { Text(languageViewModel.getTranslation("no_categories")) },
                                         onClick = { expanded = false }
                                     )
                                 } else {
@@ -319,7 +323,7 @@ fun AddBudgetScreen(
                     // Số tiền
                     Column {
                         Text(
-                            "Số tiền",
+                            languageViewModel.getTranslation("amount"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -342,7 +346,7 @@ fun AddBudgetScreen(
                             singleLine = true,
                             trailingIcon = {
                                 Text(
-                                    "VND",
+                                    languageViewModel.getTranslation("currency_vnd"),
                                     color = Color(0xFF666666),
                                     fontSize = 14.sp
                                 )
@@ -353,7 +357,7 @@ fun AddBudgetScreen(
                     // Chu kỳ
                     Column {
                         Text(
-                            "Chu kỳ",
+                            languageViewModel.getTranslation("period"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -362,14 +366,15 @@ fun AddBudgetScreen(
                         PeriodSelection(
                             selectedPeriod = selectedPeriod,
                             onPeriodSelected = { selectedPeriod = it },
-                            primaryColor = primaryColor
+                            primaryColor = primaryColor,
+                            languageViewModel = languageViewModel
                         )
                     }
 
                     // Ghi chú
                     Column {
                         Text(
-                            "Ghi chú",
+                            languageViewModel.getTranslation("note"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -381,7 +386,12 @@ fun AddBudgetScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(80.dp),
-                            placeholder = { Text("Thêm ghi chú...", color = Color(0xFF888888)) },
+                            placeholder = {
+                                Text(
+                                    languageViewModel.getTranslation("add_note_placeholder"),
+                                    color = Color(0xFF888888)
+                                )
+                            },
                             shape = RoundedCornerShape(8.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = primaryColor,
@@ -442,7 +452,8 @@ fun AddBudgetScreen(
                 )
             ) {
                 Text(
-                    if (existingBudget == null) "THÊM NGÂN SÁCH" else "CẬP NHẬT",
+                    if (existingBudget == null) languageViewModel.getTranslation("add_budget_button").uppercase()
+                    else languageViewModel.getTranslation("update").uppercase(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -457,7 +468,8 @@ fun AddBudgetScreen(
 private fun PeriodSelection(
     selectedPeriod: BudgetPeriodType,
     onPeriodSelected: (BudgetPeriodType) -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -468,7 +480,8 @@ private fun PeriodSelection(
                 period = period,
                 isSelected = selectedPeriod == period,
                 onClick = { onPeriodSelected(period) },
-                primaryColor = primaryColor
+                primaryColor = primaryColor,
+                languageViewModel = languageViewModel
             )
         }
     }
@@ -479,7 +492,8 @@ private fun PeriodChip(
     period: BudgetPeriodType,
     isSelected: Boolean,
     onClick: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     val backgroundColor = if (isSelected) primaryColor else Color.Transparent
     val textColor = if (isSelected) Color.White else Color(0xFF666666)
@@ -498,25 +512,11 @@ private fun PeriodChip(
         modifier = Modifier.defaultMinSize(minWidth = 1.dp)
     ) {
         Text(
-            getPeriodShortName(period),
+            period.getDisplayName(languageViewModel),
             fontSize = 13.sp,
             fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
         )
     }
-}
-
-private fun getPeriodShortName(period: BudgetPeriodType): String {
-    return when (period) {
-        BudgetPeriodType.WEEK -> "Tuần"
-        BudgetPeriodType.MONTH -> "Tháng"
-        BudgetPeriodType.QUARTER -> "Quý"
-        BudgetPeriodType.YEAR -> "Năm"
-    }
-}
-
-private fun formatCurrency(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale("vi", "VN"))
-    return "${formatter.format(amount)} đ"
 }
 
 // Helper function để parse color

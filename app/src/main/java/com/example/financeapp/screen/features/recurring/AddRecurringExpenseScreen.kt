@@ -30,6 +30,8 @@ import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.model.RecurringExpense
 import com.example.financeapp.model.RecurringFrequency
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
+import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -41,6 +43,8 @@ fun AddRecurringExpenseScreen(
     categoryViewModel: CategoryViewModel = viewModel(),
     existingExpense: RecurringExpense? = null
 ) {
+    val languageViewModel = LocalLanguageViewModel.current
+
     LaunchedEffect(Unit) {
         recurringExpenseViewModel.setCategoryViewModel(categoryViewModel)
     }
@@ -60,7 +64,7 @@ fun AddRecurringExpenseScreen(
             } ?: categories.firstOrNull()
         )
     }
-    var wallet by remember { mutableStateOf(existingExpense?.wallet ?: "Ví chính") }
+    var wallet by remember { mutableStateOf(existingExpense?.wallet ?: languageViewModel.getTranslation("main_wallet")) }
     var description by remember { mutableStateOf(existingExpense?.description ?: "") }
     var frequency by remember { mutableStateOf(existingExpense?.getFrequencyEnum() ?: RecurringFrequency.MONTHLY) }
     var startDate by remember { mutableStateOf(existingExpense?.startDate ?: getTodayDate()) }
@@ -80,8 +84,10 @@ fun AddRecurringExpenseScreen(
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = if (existingExpense == null) "Thêm chi tiêu định kỳ" else "Chỉnh sửa chi tiêu",
-                onBackClick = { navController.popBackStack() }
+                title = if (existingExpense == null) languageViewModel.getTranslation("add_recurring_expense")
+                else languageViewModel.getTranslation("edit_recurring_expense"),
+                onBackClick = { navController.popBackStack() },
+                languageViewModel = languageViewModel
             )
         },
         bottomBar = {
@@ -136,7 +142,8 @@ fun AddRecurringExpenseScreen(
                     )
                 ) {
                     Text(
-                        if (existingExpense == null) "THÊM CHI TIÊU" else "CẬP NHẬT",
+                        if (existingExpense == null) languageViewModel.getTranslation("add_recurring_expense_button").uppercase()
+                        else languageViewModel.getTranslation("update").uppercase(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -168,7 +175,7 @@ fun AddRecurringExpenseScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     Text(
-                        "Thông tin chi tiêu",
+                        languageViewModel.getTranslation("expense_info"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
@@ -177,7 +184,7 @@ fun AddRecurringExpenseScreen(
                     // Tiêu đề
                     Column {
                         Text(
-                            "Tiêu đề",
+                            languageViewModel.getTranslation("title"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -186,7 +193,7 @@ fun AddRecurringExpenseScreen(
                         OutlinedTextField(
                             value = title,
                             onValueChange = { if (it.length <= 50) title = it },
-                            placeholder = { Text("Ví dụ: Tiền nhà, Internet...", color = subtitleColor) },
+                            placeholder = { Text(languageViewModel.getTranslation("title_placeholder"), color = subtitleColor) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),
@@ -203,7 +210,7 @@ fun AddRecurringExpenseScreen(
                     // Số tiền
                     Column {
                         Text(
-                            "Số tiền",
+                            languageViewModel.getTranslation("amount"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -228,7 +235,7 @@ fun AddRecurringExpenseScreen(
                             ),
                             trailingIcon = {
                                 Text(
-                                    "VND",
+                                    languageViewModel.getTranslation("currency_vnd"),
                                     color = subtitleColor,
                                     fontSize = 14.sp
                                 )
@@ -239,7 +246,7 @@ fun AddRecurringExpenseScreen(
                     // Danh mục
                     Column {
                         Text(
-                            "Danh mục",
+                            languageViewModel.getTranslation("category"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -261,7 +268,7 @@ fun AddRecurringExpenseScreen(
                             }
                         } else {
                             Text(
-                                "Chưa có danh mục nào",
+                                languageViewModel.getTranslation("no_categories"),
                                 color = subtitleColor,
                                 fontSize = 14.sp
                             )
@@ -271,7 +278,7 @@ fun AddRecurringExpenseScreen(
                     // Tần suất
                     Column {
                         Text(
-                            "Tần suất",
+                            languageViewModel.getTranslation("frequency"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -286,7 +293,8 @@ fun AddRecurringExpenseScreen(
                                     frequency = freq,
                                     isSelected = frequency == freq,
                                     onClick = { frequency = freq },
-                                    primaryColor = primaryColor
+                                    primaryColor = primaryColor,
+                                    languageViewModel = languageViewModel
                                 )
                             }
                         }
@@ -295,7 +303,7 @@ fun AddRecurringExpenseScreen(
                     // Ví
                     Column {
                         Text(
-                            "Ví",
+                            languageViewModel.getTranslation("wallet"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -304,7 +312,7 @@ fun AddRecurringExpenseScreen(
                         OutlinedTextField(
                             value = wallet,
                             onValueChange = { wallet = it },
-                            placeholder = { Text("Ví chính", color = subtitleColor) },
+                            placeholder = { Text(languageViewModel.getTranslation("main_wallet_placeholder"), color = subtitleColor) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(8.dp),
@@ -321,7 +329,7 @@ fun AddRecurringExpenseScreen(
                     // Ngày bắt đầu
                     Column {
                         Text(
-                            "Ngày bắt đầu",
+                            languageViewModel.getTranslation("start_date"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -329,16 +337,17 @@ fun AddRecurringExpenseScreen(
                         )
                         SimpleDateChip(
                             date = startDate,
-                            placeholder = "Chọn ngày",
+                            placeholder = languageViewModel.getTranslation("select_date"),
                             onClick = { /* TODO: Implement date picker */ },
-                            primaryColor = primaryColor
+                            primaryColor = primaryColor,
+                            languageViewModel
                         )
                     }
 
                     // Ngày kết thúc (tùy chọn)
                     Column {
                         Text(
-                            "Ngày kết thúc (tùy chọn)",
+                            languageViewModel.getTranslation("end_date_optional"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = subtitleColor,
@@ -346,16 +355,17 @@ fun AddRecurringExpenseScreen(
                         )
                         SimpleDateChip(
                             date = endDate,
-                            placeholder = "Không có ngày kết thúc",
+                            placeholder = languageViewModel.getTranslation("no_end_date"),
                             onClick = { /* TODO: Implement date picker */ },
-                            primaryColor = primaryColor
+                            primaryColor = primaryColor,
+                            languageViewModel
                         )
                     }
 
                     // Ghi chú
                     Column {
                         Text(
-                            "Ghi chú",
+                            languageViewModel.getTranslation("notes"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -364,7 +374,7 @@ fun AddRecurringExpenseScreen(
                         OutlinedTextField(
                             value = description,
                             onValueChange = { if (it.length <= 200) description = it },
-                            placeholder = { Text("Thêm ghi chú...", color = subtitleColor) },
+                            placeholder = { Text(languageViewModel.getTranslation("add_note_placeholder"), color = subtitleColor) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(80.dp),
@@ -392,7 +402,8 @@ fun AddRecurringExpenseScreen(
 @Composable
 private fun SimpleTopAppBar(
     title: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -407,7 +418,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -459,7 +470,8 @@ private fun SimpleFrequencyChip(
     frequency: RecurringFrequency,
     isSelected: Boolean,
     onClick: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     val backgroundColor = if (isSelected) primaryColor else Color(0xFFEEEEEE)
     val textColor = if (isSelected) Color.White else Color(0xFF666666)
@@ -474,20 +486,20 @@ private fun SimpleFrequencyChip(
         modifier = Modifier.defaultMinSize(minWidth = 1.dp)
     ) {
         Text(
-            getSimpleFrequencyName(frequency),
+            getSimpleFrequencyName(frequency, languageViewModel),
             fontSize = 13.sp,
             fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
         )
     }
 }
 
-private fun getSimpleFrequencyName(frequency: RecurringFrequency): String {
+private fun getSimpleFrequencyName(frequency: RecurringFrequency, languageViewModel: LanguageViewModel): String {
     return when (frequency) {
-        RecurringFrequency.DAILY -> "Hàng ngày"
-        RecurringFrequency.WEEKLY -> "Hàng tuần"
-        RecurringFrequency.MONTHLY -> "Hàng tháng"
-        RecurringFrequency.YEARLY -> "Hàng năm"
-        RecurringFrequency.QUARTERLY -> "Hàng quý"
+        RecurringFrequency.DAILY -> languageViewModel.getTranslation("daily")
+        RecurringFrequency.WEEKLY -> languageViewModel.getTranslation("weekly")
+        RecurringFrequency.MONTHLY -> languageViewModel.getTranslation("monthly")
+        RecurringFrequency.YEARLY -> languageViewModel.getTranslation("yearly")
+        RecurringFrequency.QUARTERLY -> languageViewModel.getTranslation("quarterly")
     }
 }
 
@@ -496,7 +508,8 @@ private fun SimpleDateChip(
     date: String,
     placeholder: String,
     onClick: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     Card(
         modifier = Modifier
@@ -523,7 +536,7 @@ private fun SimpleDateChip(
             )
             Icon(
                 Icons.Default.CalendarToday,
-                contentDescription = "Chọn ngày",
+                contentDescription = languageViewModel.getTranslation("select_date"),
                 tint = Color(0xFF666666),
                 modifier = Modifier.size(20.dp)
             )

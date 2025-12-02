@@ -2,8 +2,8 @@ package com.example.financeapp.viewmodel.budget
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.financeapp.data.Budget
-import com.example.financeapp.data.BudgetPeriodType
+import com.example.financeapp.data.models.Budget
+import com.example.financeapp.data.models.BudgetPeriodType
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.DocumentSnapshot

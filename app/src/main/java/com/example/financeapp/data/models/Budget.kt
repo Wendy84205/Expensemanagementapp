@@ -1,5 +1,6 @@
-package com.example.financeapp.data
+package com.example.financeapp.data.models
 
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import java.time.LocalDate
 
 /**
@@ -61,7 +62,7 @@ val Budget.statusText: String
     }
 
 // Extension function cho BudgetPeriodType
-fun BudgetPeriodType.getDisplayName(): String {
+fun BudgetPeriodType.getDisplayName(languageViewModel: LanguageViewModel): String {
     return when (this) {
         BudgetPeriodType.WEEK -> "Tuần"
         BudgetPeriodType.MONTH -> "Tháng"

@@ -6,13 +6,13 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.financeapp.data.Budget
-import com.example.financeapp.data.BudgetPeriodType
+import com.example.financeapp.data.models.Budget
+import com.example.financeapp.data.models.BudgetPeriodType
 import com.example.financeapp.BuildConfig
 import com.example.financeapp.FinanceApp
 import com.example.financeapp.data.models.Transaction
-import com.example.financeapp.data.getDisplayName
-import com.example.financeapp.data.isOverBudget
+import com.example.financeapp.data.models.getDisplayName
+import com.example.financeapp.data.models.isOverBudget
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
@@ -1194,7 +1194,7 @@ class AICommandExecutor(
 
             AICommandResult(
                 success = true,
-                message = "✅ Đã tạo ngân sách ${formatCurrency(command.amount)} ${periodType.getDisplayName()} cho '${category.name}'"
+                message = "✅ Đã tạo ngân sách ${formatCurrency(command.amount)} ${getPeriodName(periodType)} cho '${category.name}'"
             )
 
         } catch (e: Exception) {
@@ -1330,12 +1330,22 @@ class AICommandExecutor(
 
             AICommandResult(
                 success = true,
-                message = "✅ Đã đặt ngân sách ${formatCurrency(command.amount)} ${periodType.getDisplayName()} cho '${command.category}'"
+                message = "✅ Đã đặt ngân sách ${formatCurrency(command.amount)} ${getPeriodName(periodType)} cho '${command.category}'"
             )
 
         } catch (e: Exception) {
             Log.e("AICommandExecutor", "Error creating budget from set: ${e.message}", e)
             AICommandResult(false, "Lỗi đặt ngân sách: ${e.message}")
+        }
+    }
+
+    // Thêm hàm helper để lấy tên chu kỳ (thêm vào khoảng dòng 900)
+    private fun getPeriodName(periodType: BudgetPeriodType): String {
+        return when (periodType) {
+            BudgetPeriodType.WEEK -> "tuần"
+            BudgetPeriodType.MONTH -> "tháng"
+            BudgetPeriodType.QUARTER -> "quý"
+            BudgetPeriodType.YEAR -> "năm"
         }
     }
 

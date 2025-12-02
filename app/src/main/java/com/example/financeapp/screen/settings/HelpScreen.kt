@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,8 +40,9 @@ fun HelpScreen(navController: NavController) {
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Trợ giúp",
-                onBackClick = { navController.popBackStack() }
+                title = languageViewModel.getTranslation("help"),
+                onBackClick = { navController.popBackStack() },
+                languageViewModel = languageViewModel
             )
         },
         containerColor = backgroundColor
@@ -55,98 +57,114 @@ fun HelpScreen(navController: NavController) {
         ) {
             // Câu hỏi thường gặp
             item {
-                SettingsCard(title = "Câu hỏi thường gặp") {
+                SettingsCard(
+                    title = languageViewModel.getTranslation("faq"),
+                    languageViewModel = languageViewModel
+                ) {
                     FAQItemExpandable(
-                        question = "Làm thế nào để thêm giao dịch?",
-                        answer = "Chuyển đến màn hình Trang chủ, nhấn nút '+' ở dưới cùng, chọn 'Thêm giao dịch', điền thông tin và nhấn 'Lưu'.",
-                        primaryColor = primaryColor
+                        question = languageViewModel.getTranslation("faq_how_to_add_transaction"),
+                        answer = languageViewModel.getTranslation("faq_how_to_add_transaction_answer"),
+                        primaryColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     FAQItemExpandable(
-                        question = "Làm thế nào để thêm ví mới?",
-                        answer = "Vào màn hình Ví, nhấn nút '+' ở góc dưới bên phải, nhập tên ví và số dư ban đầu.",
-                        primaryColor = primaryColor
+                        question = languageViewModel.getTranslation("faq_how_to_add_wallet"),
+                        answer = languageViewModel.getTranslation("faq_how_to_add_wallet_answer"),
+                        primaryColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     FAQItemExpandable(
-                        question = "Làm thế nào để xem thống kê?",
-                        answer = "Vào màn hình Thống kê từ thanh điều hướng dưới cùng để xem biểu đồ và phân tích chi tiêu.",
-                        primaryColor = primaryColor
+                        question = languageViewModel.getTranslation("faq_how_to_view_stats"),
+                        answer = languageViewModel.getTranslation("faq_how_to_view_stats_answer"),
+                        primaryColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     FAQItemExpandable(
-                        question = "Làm thế nào để đăng xuất?",
-                        answer = "Vào màn hình Cài đặt, cuộn xuống và chọn 'Đăng xuất'.",
-                        primaryColor = primaryColor
+                        question = languageViewModel.getTranslation("faq_how_to_logout"),
+                        answer = languageViewModel.getTranslation("faq_how_to_logout_answer"),
+                        primaryColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
                 }
             }
 
             // Liên hệ hỗ trợ
             item {
-                SettingsCard(title = "Liên hệ hỗ trợ") {
+                SettingsCard(
+                    title = languageViewModel.getTranslation("contact_support"),
+                    languageViewModel = languageViewModel
+                ) {
                     ContactItem(
                         icon = Icons.Default.Email,
-                        title = "Email hỗ trợ",
+                        title = languageViewModel.getTranslation("support_email"),
                         value = "Wendy84205@gmail.com",
-                        description = "Phản hồi trong 24h",
-                        color = primaryColor
+                        description = languageViewModel.getTranslation("response_within_24h"),
+                        color = primaryColor,
+                        languageViewModel = languageViewModel
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     ContactItem(
                         icon = Icons.Default.Language,
-                        title = "Website",
+                        title = languageViewModel.getTranslation("website"),
                         value = "",
-                        description = "Hướng dẫn chi tiết",
-                        color = Color(0xFF4CAF50)
+                        description = languageViewModel.getTranslation("detailed_guides"),
+                        color = Color(0xFF4CAF50),
+                        languageViewModel = languageViewModel
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     ContactItem(
                         icon = Icons.Default.AccessTime,
-                        title = "Giờ làm việc",
-                        value = "Thứ 2 - Thứ 6",
-                        description = "8:00 - 17:00",
-                        color = Color(0xFFFF9800)
+                        title = languageViewModel.getTranslation("working_hours"),
+                        value = languageViewModel.getTranslation("monday_to_friday"),
+                        description = languageViewModel.getTranslation("working_hours_time"),
+                        color = Color(0xFFFF9800),
+                        languageViewModel = languageViewModel
                     )
                 }
             }
 
             // Mẹo sử dụng
             item {
-                SettingsCard(title = "Mẹo sử dụng") {
+                SettingsCard(
+                    title = languageViewModel.getTranslation("usage_tips"),
+                    languageViewModel = languageViewModel
+                ) {
                     TipItem(
-                        text = "Phân loại chi tiêu vào đúng danh mục để thống kê chính xác",
+                        text = languageViewModel.getTranslation("tip_categorize_expenses"),
                         primaryColor = primaryColor
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     TipItem(
-                        text = "Thiết lập ngân sách hàng tháng để kiểm soát chi tiêu",
+                        text = languageViewModel.getTranslation("tip_set_monthly_budget"),
                         primaryColor = primaryColor
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     TipItem(
-                        text = "Sử dụng tính năng chi tiêu định kỳ cho các khoản chi cố định",
+                        text = languageViewModel.getTranslation("tip_use_recurring_expenses"),
                         primaryColor = primaryColor
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     TipItem(
-                        text = "Xem thống kê hàng tuần để điều chỉnh chi tiêu hợp lý",
+                        text = languageViewModel.getTranslation("tip_view_weekly_stats"),
                         primaryColor = primaryColor
                     )
                 }
@@ -154,9 +172,12 @@ fun HelpScreen(navController: NavController) {
 
             // Thông tin ứng dụng
             item {
-                SettingsCard(title = "Thông tin ứng dụng") {
+                SettingsCard(
+                    title = languageViewModel.getTranslation("app_info"),
+                    languageViewModel = languageViewModel
+                ) {
                     InfoItem(
-                        title = "Phiên bản",
+                        title = languageViewModel.getTranslation("version"),
                         value = "1.0.0",
                         color = subtitleColor
                     )
@@ -164,16 +185,16 @@ fun HelpScreen(navController: NavController) {
                     Divider(color = Color(0xFFEEEEEE))
 
                     InfoItem(
-                        title = "Ngày phát hành",
-                        value = "Tháng 12, 2025",
+                        title = languageViewModel.getTranslation("release_date"),
+                        value = languageViewModel.getTranslation("release_date_value"),
                         color = subtitleColor
                     )
 
                     Divider(color = Color(0xFFEEEEEE))
 
                     InfoItem(
-                        title = "Nhà phát triển",
-                        value = "Finance App Team",
+                        title = languageViewModel.getTranslation("developer"),
+                        value = languageViewModel.getTranslation("developer_value"),
                         color = subtitleColor
                     )
                 }
@@ -186,7 +207,8 @@ fun HelpScreen(navController: NavController) {
 @Composable
 private fun SimpleTopAppBar(
     title: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -201,7 +223,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -215,6 +237,7 @@ private fun SimpleTopAppBar(
 @Composable
 private fun SettingsCard(
     title: String? = null,
+    languageViewModel: LanguageViewModel,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -247,7 +270,8 @@ private fun SettingsCard(
 private fun FAQItemExpandable(
     question: String,
     answer: String,
-    primaryColor: Color = Color(0xFF2196F3)
+    primaryColor: Color = Color(0xFF2196F3),
+    languageViewModel: LanguageViewModel
 ) {
     var expanded by remember { mutableStateOf(false) }
     val rotation by animateFloatAsState(if (expanded) 180f else 0f)
@@ -276,7 +300,7 @@ private fun FAQItemExpandable(
                 ) {
                     Icon(
                         Icons.Default.Help,
-                        contentDescription = "Câu hỏi",
+                        contentDescription = languageViewModel.getTranslation("question"),
                         tint = primaryColor,
                         modifier = Modifier.size(16.dp)
                     )
@@ -293,7 +317,8 @@ private fun FAQItemExpandable(
 
                 Icon(
                     imageVector = Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "Thu gọn" else "Mở rộng",
+                    contentDescription = if (expanded) languageViewModel.getTranslation("collapse")
+                    else languageViewModel.getTranslation("expand"),
                     tint = Color(0xFF666666),
                     modifier = Modifier.rotate(rotation)
                 )
@@ -318,7 +343,8 @@ private fun ContactItem(
     title: String,
     value: String,
     description: String,
-    color: Color
+    color: Color,
+    languageViewModel: LanguageViewModel
 ) {
     Row(
         modifier = Modifier
@@ -348,12 +374,14 @@ private fun ContactItem(
                 fontWeight = FontWeight.Medium,
                 fontSize = 16.sp
             )
-            Text(
-                value,
-                fontSize = 15.sp,
-                color = color,
-                fontWeight = FontWeight.SemiBold
-            )
+            if (value.isNotEmpty()) {
+                Text(
+                    value,
+                    fontSize = 15.sp,
+                    color = color,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Text(

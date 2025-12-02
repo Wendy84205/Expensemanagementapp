@@ -593,8 +593,9 @@ private fun SocialLoginSection(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Language,
+                    // Sử dụng drawable cho biểu tượng Google
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_google), // Thay bằng tên drawable của bạn
                         contentDescription = "Google",
                         modifier = Modifier.size(20.dp)
                     )
@@ -619,8 +620,9 @@ private fun SocialLoginSection(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ThumbUp,
+                    // Sử dụng drawable cho biểu tượng Facebook
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_facebook), // Thay bằng tên drawable của bạn
                         contentDescription = "Facebook",
                         modifier = Modifier.size(20.dp)
                     )

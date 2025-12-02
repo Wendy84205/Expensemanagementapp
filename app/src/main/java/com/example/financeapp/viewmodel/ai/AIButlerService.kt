@@ -5,7 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.example.financeapp.FinanceApp
 import com.example.financeapp.NotificationHelper
-import com.example.financeapp.data.isOverBudget
+import com.example.financeapp.data.models.isOverBudget
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import kotlinx.coroutines.CoroutineScope

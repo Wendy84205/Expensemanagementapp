@@ -25,8 +25,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +37,7 @@ fun AddCategoryScreen(
     viewModel: CategoryViewModel
 ) {
     val categories by viewModel.categories.collectAsState()
+    val languageViewModel = LocalLanguageViewModel.current
 
     var selectedTab by remember { mutableStateOf(0) }
     val tabTypes = listOf("expense", "income")
@@ -68,8 +71,9 @@ fun AddCategoryScreen(
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Thêm danh mục",
-                onBackClick = { navController.popBackStack() }
+                title = languageViewModel.getTranslation("create_category"),
+                onBackClick = { navController.popBackStack() },
+                languageViewModel = languageViewModel
             )
         },
         bottomBar = {
@@ -103,7 +107,7 @@ fun AddCategoryScreen(
                     )
                 ) {
                     Text(
-                        "THÊM DANH MỤC",
+                        languageViewModel.getTranslation("create_category").uppercase(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -144,7 +148,7 @@ fun AddCategoryScreen(
                         },
                         text = {
                             Text(
-                                text = "Chi tiêu",
+                                text = languageViewModel.getTranslation("expense"),
                                 color = if (selectedTab == 0) primaryColor else subtitleColor,
                                 fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal
                             )
@@ -159,7 +163,7 @@ fun AddCategoryScreen(
                         },
                         text = {
                             Text(
-                                text = "Thu nhập",
+                                text = languageViewModel.getTranslation("income"),
                                 color = if (selectedTab == 1) primaryColor else subtitleColor,
                                 fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal
                             )
@@ -184,7 +188,7 @@ fun AddCategoryScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     Text(
-                        "Thông tin danh mục",
+                        languageViewModel.getTranslation("category_information"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
@@ -209,7 +213,7 @@ fun AddCategoryScreen(
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Nhấn để đổi icon",
+                            languageViewModel.getTranslation("click_to_change_icon"),
                             color = primaryColor,
                             fontSize = 12.sp
                         )
@@ -218,7 +222,7 @@ fun AddCategoryScreen(
                     // Category name
                     Column {
                         Text(
-                            "Tên danh mục",
+                            languageViewModel.getTranslation("category_name"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -227,7 +231,12 @@ fun AddCategoryScreen(
                         OutlinedTextField(
                             value = categoryName,
                             onValueChange = { if (it.text.length <= 30) categoryName = it },
-                            placeholder = { Text("Ví dụ: Ăn uống, Mua sắm...", color = subtitleColor) },
+                            placeholder = {
+                                Text(
+                                    languageViewModel.getTranslation("category_name_example"),
+                                    color = subtitleColor
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -244,7 +253,7 @@ fun AddCategoryScreen(
                     // Parent category selection
                     Column {
                         Text(
-                            "Nhóm danh mục",
+                            languageViewModel.getTranslation("parent_category"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -282,14 +291,14 @@ fun AddCategoryScreen(
                                 }
 
                                 Text(
-                                    selectedMainCategory?.name ?: "Chọn nhóm danh mục",
+                                    selectedMainCategory?.name ?: languageViewModel.getTranslation("select_parent_category"),
                                     color = if (selectedMainCategory != null) textColor else subtitleColor,
                                     fontSize = 15.sp,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Icon(
                                     Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Chọn danh mục",
+                                    contentDescription = languageViewModel.getTranslation("select_category"),
                                     tint = subtitleColor
                                 )
                             }
@@ -320,7 +329,7 @@ fun AddCategoryScreen(
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Sẵn sàng thêm danh mục",
+                                    languageViewModel.getTranslation("ready_to_create_category"),
                                     color = Color(0xFF2E7D32),
                                     fontSize = 13.sp
                                 )
@@ -344,7 +353,8 @@ fun AddCategoryScreen(
                 showCategoryDialog = false
             },
             onDismiss = { showCategoryDialog = false },
-            primaryColor = primaryColor
+            primaryColor = primaryColor,
+            languageViewModel = languageViewModel
         )
     }
 
@@ -357,7 +367,8 @@ fun AddCategoryScreen(
                 showIconPicker = false
             },
             onDismiss = { showIconPicker = false },
-            primaryColor = primaryColor
+            primaryColor = primaryColor,
+            languageViewModel = languageViewModel
         )
     }
 }
@@ -366,7 +377,8 @@ fun AddCategoryScreen(
 @Composable
 private fun SimpleTopAppBar(
     title: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -381,7 +393,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -398,18 +410,23 @@ private fun SimpleCategoryDialog(
     selectedMainCategory: Category?,
     onCategorySelected: (Category) -> Unit,
     onDismiss: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("ĐÓNG", color = primaryColor, fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("close").uppercase(),
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         title = {
             Text(
-                "Chọn nhóm danh mục",
+                languageViewModel.getTranslation("select_parent_category"),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333)
@@ -430,15 +447,21 @@ private fun SimpleCategoryDialog(
                     ) {
                         Icon(
                             Icons.Default.FolderOpen,
-                            contentDescription = "Không có danh mục",
+                            contentDescription = languageViewModel.getTranslation("no_categories"),
                             tint = Color(0xFFCCCCCC),
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Chưa có nhóm danh mục nào",
+                            languageViewModel.getTranslation("no_categories_found"),
                             color = Color(0xFF666666),
                             fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            languageViewModel.getTranslation("try_different_keywords"),
+                            color = Color(0xFF999999),
+                            fontSize = 12.sp
                         )
                     }
                 } else {
@@ -520,7 +543,8 @@ private fun SimpleIconDialog(
     selectedIcon: String,
     onIconSelected: (String) -> Unit,
     onDismiss: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     val commonIcons = listOf(
         "🍽️", "🛍️", "🚗", "🏠", "💄", "🎮", "🏥", "❤️",
@@ -532,12 +556,16 @@ private fun SimpleIconDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("ĐÓNG", color = primaryColor, fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("close").uppercase(),
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         title = {
             Text(
-                "Chọn icon",
+                languageViewModel.getTranslation("select_icon"),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333)

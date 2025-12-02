@@ -353,6 +353,78 @@ class LanguageViewModel : ViewModel() {
             "amount" to "Số tiền",
             "unknown_category" to "Không xác định",
 
+            // Add/Edit Recurring Expense Screen
+            "edit_recurring_expense" to "Chỉnh sửa chi tiêu định kỳ",
+            "add_recurring_expense_button" to "Thêm chi tiêu",
+            "expense_info" to "Thông tin chi tiêu",
+            "title" to "Tiêu đề",
+            "title_placeholder" to "Ví dụ: Tiền nhà, Internet...",
+            "amount" to "Số tiền",
+            "category" to "Danh mục",
+            "no_categories" to "Chưa có danh mục nào",
+            "frequency" to "Tần suất",
+            "wallet" to "Ví",
+            "main_wallet" to "Ví chính",
+            "main_wallet_placeholder" to "Ví chính",
+            "start_date" to "Ngày bắt đầu",
+            "end_date_optional" to "Ngày kết thúc (tùy chọn)",
+            "select_date" to "Chọn ngày",
+            "no_end_date" to "Không có ngày kết thúc",
+            "notes" to "Ghi chú",
+            // Main Screen & Navigation
+            "recurring_expenses" to "Chi tiêu định kỳ",
+            "add_recurring_expense" to "Thêm chi tiêu định kỳ",
+            "back" to "Quay lại",
+
+// Stats Card
+            "total_expenses" to "Tổng chi tiêu",
+            "active_lower" to "đang hoạt động",
+            "monthly_expenses" to "Chi hàng tháng",
+
+// Expense Card
+            "menu" to "Menu",
+            "edit" to "Chỉnh sửa",
+            "pause" to "Tạm dừng",
+            "activate" to "Kích hoạt",
+            "delete" to "Xóa",
+            "next" to "Tiếp theo",
+            "generated" to "Đã tạo",
+            "times" to "lần",
+
+// Empty State
+            "no_recurring_expenses" to "Không có chi tiêu định kỳ",
+            "no_recurring_expenses_yet" to "Chưa có chi tiêu định kỳ nào",
+            "add_recurring_expense_to_manage" to "Thêm chi tiêu định kỳ để quản lý chi tiêu tự động",
+
+// Delete Dialog
+            "delete_recurring_expense" to "Xóa chi tiêu định kỳ",
+            "confirm_delete_recurring_expense" to "Bạn có chắc muốn xóa",
+            "warning" to "Cảnh báo",
+            "cancel" to "Hủy",
+            "action_cannot_be_undone" to "Hành động này không thể hoàn tác.",
+
+// Status Dialog
+            "confirm" to "Bạn có chắc muốn",
+
+// Frequency Types
+            "daily" to "Hàng ngày",
+            "weekly" to "Hàng tuần",
+            "monthly" to "Hàng tháng",
+            "quarterly" to "Hàng quý",
+            "annually" to "Hàng năm",
+// Tần suất (đã có từ trước)
+            "daily" to "Hàng ngày",
+            "weekly" to "Hàng tuần",
+            "monthly" to "Hàng tháng",
+            "quarterly" to "Hàng quý",
+            "yearly" to "Hàng năm",
+
+// Các key tái sử dụng từ các màn hình khác
+            "back" to "Quay lại",
+            "currency_vnd" to "VND",
+            "add_note_placeholder" to "Thêm ghi chú...",
+            "update" to "Cập nhật",
+
             // Thêm vào map "vi" (Tiếng Việt):
             "compare" to "So sánh",
             "with" to "với",
@@ -419,6 +491,114 @@ class LanguageViewModel : ViewModel() {
             "no_sub_categories" to "Chưa có danh mục con",
             "sub_categories" to "danh mục con",
 
+            // Budget Screen
+            "budgets" to "Ngân sách",
+            "add_budget" to "Thêm ngân sách",
+            "total_budget" to "Tổng ngân sách",
+            "active" to "đang hoạt động",
+            "spent" to "Đã chi",
+            "unknown_category" to "Không xác định",
+            "menu" to "Menu",
+            "edit" to "Chỉnh sửa",
+            "pause" to "Tạm dừng",
+            "activate" to "Kích hoạt",
+            "delete" to "Xóa",
+            "remaining" to "Còn lại",
+            "no_budgets" to "Không có ngân sách",
+            "no_budgets_yet" to "Chưa có ngân sách nào",
+            "add_budget_to_manage_spending" to "Thêm ngân sách để quản lý chi tiêu",
+            "this_budget" to "ngân sách này",
+            "warning" to "Cảnh báo",
+            "delete_budget" to "Xóa ngân sách",
+            "confirm_delete_budget" to "Bạn có chắc muốn xóa",
+            "action_cannot_be_undone" to "Hành động này không thể hoàn tác",
+            "confirm" to "Bạn có chắc muốn",
+            // Các key mới cho RecurringExpenseScreen
+            "recurring_expenses" to "Chi tiêu định kỳ",
+            "add_recurring_expense" to "Thêm chi tiêu định kỳ",
+            "total_expenses" to "Tổng chi tiêu",
+            "active_lower" to "đang hoạt động",
+            "monthly_expenses" to "Chi hàng tháng",
+            "next" to "Tiếp theo",
+            "generated" to "Đã tạo",
+            "times" to "lần",
+            "no_recurring_expenses" to "Không có chi tiêu định kỳ",
+            "no_recurring_expenses_yet" to "Chưa có chi tiêu định kỳ nào",
+            "add_recurring_expense_to_manage" to "Thêm chi tiêu định kỳ để quản lý chi tiêu tự động",
+            "delete_recurring_expense" to "Xóa chi tiêu định kỳ",
+            "confirm_delete_recurring_expense" to "Bạn có chắc muốn xóa",
+
+// Các key tần suất (frequency) theo code hiện tại của bạn
+            "daily" to "Hàng ngày",
+            "weekly" to "Hàng tuần",
+            "biweekly" to "Hai tuần một lần",
+            "monthly" to "Hàng tháng",
+            "quarterly" to "Hàng quý",
+            "yearly" to "Hàng năm", // Dùng yearly thay vì annually để phù hợp với RecurringFrequency.YEARLY
+
+// Các key tái sử dụng từ BudgetScreen (cần check xem đã có chưa)
+            "back" to "Quay lại",
+            "menu" to "Menu",
+            "edit" to "Chỉnh sửa",
+            "pause" to "Tạm dừng",
+            "activate" to "Kích hoạt",
+            "delete" to "Xóa",
+            "cancel" to "Hủy",
+            "warning" to "Cảnh báo",
+            "confirm" to "Bạn có chắc muốn",
+            "action_cannot_be_undone" to "Hành động này không thể hoàn tác.",
+
+            "week" to "tuần",
+            "month" to "tháng",
+            "quarter" to "quý",
+            "year" to "năm",
+            "currency_vnd" to "VND",
+            "add_note_placeholder" to "Thêm ghi chú...",
+            "add_budget_button" to "Thêm ngân sách",
+            "update" to "Cập nhật",
+            // Help Screen - Tiếng Việt
+            "help" to "Trợ giúp",
+            "faq" to "Câu hỏi thường gặp",
+            "contact_support" to "Liên hệ hỗ trợ",
+            "usage_tips" to "Mẹo sử dụng",
+            "app_info" to "Thông tin ứng dụng",
+
+// FAQ Questions
+            "faq_how_to_add_transaction" to "Làm thế nào để thêm giao dịch?",
+            "faq_how_to_add_transaction_answer" to "Chuyển đến màn hình Trang chủ, nhấn nút '+' ở dưới cùng, chọn 'Thêm giao dịch', điền thông tin và nhấn 'Lưu'.",
+            "faq_how_to_add_wallet" to "Làm thế nào để thêm ví mới?",
+            "faq_how_to_add_wallet_answer" to "Vào màn hình Ví, nhấn nút '+' ở góc dưới bên phải, nhập tên ví và số dư ban đầu.",
+            "faq_how_to_view_stats" to "Làm thế nào để xem thống kê?",
+            "faq_how_to_view_stats_answer" to "Vào màn hình Thống kê từ thanh điều hướng dưới cùng để xem biểu đồ và phân tích chi tiêu.",
+            "faq_how_to_logout" to "Làm thế nào để đăng xuất?",
+            "faq_how_to_logout_answer" to "Vào màn hình Cài đặt, cuộn xuống và chọn 'Đăng xuất'.",
+
+// Contact Support
+            "support_email" to "Email hỗ trợ",
+            "response_within_24h" to "Phản hồi trong 24h",
+            "website" to "Website",
+            "detailed_guides" to "Hướng dẫn chi tiết",
+            "working_hours" to "Giờ làm việc",
+            "monday_to_friday" to "Thứ 2 - Thứ 6",
+            "working_hours_time" to "8:00 - 17:00",
+
+// Usage Tips
+            "tip_categorize_expenses" to "Phân loại chi tiêu vào đúng danh mục để thống kê chính xác",
+            "tip_set_monthly_budget" to "Thiết lập ngân sách hàng tháng để kiểm soát chi tiêu",
+            "tip_use_recurring_expenses" to "Sử dụng tính năng chi tiêu định kỳ cho các khoản chi cố định",
+            "tip_view_weekly_stats" to "Xem thống kê hàng tuần để điều chỉnh chi tiêu hợp lý",
+
+// App Info
+            "version" to "Phiên bản",
+            "release_date" to "Ngày phát hành",
+            "release_date_value" to "Tháng 12, 2025",
+            "developer" to "Nhà phát triển",
+            "developer_value" to "Finance App Team",
+
+// Common
+            "question" to "Câu hỏi",
+            "expand" to "Mở rộng",
+            "collapse" to "Thu gọn",
             // TransactionScreen specific
             "transaction_screen_title" to "Thu - chi",
             "filter_by_time" to "Lọc theo thời gian",
@@ -475,7 +655,21 @@ class LanguageViewModel : ViewModel() {
             "ai_analysis" to "Phân tích AI",
             "ai_powered_spending_analysis" to "Phân tích chi tiêu với trí tuệ nhân tạo",
             "coming_soon" to "Sắp ra mắt",
-            "unavailable" to "Không khả dụng"
+            "unavailable" to "Không khả dụng",
+            // Add Category Screen
+            "create_category" to "Tạo danh mục",
+            "category_information" to "Thông tin danh mục",
+            "click_to_change_icon" to "Nhấn để đổi icon",
+            "category_name" to "Tên danh mục",
+            "category_name_example" to "Ví dụ: Ăn uống, Mua sắm...",
+            "parent_category" to "Nhóm danh mục",
+            "select_parent_category" to "Chọn nhóm danh mục",
+            "select_category" to "Chọn danh mục",
+            "ready_to_create_category" to "Sẵn sàng tạo danh mục",
+            "select_icon" to "Chọn icon",
+            "no_categories" to "Không có danh mục",
+            "no_categories_found" to "Không tìm thấy danh mục",
+            "try_different_keywords" to "Thử từ khóa khác",
         ),
         "en" to mapOf(
             // TransactionScreen specific
@@ -517,6 +711,143 @@ class LanguageViewModel : ViewModel() {
             "delete_transaction" to "Delete transaction",
             "delete_confirmation" to "Are you sure you want to delete the transaction",
             "confirm_delete" to "Confirm delete",
+            // ALL KEYS FOR RECURRING EXPENSE FEATURE - ENGLISH VERSION
+            "recurring_expenses" to "Recurring Expenses",
+            "add_recurring_expense" to "Add Recurring Expense",
+            "edit_recurring_expense" to "Edit Recurring Expense",
+            "add_recurring_expense_button" to "Add Expense",
+            "total_expenses" to "Total Expenses",
+            "active_lower" to "active",
+            "monthly_expenses" to "Monthly expenses:",
+            "expense_info" to "Expense Information",
+            "title" to "Title",
+            "title_placeholder" to "e.g., Rent, Internet...",
+            "amount" to "Amount",
+            "category" to "Category",
+            "no_categories" to "No categories available",
+            "frequency" to "Frequency",
+            "wallet" to "Wallet",
+            "main_wallet" to "Main Wallet",
+            "main_wallet_placeholder" to "Main wallet",
+            "start_date" to "Start Date",
+            "end_date_optional" to "End Date (Optional)",
+            "select_date" to "Select Date",
+            "no_end_date" to "No End Date",
+            "notes" to "Notes",
+            "menu" to "Menu",
+            "edit" to "Edit",
+            "pause" to "Pause",
+            "activate" to "Activate",
+            "delete" to "Delete",
+            "next" to "Next",
+            "generated" to "Generated",
+            "times" to "times",
+            "no_recurring_expenses" to "No Recurring Expenses",
+            "no_recurring_expenses_yet" to "No recurring expenses yet",
+            "add_recurring_expense_to_manage" to "Add recurring expenses to manage automatic spending",
+            "delete_recurring_expense" to "Delete Recurring Expense",
+            "confirm_delete_recurring_expense" to "Are you sure you want to delete",
+            "warning" to "Warning",
+            "cancel" to "Cancel",
+            "action_cannot_be_undone" to "This action cannot be undone.",
+            "confirm" to "Are you sure",
+            "daily" to "Daily",
+            "weekly" to "Weekly",
+            "monthly" to "Monthly",
+            "quarterly" to "Quarterly",
+            "annually" to "Annually",  // or "yearly" to "Yearly"
+            "currency_vnd" to "VND",
+            "add_note_placeholder" to "Add note...",
+            "update" to "Update",
+            "back" to "Back",
+
+            // Add Category Screen
+            "create_category" to "Create Category",
+            "category_information" to "Category Information",
+            "click_to_change_icon" to "Click to change icon",
+            "category_name" to "Category Name",
+            "category_name_example" to "Example: Food, Shopping...",
+            "parent_category" to "Parent Category",
+            "select_parent_category" to "Select Parent Category",
+            "select_category" to "Select Category",
+            "ready_to_create_category" to "Ready to create category",
+            "select_icon" to "Select Icon",
+            "no_categories" to "No categories",
+            "no_categories_found" to "No categories found",
+            "try_different_keywords" to "Try different keywords",// Add/Edit Recurring Expense Screen (English)
+            "edit_recurring_expense" to "Edit Recurring Expense",
+            "add_recurring_expense_button" to "Add Expense",
+            "expense_info" to "Expense Information",
+            "title" to "Title",
+            "title_placeholder" to "e.g., Rent, Internet...",
+            "amount" to "Amount",
+            "category" to "Category",
+            "no_categories" to "No categories available",
+            "frequency" to "Frequency",
+            "wallet" to "Wallet",
+            "main_wallet" to "Main Wallet",
+            "main_wallet_placeholder" to "Main wallet",
+            "start_date" to "Start Date",
+            "end_date_optional" to "End Date (Optional)",
+            "select_date" to "Select Date",
+            "no_end_date" to "No End Date",
+            "notes" to "Notes",
+
+// Frequency (English)
+            "daily" to "Daily",
+            "weekly" to "Weekly",
+            "monthly" to "Monthly",
+            "quarterly" to "Quarterly",
+            "yearly" to "Yearly",
+
+// Reusable keys from other screens (English)
+            "back" to "Back",
+            "currency_vnd" to "VND",
+            "add_note_placeholder" to "Add note...",
+            "update" to "Update",
+            // Help Screen - English
+            "help" to "Help",
+            "faq" to "Frequently Asked Questions",
+            "contact_support" to "Contact Support",
+            "usage_tips" to "Usage Tips",
+            "app_info" to "App Information",
+
+// FAQ Questions
+            "faq_how_to_add_transaction" to "How to add a transaction?",
+            "faq_how_to_add_transaction_answer" to "Go to the Home screen, tap the '+' button at the bottom, select 'Add Transaction', fill in the information and tap 'Save'.",
+            "faq_how_to_add_wallet" to "How to add a new wallet?",
+            "faq_how_to_add_wallet_answer" to "Go to the Wallets screen, tap the '+' button in the bottom right corner, enter wallet name and initial balance.",
+            "faq_how_to_view_stats" to "How to view statistics?",
+            "faq_how_to_view_stats_answer" to "Go to the Statistics screen from the bottom navigation bar to view charts and spending analysis.",
+            "faq_how_to_logout" to "How to logout?",
+            "faq_how_to_logout_answer" to "Go to the Settings screen, scroll down and select 'Logout'.",
+
+// Contact Support
+            "support_email" to "Support Email",
+            "response_within_24h" to "Response within 24 hours",
+            "website" to "Website",
+            "detailed_guides" to "Detailed guides",
+            "working_hours" to "Working Hours",
+            "monday_to_friday" to "Monday - Friday",
+            "working_hours_time" to "8:00 - 17:00",
+
+// Usage Tips
+            "tip_categorize_expenses" to "Categorize expenses into correct categories for accurate statistics",
+            "tip_set_monthly_budget" to "Set monthly budget to control spending",
+            "tip_use_recurring_expenses" to "Use recurring expenses feature for fixed expenses",
+            "tip_view_weekly_stats" to "View weekly statistics to adjust spending appropriately",
+
+// App Info
+            "version" to "Version",
+            "release_date" to "Release Date",
+            "release_date_value" to "December, 2025",
+            "developer" to "Developer",
+            "developer_value" to "Finance App Team",
+
+// Common
+            "question" to "Question",
+            "expand" to "Expand",
+            "collapse" to "Collapse",
 
             // Basic app and navigation
             "language_settings" to "Language Settings",
@@ -583,8 +914,34 @@ class LanguageViewModel : ViewModel() {
             "release_date" to "Release Date",
             "footer_copyright" to "Finance App © 2025",
 
-            // ========== MỚI: THÊM TỪ HOME SCREEN ==========
-            // HomeScreen specific
+            // Budget Screen
+            "budgets" to "Budgets",
+            "add_budget" to "Add Budget",
+            "total_budget" to "Total Budget",
+            "active" to "active",
+            "spent" to "Spent",
+            "unknown_category" to "Unknown Category",
+            "menu" to "Menu",
+            "edit" to "Edit",
+            "pause" to "Pause",
+            "activate" to "Activate",
+            "delete" to "Delete",
+            "remaining" to "Remaining",
+            "no_budgets" to "No budgets",
+            "no_budgets_yet" to "No budgets yet",
+            "add_budget_to_manage_spending" to "Add budget to manage spending",
+            "this_budget" to "this budget",
+            "warning" to "Warning",
+            "delete_budget" to "Delete Budget",
+            "confirm_delete_budget" to "Are you sure you want to delete",
+            "action_cannot_be_undone" to "This action cannot be undone",
+            "confirm" to "Are you sure you want to",
+
+// Budget periods
+            "week" to "week",
+            "month" to "month",
+            "quarter" to "quarter",
+            "year" to "year",
             // HomeScreen specific
             "home" to "Home",
             "greeting" to "Hello",

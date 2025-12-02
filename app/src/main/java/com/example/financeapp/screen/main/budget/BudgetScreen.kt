@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -25,16 +24,17 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.financeapp.data.Budget
-import com.example.financeapp.data.BudgetPeriodType
+import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.data.models.Budget
+import com.example.financeapp.data.models.BudgetPeriodType
+import com.example.financeapp.data.models.isOverBudget
+import com.example.financeapp.data.models.progressPercentage
+import com.example.financeapp.data.models.remainingAmount
+import com.example.financeapp.screen.features.formatCurrency
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
-import com.example.financeapp.data.getDisplayName
-import com.example.financeapp.data.isOverBudget
-import com.example.financeapp.data.progressPercentage
-import com.example.financeapp.data.remainingAmount
-import com.example.financeapp.screen.features.formatCurrency
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +44,7 @@ fun BudgetScreen(
     budgetViewModel: BudgetViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel(),
 ) {
+    val languageViewModel = LocalLanguageViewModel.current
     val budgets by budgetViewModel.budgets.collectAsState()
     val categories by categoryViewModel.categories.collectAsState()
     val isLoading = false
@@ -60,8 +61,9 @@ fun BudgetScreen(
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Ngân sách",
-                onBackClick = { navController.popBackStack() }
+                title = languageViewModel.getTranslation("budgets"),
+                onBackClick = { navController.popBackStack() },
+                languageViewModel = languageViewModel
             )
         },
         floatingActionButton = {
@@ -75,7 +77,7 @@ fun BudgetScreen(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = "Thêm ngân sách",
+                    contentDescription = languageViewModel.getTranslation("add_budget"),
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
@@ -103,7 +105,8 @@ fun BudgetScreen(
             },
             onAddClick = {
                 navController.navigate("add_budget")
-            }
+            },
+            languageViewModel = languageViewModel
         )
     }
 
@@ -120,16 +123,16 @@ fun BudgetScreen(
             onDismiss = {
                 showDeleteDialog = false
                 selectedBudget = null
-            }
+            },
+            languageViewModel = languageViewModel
         )
     }
 
-    // Dialog thay đổi trạng thái - Sửa lại để không gọi toggleBudgetStatus
+    // Dialog thay đổi trạng thái
     if (showStatusDialog && selectedBudget != null) {
         StatusDialog(
             budget = selectedBudget!!,
             onToggle = {
-                // Tạo budget mới với trạng thái đã thay đổi
                 val updatedBudget = selectedBudget!!.copy(isActive = !selectedBudget!!.isActive)
                 budgetViewModel.updateFullBudget(updatedBudget)
                 showStatusDialog = false
@@ -138,7 +141,8 @@ fun BudgetScreen(
             onDismiss = {
                 showStatusDialog = false
                 selectedBudget = null
-            }
+            },
+            languageViewModel = languageViewModel
         )
     }
 }
@@ -147,7 +151,8 @@ fun BudgetScreen(
 @Composable
 private fun SimpleTopAppBar(
     title: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -162,7 +167,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -182,13 +187,17 @@ private fun BudgetContent(
     onEdit: (Budget) -> Unit,
     onToggleStatus: (Budget) -> Unit,
     onDelete: (Budget) -> Unit,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     Column(modifier = modifier) {
         if (isLoading) {
             LoadingState()
         } else {
-            SimpleStatsCard(budgets = budgets)
+            SimpleStatsCard(
+                budgets = budgets,
+                languageViewModel = languageViewModel
+            )
             Spacer(modifier = Modifier.height(16.dp))
             BudgetList(
                 budgets = budgets,
@@ -196,7 +205,8 @@ private fun BudgetContent(
                 onEdit = onEdit,
                 onToggleStatus = onToggleStatus,
                 onDelete = onDelete,
-                onAddClick = onAddClick
+                onAddClick = onAddClick,
+                languageViewModel = languageViewModel
             )
         }
     }
@@ -216,7 +226,10 @@ private fun LoadingState() {
 }
 
 @Composable
-private fun SimpleStatsCard(budgets: List<Budget>) {
+private fun SimpleStatsCard(
+    budgets: List<Budget>,
+    languageViewModel: LanguageViewModel
+) {
     val activeBudgets = budgets.count { it.isActive }
     val totalBudget = budgets.filter { it.isActive }.sumOf { it.amount }
     val totalSpent = budgets.filter { it.isActive }.sumOf { it.spentAmount }
@@ -238,7 +251,7 @@ private fun SimpleStatsCard(budgets: List<Budget>) {
             ) {
                 Column {
                     Text(
-                        "Tổng ngân sách",
+                        languageViewModel.getTranslation("total_budget"),
                         fontSize = 14.sp,
                         color = Color(0xFF666666)
                     )
@@ -260,7 +273,7 @@ private fun SimpleStatsCard(budgets: List<Budget>) {
                         color = Color(0xFF2196F3)
                     )
                     Text(
-                        "đang hoạt động",
+                        languageViewModel.getTranslation("active"),
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
@@ -297,7 +310,7 @@ private fun SimpleStatsCard(budgets: List<Budget>) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        "Đã chi: ${formatCurrency(totalSpent)}",
+                        "${languageViewModel.getTranslation("spent")}: ${formatCurrency(totalSpent)}",
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
@@ -320,7 +333,8 @@ private fun BudgetList(
     onEdit: (Budget) -> Unit,
     onToggleStatus: (Budget) -> Unit,
     onDelete: (Budget) -> Unit,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     Box(
         modifier = Modifier
@@ -328,7 +342,10 @@ private fun BudgetList(
             .padding(horizontal = 16.dp)
     ) {
         if (budgets.isEmpty()) {
-            EmptyBudgetState(onAddClick = onAddClick)
+            EmptyBudgetState(
+                onAddClick = onAddClick,
+                languageViewModel = languageViewModel
+            )
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -340,7 +357,8 @@ private fun BudgetList(
                         category = categories.find { it.id == budget.categoryId },
                         onEdit = { onEdit(budget) },
                         onToggleStatus = { onToggleStatus(budget) },
-                        onDelete = { onDelete(budget) }
+                        onDelete = { onDelete(budget) },
+                        languageViewModel = languageViewModel
                     )
                 }
                 item {
@@ -357,17 +375,18 @@ private fun SimpleBudgetCard(
     category: Category?,
     onEdit: () -> Unit,
     onToggleStatus: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val formatter = DateTimeFormatter.ofPattern("dd/MM")
 
     // Tên ngắn gọn cho budget period
     val periodText = when (budget.periodType) {
-        BudgetPeriodType.WEEK -> "tuần"
-        BudgetPeriodType.MONTH -> "tháng"
-        BudgetPeriodType.QUARTER -> "quý"
-        BudgetPeriodType.YEAR -> "năm"
+        BudgetPeriodType.WEEK -> languageViewModel.getTranslation("week")
+        BudgetPeriodType.MONTH -> languageViewModel.getTranslation("month")
+        BudgetPeriodType.QUARTER -> languageViewModel.getTranslation("quarter")
+        BudgetPeriodType.YEAR -> languageViewModel.getTranslation("year")
     }
 
     Card(
@@ -407,7 +426,7 @@ private fun SimpleBudgetCard(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                category?.name ?: "Không xác định",
+                                category?.name ?: languageViewModel.getTranslation("unknown_category"),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF333333)
@@ -449,7 +468,7 @@ private fun SimpleBudgetCard(
                     ) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "Menu",
+                            contentDescription = languageViewModel.getTranslation("menu"),
                             tint = Color(0xFF666666)
                         )
                     }
@@ -476,7 +495,7 @@ private fun SimpleBudgetCard(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        "Chỉnh sửa",
+                                        languageViewModel.getTranslation("edit"),
                                         color = Color(0xFF333333),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal
@@ -511,7 +530,8 @@ private fun SimpleBudgetCard(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        if (budget.isActive) "Tạm dừng" else "Kích hoạt",
+                                        if (budget.isActive) languageViewModel.getTranslation("pause")
+                                        else languageViewModel.getTranslation("activate"),
                                         color = Color(0xFF333333),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal
@@ -546,7 +566,7 @@ private fun SimpleBudgetCard(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        "Xóa",
+                                        languageViewModel.getTranslation("delete"),
                                         color = Color(0xFFF44336),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal
@@ -579,7 +599,7 @@ private fun SimpleBudgetCard(
                         color = Color(0xFF333333)
                     )
                     Text(
-                        "Còn lại: ${formatCurrency(budget.remainingAmount)}",
+                        "${languageViewModel.getTranslation("remaining")}: ${formatCurrency(budget.remainingAmount)}",
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
@@ -652,7 +672,10 @@ private fun SimpleBudgetCard(
 }
 
 @Composable
-private fun EmptyBudgetState(onAddClick: () -> Unit) {
+private fun EmptyBudgetState(
+    onAddClick: () -> Unit,
+    languageViewModel: LanguageViewModel
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -662,7 +685,7 @@ private fun EmptyBudgetState(onAddClick: () -> Unit) {
     ) {
         Icon(
             Icons.Outlined.AccountBalanceWallet,
-            contentDescription = "Không có ngân sách",
+            contentDescription = languageViewModel.getTranslation("no_budgets"),
             tint = Color(0xFFCCCCCC),
             modifier = Modifier.size(80.dp)
         )
@@ -670,7 +693,7 @@ private fun EmptyBudgetState(onAddClick: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "Chưa có ngân sách nào",
+            languageViewModel.getTranslation("no_budgets_yet"),
             color = Color(0xFF666666),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
@@ -680,7 +703,7 @@ private fun EmptyBudgetState(onAddClick: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            "Thêm ngân sách để quản lý chi tiêu",
+            languageViewModel.getTranslation("add_budget_to_manage_spending"),
             color = Color(0xFF999999),
             fontSize = 14.sp,
             textAlign = TextAlign.Center
@@ -698,7 +721,10 @@ private fun EmptyBudgetState(onAddClick: () -> Unit) {
                 .fillMaxWidth(0.7f),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("THÊM NGÂN SÁCH", fontWeight = FontWeight.Medium)
+            Text(
+                languageViewModel.getTranslation("add_budget").uppercase(),
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
@@ -708,9 +734,11 @@ private fun SimpleDeleteDialog(
     budget: Budget,
     categories: List<Category>,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
-    val categoryName = categories.find { it.id == budget.categoryId }?.name ?: "ngân sách này"
+    val categoryName = categories.find { it.id == budget.categoryId }?.name ?:
+    languageViewModel.getTranslation("this_budget")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -718,14 +746,22 @@ private fun SimpleDeleteDialog(
             TextButton(
                 onClick = onConfirm
             ) {
-                Text("XÓA", color = Color(0xFFF44336), fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("delete").uppercase(),
+                    color = Color(0xFFF44336),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("HỦY", color = Color(0xFF666666), fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("cancel").uppercase(),
+                    color = Color(0xFF666666),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         icon = {
@@ -737,7 +773,7 @@ private fun SimpleDeleteDialog(
             ) {
                 Icon(
                     Icons.Default.Warning,
-                    contentDescription = "Cảnh báo",
+                    contentDescription = languageViewModel.getTranslation("warning"),
                     tint = Color(0xFFF44336),
                     modifier = Modifier.size(30.dp)
                 )
@@ -745,7 +781,7 @@ private fun SimpleDeleteDialog(
         },
         title = {
             Text(
-                "Xóa ngân sách",
+                languageViewModel.getTranslation("delete_budget"),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333),
@@ -757,14 +793,14 @@ private fun SimpleDeleteDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Bạn có chắc muốn xóa ngân sách \"$categoryName\"?",
+                    "${languageViewModel.getTranslation("confirm_delete_budget")} \"$categoryName\"?",
                     fontSize = 14.sp,
                     color = Color(0xFF666666),
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Hành động này không thể hoàn tác.",
+                    languageViewModel.getTranslation("action_cannot_be_undone"),
                     fontSize = 14.sp,
                     color = Color(0xFF666666),
                     textAlign = TextAlign.Center
@@ -780,9 +816,11 @@ private fun SimpleDeleteDialog(
 private fun StatusDialog(
     budget: Budget,
     onToggle: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
-    val actionText = if (budget.isActive) "Tạm dừng" else "Kích hoạt"
+    val actionText = if (budget.isActive) languageViewModel.getTranslation("pause")
+    else languageViewModel.getTranslation("activate")
     val icon = if (budget.isActive) Icons.Default.Pause else Icons.Default.PlayArrow
 
     AlertDialog(
@@ -791,14 +829,22 @@ private fun StatusDialog(
             TextButton(
                 onClick = onToggle
             ) {
-                Text(actionText.uppercase(), color = Color(0xFF2196F3), fontWeight = FontWeight.Medium)
+                Text(
+                    actionText.uppercase(),
+                    color = Color(0xFF2196F3),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("HỦY", color = Color(0xFF666666), fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("cancel").uppercase(),
+                    color = Color(0xFF666666),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         icon = {
@@ -827,7 +873,7 @@ private fun StatusDialog(
         },
         text = {
             Text(
-                "Bạn có chắc muốn ${actionText.lowercase()} ngân sách này?",
+                "${languageViewModel.getTranslation("confirm")} ${actionText.lowercase()} ${languageViewModel.getTranslation("this_budget")}?",
                 fontSize = 14.sp,
                 color = Color(0xFF666666),
                 textAlign = TextAlign.Center

@@ -30,6 +30,8 @@ import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import androidx.core.graphics.toColorInt
 import com.example.financeapp.screen.features.formatCurrency
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
+import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,6 +42,7 @@ fun RecurringExpenseScreen(
     recurringExpenseViewModel: RecurringExpenseViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel(),
 ) {
+    val languageViewModel = LocalLanguageViewModel.current
     val recurringExpenses by recurringExpenseViewModel.recurringExpenses.collectAsState()
     val isLoading by recurringExpenseViewModel.isLoading.collectAsState()
 
@@ -61,8 +64,9 @@ fun RecurringExpenseScreen(
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Chi tiêu định kỳ",
-                onBackClick = { navController.popBackStack() }
+                title = languageViewModel.getTranslation("recurring_expenses"),
+                onBackClick = { navController.popBackStack() },
+                languageViewModel = languageViewModel
             )
         },
         floatingActionButton = {
@@ -76,7 +80,7 @@ fun RecurringExpenseScreen(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = "Thêm chi tiêu định kỳ",
+                    contentDescription = languageViewModel.getTranslation("add_recurring_expense"),
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
@@ -92,7 +96,11 @@ fun RecurringExpenseScreen(
             if (isLoading) {
                 LoadingState(primaryColor = primaryColor)
             } else {
-                SimpleStatsCard(expenses = recurringExpenses, primaryColor = primaryColor)
+                SimpleStatsCard(
+                    expenses = recurringExpenses,
+                    primaryColor = primaryColor,
+                    languageViewModel = languageViewModel
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 ExpenseList(
                     expenses = recurringExpenses,
@@ -110,7 +118,8 @@ fun RecurringExpenseScreen(
                     },
                     onAddClick = {
                         navController.navigate("add_recurring_expense")
-                    }
+                    },
+                    languageViewModel = languageViewModel
                 )
             }
         }
@@ -128,7 +137,8 @@ fun RecurringExpenseScreen(
             onDismiss = {
                 showDeleteDialog = false
                 selectedExpense = null
-            }
+            },
+            languageViewModel = languageViewModel
         )
     }
 
@@ -144,7 +154,8 @@ fun RecurringExpenseScreen(
             onDismiss = {
                 showStatusDialog = false
                 selectedExpense = null
-            }
+            },
+            languageViewModel = languageViewModel
         )
     }
 }
@@ -153,7 +164,8 @@ fun RecurringExpenseScreen(
 @Composable
 private fun SimpleTopAppBar(
     title: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -168,7 +180,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -195,7 +207,8 @@ private fun LoadingState(primaryColor: Color) {
 @Composable
 private fun SimpleStatsCard(
     expenses: List<RecurringExpense>,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     val activeExpenses = expenses.count { it.isActive }
     val totalAmount = expenses.filter { it.isActive }.sumOf { it.amount }
@@ -221,7 +234,7 @@ private fun SimpleStatsCard(
             ) {
                 Column {
                     Text(
-                        "Tổng chi tiêu",
+                        languageViewModel.getTranslation("total_expenses"),
                         fontSize = 14.sp,
                         color = Color(0xFF666666)
                     )
@@ -243,7 +256,7 @@ private fun SimpleStatsCard(
                         color = primaryColor
                     )
                     Text(
-                        "đang hoạt động",
+                        languageViewModel.getTranslation("active_lower"),
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
@@ -267,7 +280,7 @@ private fun SimpleStatsCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Chi hàng tháng:",
+                        languageViewModel.getTranslation("monthly_expenses"),
                         fontSize = 14.sp,
                         color = Color(0xFF666666)
                     )
@@ -290,7 +303,8 @@ private fun ExpenseList(
     onEdit: (RecurringExpense) -> Unit,
     onToggleStatus: (RecurringExpense) -> Unit,
     onDelete: (RecurringExpense) -> Unit,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     Box(
         modifier = Modifier
@@ -298,7 +312,11 @@ private fun ExpenseList(
             .padding(horizontal = 16.dp)
     ) {
         if (expenses.isEmpty()) {
-            EmptyExpenseState(onAddClick = onAddClick, primaryColor = primaryColor)
+            EmptyExpenseState(
+                onAddClick = onAddClick,
+                primaryColor = primaryColor,
+                languageViewModel = languageViewModel
+            )
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -310,7 +328,8 @@ private fun ExpenseList(
                         primaryColor = primaryColor,
                         onEdit = { onEdit(expense) },
                         onToggleStatus = { onToggleStatus(expense) },
-                        onDelete = { onDelete(expense) }
+                        onDelete = { onDelete(expense) },
+                        languageViewModel = languageViewModel
                     )
                 }
                 item {
@@ -327,7 +346,8 @@ private fun SimpleExpenseCard(
     primaryColor: Color,
     onEdit: () -> Unit,
     onToggleStatus: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -397,7 +417,7 @@ private fun SimpleExpenseCard(
                     ) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "Menu",
+                            contentDescription = languageViewModel.getTranslation("menu"),
                             tint = Color(0xFF666666)
                         )
                     }
@@ -424,7 +444,7 @@ private fun SimpleExpenseCard(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        "Chỉnh sửa",
+                                        languageViewModel.getTranslation("edit"),
                                         color = Color(0xFF333333),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal
@@ -459,7 +479,8 @@ private fun SimpleExpenseCard(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        if (expense.isActive) "Tạm dừng" else "Kích hoạt",
+                                        if (expense.isActive) languageViewModel.getTranslation("pause")
+                                        else languageViewModel.getTranslation("activate"),
                                         color = Color(0xFF333333),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal
@@ -494,7 +515,7 @@ private fun SimpleExpenseCard(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        "Xóa",
+                                        languageViewModel.getTranslation("delete"),
                                         color = Color(0xFFF44336),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal
@@ -527,7 +548,8 @@ private fun SimpleExpenseCard(
                         color = Color(0xFF333333)
                     )
                     Text(
-                        expense.getFrequencyEnum().displayName,
+                        // Dùng getFrequencyDisplayName với languageViewModel
+                        getFrequencyDisplayName(expense.getFrequencyEnum(), languageViewModel),
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
@@ -537,12 +559,12 @@ private fun SimpleExpenseCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        "Tiếp theo: $nextDate",
+                        "${languageViewModel.getTranslation("next")}: $nextDate",
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
                     Text(
-                        "Đã tạo: ${expense.totalGenerated} lần",
+                        "${languageViewModel.getTranslation("generated")}: ${expense.totalGenerated} ${languageViewModel.getTranslation("times")}",
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
@@ -604,7 +626,8 @@ private fun SimpleExpenseCard(
 @Composable
 private fun EmptyExpenseState(
     onAddClick: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     Column(
         modifier = Modifier
@@ -615,7 +638,7 @@ private fun EmptyExpenseState(
     ) {
         Icon(
             Icons.Outlined.Autorenew,
-            contentDescription = "Không có chi tiêu định kỳ",
+            contentDescription = languageViewModel.getTranslation("no_recurring_expenses"),
             tint = Color(0xFFCCCCCC),
             modifier = Modifier.size(80.dp)
         )
@@ -623,7 +646,7 @@ private fun EmptyExpenseState(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "Chưa có chi tiêu định kỳ nào",
+            languageViewModel.getTranslation("no_recurring_expenses_yet"),
             color = Color(0xFF666666),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
@@ -633,7 +656,7 @@ private fun EmptyExpenseState(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            "Thêm chi tiêu định kỳ để quản lý chi tiêu tự động",
+            languageViewModel.getTranslation("add_recurring_expense_to_manage"),
             color = Color(0xFF999999),
             fontSize = 14.sp,
             textAlign = TextAlign.Center
@@ -651,7 +674,10 @@ private fun EmptyExpenseState(
                 .fillMaxWidth(0.7f),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("THÊM CHI TIÊU", fontWeight = FontWeight.Medium)
+            Text(
+                languageViewModel.getTranslation("add_recurring_expense").uppercase(),
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
@@ -660,7 +686,8 @@ private fun EmptyExpenseState(
 private fun SimpleDeleteDialog(
     expense: RecurringExpense,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -668,14 +695,22 @@ private fun SimpleDeleteDialog(
             TextButton(
                 onClick = onConfirm
             ) {
-                Text("XÓA", color = Color(0xFFF44336), fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("delete").uppercase(),
+                    color = Color(0xFFF44336),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("HỦY", color = Color(0xFF666666), fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("cancel").uppercase(),
+                    color = Color(0xFF666666),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         icon = {
@@ -687,7 +722,7 @@ private fun SimpleDeleteDialog(
             ) {
                 Icon(
                     Icons.Default.Warning,
-                    contentDescription = "Cảnh báo",
+                    contentDescription = languageViewModel.getTranslation("warning"),
                     tint = Color(0xFFF44336),
                     modifier = Modifier.size(30.dp)
                 )
@@ -695,7 +730,7 @@ private fun SimpleDeleteDialog(
         },
         title = {
             Text(
-                "Xóa chi tiêu định kỳ",
+                languageViewModel.getTranslation("delete_recurring_expense"),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333),
@@ -707,14 +742,14 @@ private fun SimpleDeleteDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Bạn có chắc muốn xóa \"${expense.title}\"?",
+                    "${languageViewModel.getTranslation("confirm_delete_recurring_expense")} \"${expense.title}\"?",
                     fontSize = 14.sp,
                     color = Color(0xFF666666),
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Hành động này không thể hoàn tác.",
+                    languageViewModel.getTranslation("action_cannot_be_undone"),
                     fontSize = 14.sp,
                     color = Color(0xFF666666),
                     textAlign = TextAlign.Center
@@ -730,9 +765,11 @@ private fun SimpleDeleteDialog(
 private fun StatusDialog(
     expense: RecurringExpense,
     onToggle: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
-    val actionText = if (expense.isActive) "Tạm dừng" else "Kích hoạt"
+    val actionText = if (expense.isActive) languageViewModel.getTranslation("pause")
+    else languageViewModel.getTranslation("activate")
     val icon = if (expense.isActive) Icons.Default.Pause else Icons.Default.PlayArrow
     val primaryColor = Color(0xFF2196F3)
 
@@ -742,14 +779,22 @@ private fun StatusDialog(
             TextButton(
                 onClick = onToggle
             ) {
-                Text(actionText.uppercase(), color = primaryColor, fontWeight = FontWeight.Medium)
+                Text(
+                    actionText.uppercase(),
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("HỦY", color = Color(0xFF666666), fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("cancel").uppercase(),
+                    color = Color(0xFF666666),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         icon = {
@@ -778,7 +823,7 @@ private fun StatusDialog(
         },
         text = {
             Text(
-                "Bạn có chắc muốn ${actionText.lowercase()} \"${expense.title}\"?",
+                "${languageViewModel.getTranslation("confirm")} ${actionText.lowercase()} \"${expense.title}\"?",
                 fontSize = 14.sp,
                 color = Color(0xFF666666),
                 textAlign = TextAlign.Center
@@ -787,6 +832,17 @@ private fun StatusDialog(
         containerColor = Color.White,
         shape = RoundedCornerShape(16.dp)
     )
+}
+
+// Helper function để lấy tên tần suất đa ngôn ngữ
+private fun getFrequencyDisplayName(frequency: RecurringFrequency, languageViewModel: LanguageViewModel): String {
+    return when (frequency) {
+        RecurringFrequency.DAILY -> languageViewModel.getTranslation("daily")
+        RecurringFrequency.WEEKLY -> languageViewModel.getTranslation("weekly")
+        RecurringFrequency.MONTHLY -> languageViewModel.getTranslation("monthly")
+        RecurringFrequency.QUARTERLY -> languageViewModel.getTranslation("quarterly")
+        RecurringFrequency.YEARLY -> languageViewModel.getTranslation("annually")
+    }
 }
 
 @Composable
