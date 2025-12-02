@@ -115,7 +115,6 @@ fun ExtensionsScreen(navController: NavController) {
                 bgColor = PurpleAccent,
                 onClick = {
                     // navController.navigate("savings_goals")
-                    // TODO: Thêm sau khi có tính năng
                 }
             )
         }
