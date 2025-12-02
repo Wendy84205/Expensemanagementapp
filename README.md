@@ -1,354 +1,351 @@
-Finance Management App 💰
+Ứng Dụng Quản Lý Tài Chính Cá Nhân 💰
 
 https://img.shields.io/badge/Kotlin-1.9.0-blue.svg
 https://img.shields.io/badge/Compose-1.5.0-brightgreen.svg
 https://img.shields.io/badge/License-MIT-yellow.svg
 https://img.shields.io/badge/minSdk-24-orange.svg
-https://img.shields.io/badge/Firebase-Enabled-red.svg
+https://img.shields.io/badge/Firebase-%C4%90%C3%A3%2520k%C3%ADch%2520ho%E1%BA%A1t-red.svg
 
-A modern personal finance management application built with Jetpack Compose, featuring expense tracking, budgeting, recurring transactions, and AI-powered financial insights.
+Ứng dụng quản lý tài chính cá nhân hiện đại, giúp bạn theo dõi thu chi, lập ngân sách và quản lý tài chính thông minh.
 
-📋 Table of Contents
+📋 Mục Lục
 
-Features
-Screenshots
-Architecture
-Installation
-Building
-Configuration
-Contributing
-License
-✨ Features
+Tính Năng
+Hình Ảnh
+Kiến Trúc
+Cài Đặt
+Cấu Hình
+Đóng Góp
+Giấy Phép
+✨ Tính Năng Chính
 
-Core Functionality
+Quản Lý Cơ Bản
 
-Transaction Management: Add, edit, delete, and categorize income and expenses
-Budget Tracking: Set monthly budgets and monitor spending limits
-Recurring Expenses: Automate regular payments with flexible scheduling
-Multi-Currency Support: Handle transactions in different currencies
-Data Export: Export financial data to CSV, Excel, and PDF formats
-Analytics & Insights
+Theo dõi thu chi: Thêm, sửa, xóa giao dịch dễ dàng
+Phân loại danh mục: Tùy chỉnh danh mục thu chi
+Chi tiêu định kỳ: Tự động ghi nhận chi tiêu hàng tháng
+Đa tiền tệ: Hỗ trợ nhiều loại tiền tệ khác nhau
+Xuất dữ liệu: Xuất file CSV, Excel, PDF
+Phân Tích & Báo Cáo
 
-Visual Dashboards: Interactive charts and graphs for financial overview
-Category Analysis: Breakdown of spending by category
-Trend Analysis: Identify spending patterns over time
-Financial Reports: Generate detailed weekly, monthly, and yearly reports
-Goal Tracking: Set and monitor savings and investment goals
-Smart Features
+Dashboard trực quan: Biểu đồ và thống kê sinh động
+Phân tích danh mục: Xem chi tiêu theo từng hạng mục
+Xu hướng chi tiêu: Theo dõi thói quen chi tiêu theo thời gian
+Báo cáo chi tiết: Báo cáo tuần, tháng, năm
+Mục tiêu tiết kiệm: Đặt và theo dõi mục tiêu tài chính
+Tính Năng Thông Minh
 
-AI-Powered Insights: Get intelligent suggestions for budget optimization
-Receipt Scanning: Extract transaction details from receipt images using OCR
-Bill Reminders: Never miss a payment with smart notifications
-Financial Forecasting: Predict future expenses based on historical data
-Spending Alerts: Receive notifications for unusual spending patterns
-User Experience
+Gợi ý từ AI: Đề xuất tối ưu ngân sách thông minh
+Quét hóa đơn: Tự động nhập liệu từ ảnh hóa đơn
+Nhắc nhở thanh toán: Không bỏ lỡ hạn thanh toán
+Dự báo tài chính: Dự đoán chi tiêu dựa trên lịch sử
+Cảnh báo chi tiêu: Thông báo khi chi tiêu bất thường
+Trải Nghiệm Người Dùng
 
-Material Design 3: Modern, intuitive interface following latest design standards
-Dark/Light Themes: Automatic theme switching based on system preferences
-Biometric Authentication: Secure login with fingerprint or face recognition
-Offline Support: Full functionality without internet connection
-Multi-language: Vietnamese and English language support
-Security & Sync
+Giao diện hiện đại: Thiết kế Material 3 đẹp mắt
+Chế độ sáng/tối: Tự động thay đổi theo hệ thống
+Bảo mật vân tay: Đăng nhập bằng vân tay/face ID
+Hoạt động offline: Sử dụng không cần internet
+Đa ngôn ngữ: Tiếng Việt và Tiếng Anh
+Bảo Mật & Đồng Bộ
 
-End-to-End Encryption: Secure financial data protection
-Cloud Backup: Automatic synchronization with Firebase
-Local Storage: Option to store data locally only
-Privacy Focused: No collection of personal financial data
-📱 Screenshots
+Mã hóa dữ liệu: Bảo vệ thông tin tài chính
+Sao lưu đám mây: Đồng bộ với Firebase
+Lưu trữ cục bộ: Tùy chọn lưu dữ liệu local
+Bảo mật riêng tư: Không thu thập dữ liệu cá nhân
+📱 Hình Ảnh Ứng Dụng
 
-Dashboard & Overview
+Màn Hình Chính
 
-Dashboard	Statistics	Budget View
-https://via.placeholder.com/300x600/4CAF50/FFFFFF?text=Dashboard	https://via.placeholder.com/300x600/2196F3/FFFFFF?text=Statistics	https://via.placeholder.com/300x600/FF9800/FFFFFF?text=Budget
-Transaction Management
+Dashboard	Thống Kê	Ngân Sách
+https://via.placeholder.com/300x600/4CAF50/FFFFFF?text=Dashboard	https://via.placeholder.com/300x600/2196F3/FFFFFF?text=Th%E1%BB%91ng+K%C3%AA	https://via.placeholder.com/300x600/FF9800/FFFFFF?text=Ng%C3%A2n+S%C3%A1ch
+Quản Lý Giao Dịch
 
-Add Transaction	Categories	Recurring
-https://via.placeholder.com/300x600/9C27B0/FFFFFF?text=Add+Transaction	https://via.placeholder.com/300x600/3F51B5/FFFFFF?text=Categories	https://via.placeholder.com/300x600/00BCD4/FFFFFF?text=Recurring
-Settings & AI Features
+Thêm Giao Dịch	Danh Mục	Chi Tiêu Định Kỳ
+https://via.placeholder.com/300x600/9C27B0/FFFFFF?text=Th%C3%AAm+Giao+D%E1%BB%8Bch	https://via.placeholder.com/300x600/3F51B5/FFFFFF?text=Danh+M%E1%BB%A5c	https://via.placeholder.com/300x600/00BCD4/FFFFFF?text=Chi+Ti%C3%AAu+%C4%90%E1%BB%8Bnh+K%E1%BB%B3
+Cài Đặt & AI
 
-Settings	AI Assistant	Reports
-https://via.placeholder.com/300x600/607D8B/FFFFFF?text=Settings	https://via.placeholder.com/300x600/009688/FFFFFF?text=AI+Assistant	https://via.placeholder.com/300x600/E91E63/FFFFFF?text=Reports
-🏗️ Architecture
+Cài Đặt	Trợ Lý AI	Báo Cáo
+https://via.placeholder.com/300x600/607D8B/FFFFFF?text=C%C3%A0i+%C4%90%E1%BA%B7t	https://via.placeholder.com/300x600/009688/FFFFFF?text=Tr%E1%BB%A3+L%C3%BD+AI	https://via.placeholder.com/300x600/E91E63/FFFFFF?text=B%C3%A1o+C%C3%A1o
+🏗️ Kiến Trúc Ứng Dụng
 
-Tech Stack
+Công Nghệ Sử Dụng
 
-Language: Kotlin 1.9.0
-UI Framework: Jetpack Compose 1.5.0
-Architecture: Clean Architecture with MVVM
+Ngôn ngữ: Kotlin 1.9.0
+Giao diện: Jetpack Compose 1.5.0
+Kiến trúc: Clean Architecture với MVVM
 Dependency Injection: Dagger Hilt
-Local Database: Room
-Remote Database: Firebase Firestore
-Authentication: Firebase Auth
-Image Processing: ML Kit
-Notifications: WorkManager + AlarmManager
-Project Structure
-Design Patterns
-Repository Pattern: Abstraction between data sources and business logic
-Observer Pattern: Reactive UI updates with StateFlow
-Factory Pattern: Object creation for complex entities
-Strategy Pattern: Different algorithms for data processing
-Builder Pattern: Complex object construction
-🚀 Installation
+Database local: Room
+Database cloud: Firebase Firestore
+Xác thực: Firebase Auth
+Xử lý ảnh: ML Kit
+Thông báo: WorkManager + AlarmManager
+Cấu Trúc Thư Mục
 
-Prerequisites
+text
+app/
+├── src/main/java/com/example/financeapp/
+│   ├── MainActivity.kt           # Activity chính
+│   ├── FinanceApp.kt            # Ứng dụng chính
+│   │
+│   ├── di/                       # Dependency Injection
+│   │   └── AppModule.kt         # Module DI
+│   │
+│   ├── navigation/               # Điều hướng
+│   │   └── NavGraph.kt          # Graph điều hướng
+│   │
+│   ├── screen/                   # Các màn hình
+│   │   ├── auth/                 # Màn hình đăng nhập
+│   │   ├── main/                 # Màn hình chính
+│   │   │   ├── dashboard/       # Trang chủ
+│   │   │   ├── transaction/     # Giao dịch
+│   │   │   ├── budget/          # Ngân sách
+│   │   │   └── statistics/      # Thống kê
+│   │   ├── settings/            # Cài đặt
+│   │   └── features/            # Tính năng
+│   │
+│   ├── viewmodel/                # ViewModels
+│   │   ├── auth/                 # Xác thực
+│   │   ├── transaction/          # Giao dịch
+│   │   ├── budget/               # Ngân sách
+│   │   ├── user/                 # Người dùng
+│   │   └── ai/                   # AI
+│   │
+│   ├── data/                     # Tầng dữ liệu
+│   │   ├── models/               # Data classes
+│   │   ├── repository/           # Repository
+│   │   ├── local/                # Local data
+│   │   └── remote/               # Remote data
+│   │
+│   ├── components/               # UI Components
+│   │   ├── ui/                   # Component tái sử dụng
+│   │   ├── theme/                # Giao diện
+│   │   └── utils/                # Tiện ích
+│   │
+│   └── utils/                    # Tiện ích
+│       ├── language/             # Đa ngôn ngữ
+│       └── notification/         # Thông báo
+│
+├── build.gradle.kts              # Cấu hình build
+└── google-services.json          # Firebase config
+🚀 Hướng Dẫn Cài Đặt
 
-Android Studio 2022.2.1 or higher
-JDK 17 or higher
+Yêu Cầu Hệ Thống
+
+Android Studio 2022.2.1 trở lên
+JDK 17 trở lên
 Android SDK 33 (API Level 33)
 Kotlin 1.9.0
-Step 1: Clone the Repository
+Bước 1: Clone Dự Án
 
 bash
 git clone https://github.com/Wendy84205/Expensemanagementapp.git
 cd Expensemanagementapp
-Step 2: Open in Android Studio
+Bước 2: Mở Trong Android Studio
 
-Launch Android Studio
-Select "Open an Existing Project"
-Navigate to the cloned directory
-Click "Open"
-Step 3: Configure Firebase
+Mở Android Studio
+Chọn "Open an Existing Project"
+Chọn thư mục vừa clone
+Nhấn "Open"
+Bước 3: Cấu Hình Firebase
 
-Go to Firebase Console
-Create a new project or select existing one
-Click "Add app" and select Android
-Register your app with package name: com.example.financeapp
-Download the google-services.json file
-Place it in the app/ directory of your project
-Step 4: Configure API Keys
+Truy cập Firebase Console
+Tạo project mới hoặc chọn project có sẵn
+Nhấn "Add app" và chọn Android
+Đăng ký app với package name: com.example.financeapp
+Tải file google-services.json
+Đặt file vào thư mục app/ của dự án
+Bước 4: Cấu Hình API Keys
 
-Create a secrets.properties file in the root directory:
+Tạo file secrets.properties trong thư mục gốc:
 
 properties
-# OpenAI API (for AI features)
+# OpenAI API (cho tính năng AI)
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Currency Exchange API (optional)
+# Currency Exchange API (tùy chọn)
 CURRENCY_API_KEY=your_exchange_api_key_here
 
-# OCR API (optional for receipt scanning)
+# OCR API (tùy chọn cho quét hóa đơn)
 OCR_API_KEY=your_ocr_api_key_here
-🏗️ Building the Project
+🏗️ Build Ứng Dụng
 
-Debug Build
+Build Debug
 
 bash
 ./gradlew assembleDebug
-Release Build
+Build Release
 
 bash
 ./gradlew assembleRelease
-Run Tests
+Chạy Test
 
 bash
 ./gradlew test
-Generate APK
+Tạo APK
 
 bash
 ./gradlew assembleRelease
-⚙️ Configuration
+⚙️ Cấu Hình Ứng Dụng
 
-Environment Variables
+Biến Môi Trường
 
-The following environment variables can be configured:
+Các biến môi trường có thể cấu hình:
 
-Variable	Description	Required	Default
-ENABLE_CLOUD_SYNC	Enable Firebase sync	No	true
-ENABLE_AI_FEATURES	Enable AI-powered features	No	true
-ENABLE_OCR	Enable receipt scanning	No	true
-ENABLE_BIOMETRICS	Enable biometric authentication	No	true
-DEFAULT_CURRENCY	Default currency	No	VND
-Build Variants
+Biến	Mô tả	Bắt buộc	Mặc định
+ENABLE_CLOUD_SYNC	Bật đồng bộ Firebase	Không	true
+ENABLE_AI_FEATURES	Bật tính năng AI	Không	true
+ENABLE_OCR	Bật quét hóa đơn	Không	true
+ENABLE_BIOMETRICS	Bật đăng nhập sinh trắc	Không	true
+DEFAULT_CURRENCY	Tiền tệ mặc định	Không	VND
+Các Biến Thể Build
 
-debug: Development build with debugging enabled
-release: Production build with optimization
-staging: Pre-production testing build
-Product Flavors
+debug: Build phát triển, có debug
+release: Build sản phẩm, tối ưu hóa
+staging: Build thử nghiệm trước sản phẩm
+Các Loại Build
 
-free: Basic features without premium functionality
-premium: All features unlocked
-🧪 Testing
+free: Bản miễn phí, tính năng cơ bản
+premium: Bản cao cấp, đầy đủ tính năng
+🧪 Kiểm Thử
 
-Unit Tests
+Unit Test
 
 bash
 ./gradlew testDebugUnitTest
-Instrumentation Tests
+Instrumentation Test
 
 bash
 ./gradlew connectedDebugAndroidTest
-UI Tests
+UI Test
 
-The project includes comprehensive UI tests using Espresso and Compose testing frameworks.
+Dự án có đầy đủ UI test sử dụng Espresso và Compose testing.
 
-📊 Performance Metrics
+📊 Thông Số Hiệu Suất
 
-App Size
+Kích Thước Ứng Dụng
 
-APK Size: ~15MB
-Install Size: ~25MB
-Performance
+Kích thước APK: ~15MB
+Kích thước cài đặt: ~25MB
+Hiệu Suất
 
-Cold Start: < 2 seconds
-Screen Transitions: < 300ms
-Database Operations: < 100ms
-Image Processing: < 2 seconds
-Battery Impact
+Khởi động lạnh: < 2 giây
+Chuyển màn hình: < 300ms
+Thao tác database: < 100ms
+Xử lý ảnh: < 2 giây
+Tiêu Thụ Pin
 
-Background Usage: Minimal
-Sync Operations: Optimized for battery life
-Wake Locks: Used only for critical operations
-🤝 Contributing
+Sử dụng nền: Tối thiểu
+Đồng bộ: Tối ưu cho pin
+Wake Locks: Chỉ dùng cho thao tác quan trọng
+🤝 Đóng Góp Cho Dự Án
 
-We welcome contributions from the community! Here's how you can help:
+Chúng tôi hoan nghênh mọi đóng góp từ cộng đồng!
 
-Reporting Issues
+Báo Cáo Lỗi
 
-Check if the issue already exists in the Issues section
-Create a new issue with a clear title and description
-Include steps to reproduce, expected behavior, and actual behavior
-Add screenshots or videos if applicable
-Submitting Changes
+Kiểm tra lỗi đã có trong Issues
+Tạo issue mới với tiêu đề và mô tả rõ ràng
+Bao gồm các bước tái hiện lỗi
+Thêm ảnh chụp màn hình nếu có
+Gửi Thay Đổi
 
-Fork the repository
-Create a feature branch: git checkout -b feature/your-feature-name
-Make your changes
-Run tests: ./gradlew test
-Commit changes: git commit -m 'Add some feature'
-Push to branch: git push origin feature/your-feature-name
-Create a Pull Request
-Code Style Guidelines
+Fork repository
+Tạo branch mới: git checkout -b feature/ten-tinh-nang
+Thực hiện thay đổi
+Chạy test: ./gradlew test
+Commit: git commit -m 'Thêm tính năng mới'
+Push: git push origin feature/ten-tinh-nang
+Tạo Pull Request
+Quy Ước Code
 
-Follow Kotlin coding conventions
-Use meaningful variable and function names
-Add comments for complex logic
-Write unit tests for new features
-Update documentation as needed
-Pull Request Checklist
+Tuân thủ quy ước Kotlin
+Đặt tên biến và hàm có ý nghĩa
+Thêm comment cho logic phức tạp
+Viết test cho tính năng mới
+Cập nhật tài liệu
+Checklist Pull Request
 
-Code follows project style guidelines
-All tests pass
-No new warnings introduced
-Documentation updated
-Screenshots added for UI changes
-📈 Development Roadmap
+Code tuân thủ quy ước
+Tất cả test pass
+Không có warning mới
+Cập nhật tài liệu
+Thêm ảnh chụp cho thay đổi UI
+📈 Lộ Trình Phát Triển
 
-Version 1.0 (Current)
+Phiên Bản 1.0 (Hiện Tại)
 
-Basic transaction management
-Budget tracking
-Recurring expenses
-Multi-language support
-Dark/light theme
-Version 1.1 (In Progress)
+Quản lý giao dịch cơ bản
+Theo dõi ngân sách
+Chi tiêu định kỳ
+Đa ngôn ngữ
+Chế độ sáng/tối
+Phiên Bản 1.1 (Đang Phát Triển)
 
-Bank account integration
-Investment tracking
-Advanced analytics
-Family/shared budgets
-Receipt storage
-Version 1.2 (Planned)
+Tích hợp tài khoản ngân hàng
+Theo dõi đầu tư
+Phân tích nâng cao
+Ngân sách gia đình
+Lưu trữ hóa đơn
+Phiên Bản 1.2 (Kế Hoạch)
 
-Tax calculation
-Financial planning tools
-Export to accounting software
-Advanced AI predictions
+Tính thuế tự động
+Công cụ lập kế hoạch tài chính
+Xuất sang phần mềm kế toán
+Dự báo AI nâng cao
 Web dashboard
-Version 2.0 (Future)
+Phiên Bản 2.0 (Tương Lai)
 
-Cross-platform (iOS, Web)
-Advanced security features
-API for developers
-Plugin system
-Community features
-🔧 Troubleshooting
+Đa nền tảng (iOS, Web)
+Tính năng bảo mật nâng cao
+API cho developer
+Hệ thống plugin
+Tính năng cộng đồng
+🔧 Xử Lý Sự Cố
 
-Common Issues
+Vấn Đề Thường Gặp
 
-Firebase Connection Issues
+Lỗi Kết Nối Firebase
 
-Ensure google-services.json is in the correct location
-Check Firebase project configuration
-Verify package name matches Firebase registration
-Check internet connection
-Build Failures
+Kiểm tra vị trí file google-services.json
+Kiểm tra cấu hình Firebase project
+Xác nhận package name khớp với đăng ký
+Kiểm tra kết nối internet
+Lỗi Build
 
 Clean project: ./gradlew clean
-Invalidate caches in Android Studio
-Update dependencies
-Check JDK version
-App Crashes
+Invalidate caches trong Android Studio
+Cập nhật dependencies
+Kiểm tra phiên bản JDK
+Ứng Dụng Bị Crash
 
-Check logcat for error messages
-Verify device compatibility
-Clear app data
-Reinstall the app
-Getting Help
+Kiểm tra logcat để xem lỗi
+Kiểm tra tương thích thiết bị
+Xóa dữ liệu app
+Cài đặt lại app
+Hỗ Trợ
 
-Check the Wiki
-Search existing Issues
-Create a new issue for bugs
-Use GitHub Discussions for questions
-📚 Documentation
+Xem Wiki
+Tìm kiếm trong Issues
+Tạo issue mới cho lỗi
+Sử dụng Discussions cho câu hỏi
+📚 Tài Liệu
 
 API Documentation
 
 Firebase API Reference
 Jetpack Compose Documentation
 Room Database Guide
-User Guides
+Hướng Dẫn Người Dùng
 
-Getting Started Guide
-User Manual
-FAQ
-Developer Guides
+Hướng dẫn bắt đầu
+Hướng dẫn sử dụng
+Câu hỏi thường gặp
+Hướng Dẫn Phát Triển
 
-Architecture Overview
-Code Style Guide
-Testing Guide
-📄 License
+Tổng quan kiến trúc
+Hướng dẫn code style
+Hướng dẫn kiểm thử
+📄 Giấy Phép
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-text
-MIT License
-
-Copyright (c) 2024 Wendy
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-🙏 Acknowledgments
-
-Jetpack Compose team for the amazing UI framework
-Firebase team for backend services
-OpenAI for AI capabilities
-All contributors who have helped improve this project
-📞 Contact
-
-GitHub: Wendy84205
-Email: wendy84205@gmail.com
-Issues: GitHub Issues
-🌟 Support the Project
-
-If you find this project useful, please consider:
-
-Giving it a ⭐ on GitHub
-Sharing it with others
-Contributing code or documentation
-Reporting bugs and suggesting features
-Disclaimer: This application is for personal finance management only. It is not a certified financial advisory tool. Always consult with a professional financial advisor for important financial decisions.
+Dự án được phân phối dưới giấy phép MIT - xem file LICENSE để biết chi tiết.
