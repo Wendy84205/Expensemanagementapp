@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.main.dashboard
 
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,28 +38,11 @@ import kotlin.math.max
 fun HomeScreen(
     navController: NavController,
     onAddTransaction: () -> Unit,
-    currentUser: UserSession?,
-    transactions: List<Transaction>
+    currentUser: com.example.financeapp.data.models.User?,
+    transactions: List<Transaction>,
+    onCalendarClick: () -> Unit,
+    budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel
 ) {
-    // Tạo các state cho dữ liệu động
-    var selectedFundId by remember { mutableStateOf<String?>(null) }
-    var monthlySpendingLimit by remember { mutableStateOf(0f) }
-
-    // Lấy danh sách quỹ tiết kiệm (giả lập - thay bằng data thực từ database)
-    val savingFunds = remember {
-        listOf(
-            SavingFund(
-                id = "fund_001",
-                name = "Quỹ tiết kiệm chung",
-                description = "Quỹ dành cho các khoản chi tiêu hàng ngày",
-                balance = 0f,
-                targetAmount = null,
-                targetDate = null,
-                color = null
-            )
-        )
-    }
-
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
     )
@@ -73,11 +59,19 @@ fun HomeScreen(
         }
     }
 
-    // Tính tổng chi tiêu tháng hiện tại
+    // Tính tổng chi tiêu tháng hiện tại - ĐÃ SỬA
     val monthlySpent = remember(currentMonthTransactions) {
         currentMonthTransactions
             .filter { !it.isIncome }
-            .sumOf { it.amount.toDouble() }
+            .sumOf { it.amount }
+            .toFloat()
+    }
+
+    // Tính tổng thu nhập tháng hiện tại
+    val monthlyIncome = remember(currentMonthTransactions) {
+        currentMonthTransactions
+            .filter { it.isIncome }
+            .sumOf { it.amount }
             .toFloat()
     }
 
@@ -98,14 +92,16 @@ fun HomeScreen(
         ) {
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .padding(bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
                     HeaderSection(
                         currentUser = currentUser,
-                        monthlySpent = monthlySpent
+                        monthlySpent = monthlySpent,
+                        monthlyIncome = monthlyIncome,
+                        onCalendarClick = onCalendarClick
                     )
                 }
                 item {
@@ -117,20 +113,16 @@ fun HomeScreen(
                 }
                 item {
                     SpendingChartCard(
+                        navController = navController,
                         last7DaysData = last7DaysData,
                         monthlySpent = monthlySpent
                     )
                 }
                 item {
-                    SpendingLimitCard(
-                        savingFunds = savingFunds,
-                        monthlySpendingLimit = monthlySpendingLimit,
+                    BudgetCard(
+                        navController = navController,
                         monthlySpent = monthlySpent,
-                        onSelectFund = { fund ->
-                            selectedFundId = fund?.id
-                            // Cập nhật hạn mức chi tiêu dựa trên quỹ
-                            monthlySpendingLimit = fund?.balance ?: 0f
-                        }
+                        budgetViewModel = budgetViewModel
                     )
                 }
             }
@@ -138,10 +130,13 @@ fun HomeScreen(
     }
 }
 
+
 @Composable
 private fun HeaderSection(
-    currentUser: UserSession?,
-    monthlySpent: Float
+    currentUser: com.example.financeapp.data.models.User?,
+    monthlySpent: Float,
+    monthlyIncome: Float,
+    onCalendarClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -167,64 +162,80 @@ private fun HeaderSection(
                     fontWeight = FontWeight.Bold
                 )
             }
-            Box(
+            IconButton(
+                onClick = onCalendarClick,
                 modifier = Modifier
                     .size(50.dp)
-                    .background(Color(0xFFE2E8F0), CircleShape)
-                    .clip(CircleShape),
-                contentAlignment = Alignment.Center
+                    .background(Color(0xFF3B82F6), CircleShape)
+                    .clip(CircleShape)
             ) {
-                Text(
-                    text = currentUser?.name?.firstOrNull()?.toString()?.uppercase() ?: "U",
-                    color = Color(0xFF0F172A),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
+                Icon(
+                    Icons.Filled.CalendarToday,
+                    contentDescription = "Calendar",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
 
-        // Số tiền đã chi trong tháng
+        // Số tiền đã chi và thu trong tháng
         Spacer(modifier = Modifier.height(24.dp))
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(16.dp)),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-                Text(
-                    text = rememberLanguageText("monthly_spending_title"),
-                    color = Color(0xFF64748B),
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = formatCurrency(monthlySpent),
-                        color = Color(0xFF0F172A),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = rememberLanguageText("view_details"),
-                        color = Color(0xFF3B82F6),
-                        fontSize = 14.sp,
-                        modifier = Modifier.clickable { /* Xem chi tiết */ }
-                    )
-                }
-                Text(
-                    text = rememberLanguageText("spent_this_month"),
-                    color = Color(0xFF94A3B8),
-                    fontSize = 12.sp
-                )
-            }
+            // Card thu nhập
+            IncomeExpenseCard(
+                title = "Thu nhập",
+                amount = monthlyIncome,
+                color = Color(0xFF10B981),
+                modifier = Modifier.weight(1f)
+            )
+
+            // Card chi tiêu
+            IncomeExpenseCard(
+                title = "Chi tiêu",
+                amount = monthlySpent,
+                color = Color(0xFFEF4444),
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun IncomeExpenseCard(
+    title: String,
+    amount: Float,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .shadow(2.dp, RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = title,
+                color = Color(0xFF64748B),
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = formatCurrency(amount.toDouble()),
+                color = color,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Trong tháng",
+                color = Color(0xFF94A3B8),
+                fontSize = 10.sp
+            )
         }
     }
 }
@@ -379,7 +390,6 @@ private fun RecentTransactionsList(transactions: List<Transaction>) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // SỬA LỖI Ở ĐÂY: thay vì dùng items(), dùng forEach hoặc for loop
         transactions.forEach { transaction ->
             TransactionItem(transaction = transaction)
         }
@@ -401,20 +411,28 @@ private fun TransactionItem(transaction: Transaction) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                // SỬA LẠI: Hiển thị title thay vì category ID
                 Text(
-                    text = transaction.category,
+                    text = transaction.title.ifBlank {
+                        transaction.description.ifBlank { "Giao dịch" }
+                    },
                     color = Color(0xFF0F172A),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = transaction.date,
-                    color = Color(0xFF64748B),
-                    fontSize = 12.sp
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "${transaction.date} • ${transaction.dayOfWeek}",
+                        color = Color(0xFF64748B),
+                        fontSize = 12.sp
+                    )
+                }
                 if (transaction.description.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = transaction.description,
                         color = Color(0xFF94A3B8),
@@ -436,6 +454,7 @@ private fun TransactionItem(transaction: Transaction) {
 
 @Composable
 private fun SpendingChartCard(
+    navController: NavController,
     last7DaysData: List<Pair<String, Float>>,
     monthlySpent: Float
 ) {
@@ -456,18 +475,17 @@ private fun SpendingChartCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = rememberLanguageText("overview"),
+                    text = "Chi tiêu 7 ngày qua",
                     color = Color(0xFF0F172A),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${rememberLanguageText("this_month")} ${formatCurrency(monthlySpent)}",
+                    text = "Tháng này ${formatCurrency(monthlySpent)}",
                     color = Color(0xFF3B82F6),
                     fontSize = 14.sp,
                     modifier = Modifier.clickable {
-                        // Navigate to statistics
-                        // navController.navigate("statistics")
+                        navController.navigate("statistics")
                     }
                 )
             }
@@ -483,7 +501,7 @@ private fun SpendingChartCard(
 @Composable
 private fun SimpleColumnChart(data: List<Pair<String, Float>>) {
     if (data.isEmpty()) {
-        PlaceholderChart(message = rememberLanguageText("no_chart_data"))
+        PlaceholderChart(message = "Chưa có dữ liệu biểu đồ")
         return
     }
 
@@ -565,15 +583,28 @@ private fun SimpleColumnChart(data: List<Pair<String, Float>>) {
 }
 
 @Composable
-private fun SpendingLimitCard(
-    savingFunds: List<SavingFund>,
-    monthlySpendingLimit: Float,
+private fun BudgetCard(
+    navController: NavController,
     monthlySpent: Float,
-    onSelectFund: (SavingFund?) -> Unit
+    budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel
 ) {
-    val spendingPercentage = remember(monthlySpendingLimit, monthlySpent) {
-        if (monthlySpendingLimit > 0) {
-            (monthlySpent / monthlySpendingLimit * 100).coerceAtMost(100f)
+    val currentMonth = remember { getCurrentMonthYear() }
+    val budgets by budgetViewModel.budgets.collectAsState()
+
+    // Lấy ngân sách tháng hiện tại
+    val currentMonthBudget = remember(budgets) {
+        // Lấy budget tháng hiện tại dựa trên startDate và endDate
+        budgets.find { budget ->
+            val budgetMonth = formatLocalDateMonthYear(budget.startDate)
+            budgetMonth == currentMonth && budget.isActive
+        }
+    }
+
+    val budgetAmount = (currentMonthBudget?.amount ?: 0.0).toFloat()
+    val spentAmount = (currentMonthBudget?.spent ?: 0.0).toFloat()
+    val spendingPercentage = remember(budgetAmount, spentAmount) {
+        if (budgetAmount > 0) {
+            (spentAmount / budgetAmount * 100).coerceAtMost(100f)
         } else 0f
     }
 
@@ -594,15 +625,17 @@ private fun SpendingLimitCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = rememberLanguageText("spending_limit"),
+                    text = "Ngân sách tháng",
                     color = Color(0xFF0F172A),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-                if (monthlySpendingLimit > 0) {
+                if (budgetAmount > 0) {
                     Text(
                         text = "${spendingPercentage.toInt()}%",
-                        color = if (spendingPercentage > 80) Color(0xFFEF4444) else Color(0xFF10B981),
+                        color = if (spendingPercentage > 80) Color(0xFFEF4444)
+                        else if (spendingPercentage > 60) Color(0xFFF59E0B)
+                        else Color(0xFF10B981),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -610,22 +643,28 @@ private fun SpendingLimitCard(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (monthlySpendingLimit > 0) {
-                // Hiển thị progress bar nếu đã đặt hạn mức
-                SpendingProgressBar(
-                    spent = monthlySpent,
-                    limit = monthlySpendingLimit,
+            if (budgetAmount > 0) {
+                // Hiển thị progress bar nếu đã đặt ngân sách
+                BudgetProgressBar(
+                    spent = spentAmount,
+                    budget = budgetAmount,
                     percentage = spendingPercentage
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
+            // Card để thêm/chỉnh sửa ngân sách
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        // Mở dialog chọn quỹ hoặc tạo mới
-                        onSelectFund(savingFunds.firstOrNull())
+                        if (currentMonthBudget != null) {
+                            // Navigate đến edit budget nếu đã có ngân sách
+                            navController.navigate("edit_budget/${currentMonthBudget.id}")
+                        } else {
+                            // Navigate đến add budget nếu chưa có
+                            navController.navigate("add_budget")
+                        }
                     },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
@@ -633,27 +672,46 @@ private fun SpendingLimitCard(
                 Column(
                     modifier = Modifier.padding(16.dp)
                 ) {
-                    Text(
-                        text = rememberLanguageText("create_or_select_fund_for_limit"),
-                        color = Color(0xFF0F172A),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = rememberLanguageText("limit_description"),
-                        color = Color(0xFF64748B),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = if (budgetAmount > 0) "Quản lý ngân sách" else "Thiết lập ngân sách",
+                                color = Color(0xFF0F172A),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (budgetAmount > 0)
+                                    "Đang theo dõi ${formatCurrency(budgetAmount.toDouble())}"
+                                else "Thiết lập ngân sách để kiểm soát chi tiêu",
+                                color = Color(0xFF64748B),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+
+                        Icon(
+                            Icons.Default.ArrowForward,
+                            contentDescription = "Xem ngân sách",
+                            tint = Color(0xFF3B82F6),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     Button(
                         onClick = {
-                            if (savingFunds.isNotEmpty()) {
-                                onSelectFund(savingFunds.first())
+                            if (currentMonthBudget != null) {
+                                navController.navigate("edit_budget/${currentMonthBudget.id}")
                             } else {
-                                // Mở dialog tạo quỹ mới
-                                onSelectFund(null)
+                                navController.navigate("add_budget")
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -663,7 +721,7 @@ private fun SpendingLimitCard(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = rememberLanguageText("select_or_create_fund"),
+                            text = if (budgetAmount > 0) "Xem chi tiết" else "Thiết lập ngân sách",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -674,10 +732,11 @@ private fun SpendingLimitCard(
     }
 }
 
+
 @Composable
-private fun SpendingProgressBar(
+private fun BudgetProgressBar(
     spent: Float,
-    limit: Float,
+    budget: Float,
     percentage: Float
 ) {
     Column {
@@ -691,7 +750,7 @@ private fun SpendingProgressBar(
                 fontSize = 12.sp
             )
             Text(
-                text = "Hạn mức: ${formatCurrency(limit)}",
+                text = "Ngân sách: ${formatCurrency(budget)}",
                 color = Color(0xFF64748B),
                 fontSize = 12.sp
             )
@@ -713,6 +772,26 @@ private fun SpendingProgressBar(
                         else Color(0xFF10B981),
                         shape = RoundedCornerShape(4.dp)
                     )
+            )
+        }
+
+        // Hiển thị số tiền còn lại
+        val remaining = budget - spent
+        if (remaining > 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Còn lại: ${formatCurrency(remaining)}",
+                color = Color(0xFF10B981),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        } else if (remaining < 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Vượt ngân sách: ${formatCurrency(-remaining)}",
+                color = Color(0xFFEF4444),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -743,6 +822,17 @@ private fun PlaceholderChart(message: String) {
 }
 
 // ========== Hàm hỗ trợ ==========
+
+// Thêm hàm này vào phần helper functions
+private fun formatLocalDateMonthYear(localDate: java.time.LocalDate): String {
+    return try {
+        val month = localDate.monthValue
+        val year = localDate.year
+        "$month/$year"
+    } catch (e: Exception) {
+        "0/0"
+    }
+}
 
 private fun getLast7DaysSpending(transactions: List<Transaction>): List<Pair<String, Float>> {
     val calendar = Calendar.getInstance()
@@ -835,7 +925,7 @@ fun rememberLanguageText(key: String): String {
     }
 }
 
-// Data classes
+// Data classes - GIỮ NGUYÊN
 data class UserSession(
     val id: String,
     val email: String,

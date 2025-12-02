@@ -12,7 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.navigation.NavGraph
-import com.example.financeapp.screen.UserSession
+import com.example.financeapp.screen.main.dashboard.UserSession
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.auth.AuthViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel

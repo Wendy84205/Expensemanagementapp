@@ -2,7 +2,7 @@ package com.example.financeapp.data
 
 import com.example.financeapp.SavingsGoal
 import com.example.financeapp.data.models.Transaction
-import com.example.financeapp.data.User
+import com.example.financeapp.data.models.User
 import com.example.financeapp.UserProfile
 
 // Data class mở rộng cho FinancialData

@@ -1,6 +1,6 @@
 package com.example.financeapp
 
-import com.example.financeapp.data.User
+import com.example.financeapp.data.models.User
 import com.google.firebase.auth.FirebaseUser
 
 fun FirebaseUser.toAppUser(): User {

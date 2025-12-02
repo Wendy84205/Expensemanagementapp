@@ -21,7 +21,7 @@ import com.example.financeapp.screen.main.budget.BudgetScreen
 import com.example.financeapp.screen.features.CalendarScreen
 import com.example.financeapp.screen.features.category.CategoryScreen
 import com.example.financeapp.screen.ExtensionsScreen
-import com.example.financeapp.screen.HomeScreen
+import com.example.financeapp.screen.main.dashboard.HomeScreen
 import com.example.financeapp.screen.LanguageSettingsScreen
 import com.example.financeapp.screen.features.recurring.RecurringExpenseScreen
 import com.example.financeapp.screen.auth.RegisterScreen
@@ -76,11 +76,27 @@ fun NavGraph(
 
         // 🔹 Trang chủ
         composable("home") {
+            // Convert UserSession sang User
+            val userData = remember(currentUser) {
+                currentUser?.let { userSession ->
+                    com.example.financeapp.data.models.User(
+                        id = userSession.id,
+                        email = userSession.email,
+                        name = userSession.name
+                    )
+                }
+            }
+
             HomeScreen(
                 navController = navController,
                 onAddTransaction = { navController.navigate("add_transaction") },
-                currentUser = currentUser,
-                transactions = transactions
+                currentUser = userData, // Truyền User đã convert
+                transactions = transactions,
+                onCalendarClick = {
+                    // Xử lý calendar click
+                    navController.navigate("calendar")
+                },
+                budgetViewModel = budgetViewModel
             )
         }
 

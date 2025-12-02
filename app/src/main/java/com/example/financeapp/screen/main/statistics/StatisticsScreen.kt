@@ -29,7 +29,7 @@ import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.components.BottomNavBar
-import com.example.financeapp.screen.formatCurrency
+import com.example.financeapp.screen.features.formatCurrency
 import kotlin.math.max
 import java.text.SimpleDateFormat
 import java.util.*

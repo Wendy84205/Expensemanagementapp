@@ -3,7 +3,7 @@ package com.example.financeapp
 import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
-import com.example.financeapp.screen.UserSession
+import com.example.financeapp.screen.main.dashboard.UserSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

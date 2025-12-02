@@ -1,4 +1,4 @@
-package com.example.financeapp.data
+package com.example.financeapp.data.models
 
 // User.kt
 data class User(

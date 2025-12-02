@@ -4,7 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.example.financeapp.data.FinancialData
 import com.example.financeapp.data.models.Transaction
-import com.example.financeapp.data.User
+import com.example.financeapp.data.models.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
