@@ -30,6 +30,7 @@ import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.components.BottomNavBar
 import com.example.financeapp.screen.features.formatCurrency
+import java.lang.Math.ceil
 import kotlin.math.max
 import java.text.SimpleDateFormat
 import java.util.*
@@ -41,7 +42,7 @@ fun StatisticsScreen(
     transactions: List<Transaction>,
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-    var selectedTimeRange by remember { mutableStateOf("weekly") } // Mặc định là weekly
+    var selectedTimeRange by remember { mutableStateOf("weekly") }
     var selectedDataType by remember { mutableStateOf("expense") }
 
     val languageViewModel = LocalLanguageViewModel.current
@@ -49,17 +50,20 @@ fun StatisticsScreen(
     val timeRanges = listOf("weekly", "monthly", "yearly")
     val dataTypes = listOf("income", "expense", "difference")
 
-    // Màu sắc theo UI trong ảnh - CẬP NHẬT THEO ẢNH
-    val backgroundColor = Color(0xFFF5F7FA) // Nền xám nhạt
-    val cardColor = Color.White // Màu thẻ trắng
-    val primaryColor = Color(0xFF4A6FA5) // Xanh dương từ UI (giống HomeScreen)
-    val textPrimary = Color(0xFF333333) // Đen nhạt
-    val textSecondary = Color(0xFF666666) // Xám đậm
-    val gridLineColor = Color(0xFFE0E0E0) // Màu lưới xám nhạt
-    val chartBarColor = Color(0xFF4A6FA5) // Xanh dương cho cột biểu đồ
-    val selectedBarColor = Color(0xFF2E8B57) // Xanh lá đậm
-    val redColor = Color(0xFFE74C3C) // Đỏ cho giảm %
-    val greenColor = Color(0xFF2ECC71) // Xanh lá cho tăng %
+    // Màu sắc theo UI trong ảnh
+    val backgroundColor = Color(0xFFF5F7FA)
+    val cardColor = Color.White
+    val primaryColor = Color(0xFF4A6FA5)
+    val textPrimary = Color(0xFF333333)
+    val textSecondary = Color(0xFF666666)
+    val gridLineColor = Color(0xFFE0E0E0)
+    val chartBarColor = Color(0xFF4A6FA5)
+    val selectedBarColor = Color(0xFF2E8B57)
+    val redColor = Color(0xFFE74C3C)
+    val greenColor = Color(0xFF2ECC71)
+
+    // Lấy danh mục từ ViewModel
+    val categories by categoryViewModel.categories.collectAsState()
 
     Scaffold(
         topBar = {
@@ -120,12 +124,13 @@ fun StatisticsScreen(
                 )
             }
 
-            // Biểu đồ chi tiết với UI giống ảnh
+            // Biểu đồ chi tiết
             item {
                 DetailedChartSection(
                     dataType = selectedDataType,
                     timeRange = selectedTimeRange,
                     transactions = transactions,
+                    categories = categories,
                     primaryColor = primaryColor,
                     accentColor = greenColor,
                     redColor = redColor,
@@ -155,6 +160,7 @@ fun StatisticsScreen(
                     dataType = selectedDataType,
                     transactions = transactions,
                     categoryViewModel = categoryViewModel,
+                    categories = categories,
                     primaryColor = primaryColor,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
@@ -409,6 +415,7 @@ private fun DetailedChartSection(
     dataType: String,
     timeRange: String,
     transactions: List<Transaction>,
+    categories: List<com.example.financeapp.viewmodel.transaction.Category>,
     primaryColor: Color,
     accentColor: Color,
     redColor: Color,
@@ -427,9 +434,11 @@ private fun DetailedChartSection(
     val currentPeriodTotal = chartData.sumOf { it.amount }
     val previousPeriodData = getPreviousPeriodData(dataType, timeRange, transactions)
     val previousPeriodTotal = previousPeriodData.sumOf { it.amount }
-    val percentageChange = if (previousPeriodTotal > 0) {
+
+    // Fix: Tính phần trăm thay đổi đúng cách
+    val percentageChange = if (previousPeriodTotal != 0.0) {
         ((currentPeriodTotal - previousPeriodTotal) / previousPeriodTotal * 100)
-    } else 0.0
+    } else if (currentPeriodTotal > 0) 100.0 else 0.0
 
     Card(
         modifier = Modifier
@@ -455,7 +464,11 @@ private fun DetailedChartSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tổng chi tiêu",
+                    text = when (dataType) {
+                        "income" -> "Tổng thu nhập"
+                        "expense" -> "Tổng chi tiêu"
+                        else -> "Tổng chênh lệch"
+                    },
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = textPrimary
@@ -469,13 +482,15 @@ private fun DetailedChartSection(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (percentageChange >= 0) "▲ ${"%.1f".format(percentageChange)}%"
-                        else "▼ ${"%.1f".format(-percentageChange)}%",
-                        fontSize = 14.sp,
-                        color = if (percentageChange >= 0) accentColor else redColor,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (chartData.isNotEmpty() && chartData.any { it.amount > 0 }) {
+                        Text(
+                            text = if (percentageChange >= 0) "▲ ${"%.1f".format(percentageChange)}%"
+                            else "▼ ${"%.1f".format(-percentageChange)}%",
+                            fontSize = 14.sp,
+                            color = if (percentageChange >= 0) accentColor else redColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -498,26 +513,11 @@ private fun DetailedChartSection(
                     timeRange = timeRange
                 )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Nút Xem thêm
-            Text(
-                text = "Xem thêm",
-                fontSize = 14.sp,
-                color = primaryColor,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .clickable { /* Xử lý xem thêm */ }
-                    .padding(vertical = 4.dp)
-            )
         }
     }
 }
-
 @Composable
-private fun DynamicChartVisualization(
+fun DynamicChartVisualization(
     chartData: List<ChartData>,
     primaryColor: Color,
     accentColor: Color,
@@ -529,30 +529,34 @@ private fun DynamicChartVisualization(
     selectedBarColor: Color,
     timeRange: String
 ) {
-    // Tìm giá trị lớn nhất để scale trục Y
-    val maxAmount = max(chartData.maxOfOrNull { it.amount } ?: 1.0, 1.0)
+    // Tìm giá trị lớn nhất trong dữ liệu thực tế
+    val maxAmount = chartData.maxOfOrNull { it.amount } ?: 0.0
 
-    // Làm tròn maxAmount lên số đẹp gần nhất (100, 200, 500, 1000, etc)
-    val roundedMaxAmount = roundToNearestNiceNumber(maxAmount)
+    // Tìm giá trị lớn nhất KHÔNG PHẢI ZERO để làm tròn
+    val maxNonZeroAmount = chartData.filter { it.amount > 0 }.maxOfOrNull { it.amount } ?: 0.0
 
-    // Tạo các bước cho trục Y (5 bước từ 0 đến roundedMaxAmount)
-    val ySteps = generateNiceYSteps(roundedMaxAmount)
+    // Làm tròn LÊN đến số đẹp (như 25K, 50K, 75K, 100K, 200K, etc)
+    val roundedMaxAmount = calculateRoundedMaxValue(maxNonZeroAmount)
+
+    // Tạo 5 bước đều nhau từ 0 đến roundedMaxAmount
+    val ySteps = createYAxisSteps(roundedMaxAmount)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(260.dp)
     ) {
-        // Trục Y với các giá trị tự động
+        // Trục Y với các giá trị tự động - SỐ LỚN ở TRÊN, 0 ở DƯỚI
         Column(
             modifier = Modifier
                 .fillMaxHeight()
                 .width(40.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            ySteps.forEach { value ->
+            // Hiển thị ĐẢO NGƯỢC: số lớn ở trên, 0 ở dưới
+            ySteps.reversed().forEach { value ->
                 Text(
-                    text = formatYAxisValue(value, roundedMaxAmount),
+                    text = formatYAxisLabel(value),
                     fontSize = 12.sp,
                     color = textSecondary,
                     fontWeight = FontWeight.Medium,
@@ -578,8 +582,11 @@ private fun DynamicChartVisualization(
 
                 // Vẽ đường lưới ngang
                 ySteps.forEach { step ->
+                    // Tính yPosition: 0 ở ĐÁY biểu đồ (chartHeight), roundedMaxAmount ở ĐỈNH (0)
+                    // Sử dụng tỷ lệ ngược: step càng lớn, yPosition càng cao trên canvas
                     val yPosition = chartHeight * (1 - step.toFloat() / roundedMaxAmount.toFloat())
 
+                    // Vẽ đường lưới ngang
                     drawLine(
                         color = gridLineColor,
                         start = Offset(0f, yPosition),
@@ -588,29 +595,40 @@ private fun DynamicChartVisualization(
                     )
                 }
 
-                // Vẽ các cột biểu đồ
-                chartData.forEachIndexed { index, dayData ->
-                    // FIX: Chuyển đổi Double sang Float
-                    val columnHeight = (dayData.amount.toFloat() / roundedMaxAmount.toFloat()) * chartHeight
-                    val xPosition = index * columnWidth + spacing / 2
-                    val yPosition = chartHeight - columnHeight
+                // Vẽ các cột biểu đồ - CỘT MỌC TỪ DƯỚI LÊN
+                chartData.forEachIndexed { index, data ->
+                    // Tính chiều cao cột: dựa trên tỷ lệ với roundedMaxAmount
+                    val columnHeight = if (roundedMaxAmount > 0) {
+                        (data.amount.toFloat() / roundedMaxAmount.toFloat()) * chartHeight
+                    } else {
+                        0f
+                    }
 
-                    // Màu cột: mặc định xanh dương, cột cuối cùng có thể highlight
+                    // Vị trí x của cột
+                    val xPosition = index * columnWidth + spacing / 2
+
+                    // Vị trí y BẮT ĐẦU của cột (tính từ TRÊN xuống)
+                    // chartHeight - columnHeight: 0 ở đỉnh, cột mọc xuống
+                    val yStartPosition = chartHeight - columnHeight
+
+                    // Màu cột: highlight cột cuối cùng
                     val barColor = if (index == chartData.size - 1) selectedBarColor else chartBarColor
 
                     // Vẽ cột với bo góc trên
-                    drawRoundRect(
-                        color = barColor,
-                        topLeft = Offset(xPosition, yPosition),
-                        size = Size(actualColumnWidth, columnHeight),
-                        cornerRadius = CornerRadius(4f, 4f)
-                    )
+                    if (columnHeight > 0) {
+                        drawRoundRect(
+                            color = barColor,
+                            topLeft = Offset(xPosition, yStartPosition),
+                            size = Size(actualColumnWidth, columnHeight),
+                            cornerRadius = CornerRadius(4f, 4f)
+                        )
+                    }
 
-                    // Vẽ nhãn dưới cột
+                    // Vẽ nhãn dưới cột (ngày/tháng)
                     drawContext.canvas.nativeCanvas.drawText(
-                        dayData.label,
+                        data.label,
                         xPosition + actualColumnWidth / 2,
-                        chartHeight + 20f, // FIX: Thêm f
+                        chartHeight + 20f, // Dưới đáy biểu đồ
                         Paint().apply {
                             color = android.graphics.Color.parseColor("#666666")
                             textSize = 12f
@@ -619,13 +637,12 @@ private fun DynamicChartVisualization(
                         }
                     )
 
-                    // Vẽ giá trị trên đầu cột nếu có dữ liệu và cột đủ cao
-                    // FIX: Sửa điều kiện so sánh
-                    if (dayData.amount > 0.0 && columnHeight > 20f) {
+                    // Vẽ giá trị trên đầu cột nếu có dữ liệu
+                    if (data.amount > 0 && columnHeight > 20f) {
                         drawContext.canvas.nativeCanvas.drawText(
-                            formatCurrencyCompact(dayData.amount),
+                            formatCurrencyCompact(data.amount),
                             xPosition + actualColumnWidth / 2,
-                            yPosition - 8f, // FIX: Thêm f
+                            yStartPosition - 8f, // Giá trị ở trên đầu cột
                             Paint().apply {
                                 color = android.graphics.Color.parseColor("#4A6FA5")
                                 textSize = 10f
@@ -637,6 +654,47 @@ private fun DynamicChartVisualization(
                 }
             }
         }
+    }
+}
+
+// Hàm tính giá trị làm tròn cho trục Y
+private fun calculateRoundedMaxValue(maxValue: Double): Double {
+    if (maxValue <= 0) return 100000.0 // Mặc định 100K nếu không có dữ liệu
+
+    // Tìm scale factor
+    val scale = when {
+        maxValue >= 1000000 -> 1000000.0 // Triệu
+        maxValue >= 1000 -> 1000.0 // Nghìn
+        else -> 1.0
+    }
+
+    val scaledValue = maxValue / scale
+
+    // Các số đẹp phổ biến
+    val niceNumbers = when {
+        scale == 1000.0 -> listOf(25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 500.0, 750.0, 1000.0)
+        scale == 1000000.0 -> listOf(0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0)
+        else -> listOf(10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0)
+    }
+
+    // Tìm số đẹp đầu tiên LỚN HƠN scaledValue
+    return (niceNumbers.firstOrNull { it > scaledValue } ?: (scaledValue * 1.2)) * scale
+}
+
+// Tạo các bước trục Y từ 0 đến maxValue
+private fun createYAxisSteps(maxValue: Double): List<Double> {
+    // Tạo 5 bước đều nhau từ 0 đến maxValue
+    return List(5) { i ->
+        maxValue * i / 4.0 // 0, 0.25, 0.5, 0.75, 1.0
+    }
+}
+
+// Format nhãn trục Y
+private fun formatYAxisLabel(value: Double): String {
+    return when {
+        value >= 1000000 -> String.format("%.1fM", value / 1000000)
+        value >= 1000 -> String.format("%.0fK", value / 1000)
+        else -> String.format("%.0f", value)
     }
 }
 
@@ -684,8 +742,25 @@ private fun ComparisonSection(
 ) {
     val languageViewModel = LocalLanguageViewModel.current
 
-    val currentData = calculateCurrentAmount(dataType, timeRange, transactions)
-    val previousData = calculatePreviousPeriodAmount(dataType, timeRange, transactions)
+    val (currentData, previousData) = when (timeRange) {
+        "weekly" -> {
+            val currentWeekData = calculateCurrentWeekAmount(dataType, transactions)
+            val previousWeekData = calculatePreviousWeekAmount(dataType, transactions)
+            Pair(currentWeekData, previousWeekData)
+        }
+        "monthly" -> {
+            val currentMonthData = calculateCurrentMonthAmount(dataType, transactions)
+            val previousMonthData = calculatePreviousMonthAmount(dataType, transactions)
+            Pair(currentMonthData, previousMonthData)
+        }
+        "yearly" -> {
+            // So sánh năm nay vs năm trước
+            val currentYearData = calculateCurrentYearAmount(dataType, transactions)
+            val previousYearData = calculatePreviousYearAmount(dataType, transactions)
+            Pair(currentYearData, previousYearData)
+        }
+        else -> Pair(0.0, 0.0)
+    }
 
     Card(
         modifier = Modifier
@@ -715,7 +790,7 @@ private fun ComparisonSection(
             Spacer(modifier = Modifier.height(16.dp))
 
             ComparisonDataRow(
-                "${getTimeRangeText(timeRange, languageViewModel)} ${if (timeRange == "yearly") "" else languageViewModel.getTranslation("this_year")}",
+                getCurrentPeriodLabel(timeRange, languageViewModel),
                 currentData,
                 textPrimary = textPrimary
             )
@@ -723,7 +798,7 @@ private fun ComparisonSection(
             Spacer(modifier = Modifier.height(12.dp))
 
             ComparisonDataRow(
-                "${getPreviousTimeRangeText(timeRange, languageViewModel)} ${if (timeRange == "yearly") "" else languageViewModel.getTranslation("last_year")}",
+                getPreviousPeriodLabel(timeRange, languageViewModel),
                 previousData,
                 textPrimary = textPrimary
             )
@@ -757,15 +832,17 @@ private fun ComparisonDataRow(label: String, amount: Double, textPrimary: Color)
 private fun CategoryAnalysisSection(
     dataType: String,
     transactions: List<Transaction>,
+    categoryViewModel: CategoryViewModel,
+    categories: List<com.example.financeapp.viewmodel.transaction.Category>,
     primaryColor: Color,
     textPrimary: Color,
     textSecondary: Color,
-    backgroundColor: Color,
-    categoryViewModel: CategoryViewModel
+    backgroundColor: Color
 ) {
     val languageViewModel = LocalLanguageViewModel.current
 
-    val hasData = transactions.isNotEmpty()
+    // Lấy top 5 danh mục với tên thay vì ID
+    val topCategories = getTopCategoriesWithAmount(dataType, transactions, categories)
 
     Card(
         modifier = Modifier
@@ -794,10 +871,10 @@ private fun CategoryAnalysisSection(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (!hasData) {
+            if (topCategories.isEmpty()) {
                 NoDataPlaceholder(textSecondary = textSecondary)
             } else {
-                CategoryAnalysisContent(dataType, transactions, languageViewModel, textPrimary, textSecondary)
+                CategoryAnalysisContent(topCategories, textPrimary, textSecondary)
             }
         }
     }
@@ -805,24 +882,23 @@ private fun CategoryAnalysisSection(
 
 @Composable
 private fun CategoryAnalysisContent(
-    dataType: String,
-    transactions: List<Transaction>,
-    languageViewModel: LanguageViewModel,
+    categories: List<CategoryAmount>,
     textPrimary: Color,
     textSecondary: Color
 ) {
+    // Hiển thị tiêu đề
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            languageViewModel.getTranslation("sub_category"),
+            "Danh mục",
             fontSize = 14.sp,
             color = textSecondary,
             fontWeight = FontWeight.Medium
         )
         Text(
-            languageViewModel.getTranslation("parent_category"),
+            "Số tiền",
             fontSize = 14.sp,
             color = textSecondary,
             fontWeight = FontWeight.Medium
@@ -831,7 +907,7 @@ private fun CategoryAnalysisContent(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    val categories = getTopCategoriesWithAmount(dataType, transactions)
+    // Hiển thị từng danh mục
     categories.forEach { category ->
         CategoryAnalysisRow(category, textPrimary)
         Spacer(modifier = Modifier.height(12.dp))
@@ -845,45 +921,24 @@ private fun CategoryAnalysisRow(category: CategoryAmount, textPrimary: Color) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                category.name,
-                fontSize = 16.sp,
-                color = textPrimary
-            )
-            Text(
-                formatCurrency(category.amount),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = textPrimary
-            )
-        }
+        Text(
+            category.name,
+            fontSize = 16.sp,
+            color = textPrimary,
+            maxLines = 1,
+            modifier = Modifier.weight(1f)
+        )
 
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                category.name,
-                fontSize = 16.sp,
-                color = textPrimary
-            )
-            Text(
-                formatCurrency(category.amount),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = textPrimary
-            )
-        }
+        Text(
+            formatCurrency(category.amount),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = textPrimary
+        )
     }
 }
 
-// ==================== HÀM TIỆN ÍCH MỚI ====================
+// ==================== HÀM TIỆN ÍCH ====================
 
 // Data classes
 data class ChartData(
@@ -896,7 +951,7 @@ data class CategoryAmount(
     val amount: Double
 )
 
-// Lấy dữ liệu biểu đồ theo timeRange
+// Lấy dữ liệu biểu đồ theo timeRange - CẬP NHẬT: tháng lấy 6 tháng
 private fun getChartDataByTimeRange(
     dataType: String,
     timeRange: String,
@@ -904,8 +959,8 @@ private fun getChartDataByTimeRange(
 ): List<ChartData> {
     return when (timeRange) {
         "weekly" -> getLastNDaysData(dataType, transactions, 7) // 7 ngày gần nhất
-        "monthly" -> getLastNDaysData(dataType, transactions, 30) // 30 ngày gần nhất
-        "yearly" -> getMonthlyDataForYear(dataType, transactions) // 12 tháng trong năm
+        "monthly" -> getLast6MonthsData(dataType, transactions) // 6 tháng gần nhất
+        "yearly" -> getYearlyComparisonData(dataType, transactions) // Năm nay và năm trước
         else -> getLastNDaysData(dataType, transactions, 7)
     }
 }
@@ -918,8 +973,7 @@ private fun getLastNDaysData(
 ): List<ChartData> {
     val result = mutableListOf<ChartData>()
     val calendar = Calendar.getInstance()
-    val dateFormat = if (days <= 30) SimpleDateFormat("dd/M", Locale.getDefault())
-    else SimpleDateFormat("dd/MM", Locale.getDefault())
+    val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
 
     for (i in days - 1 downTo 0) {
         calendar.time = Date()
@@ -943,27 +997,71 @@ private fun getLastNDaysData(
     return result
 }
 
-// Lấy dữ liệu theo tháng cho cả năm
-private fun getMonthlyDataForYear(
+// Lấy dữ liệu 6 tháng gần nhất - MỚI
+private fun getLast6MonthsData(
+    dataType: String,
+    transactions: List<Transaction>
+): List<ChartData> {
+    val result = mutableListOf<ChartData>()
+    val calendar = Calendar.getInstance()
+    val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+
+    // Đặt về đầu tháng hiện tại
+    calendar.set(Calendar.DAY_OF_MONTH, 1)
+
+    for (i in 0..5) { // 6 tháng gần nhất (0: tháng hiện tại, 5: 5 tháng trước)
+        val monthCalendar = calendar.clone() as Calendar
+        monthCalendar.add(Calendar.MONTH, -i)
+
+        val startOfMonth = monthCalendar.time
+        monthCalendar.add(Calendar.MONTH, 1)
+        monthCalendar.add(Calendar.DAY_OF_MONTH, -1)
+        val endOfMonth = monthCalendar.time
+
+        val monthTransactions = transactions.filter { transaction ->
+            try {
+                val transactionDate = parseDate(transaction.date)
+                transactionDate in startOfMonth..endOfMonth
+            } catch (e: Exception) {
+                false
+            }
+        }
+
+        val amount = calculateAmountForDataType(monthTransactions, dataType)
+        val monthLabel = SimpleDateFormat("MM/yy", Locale.getDefault()).format(startOfMonth)
+        result.add(0, ChartData(amount, monthLabel)) // Thêm vào đầu để đúng thứ tự
+    }
+
+    return result.reversed() // Đảo ngược để tháng cũ nhất ở trước
+}
+
+// Lấy dữ liệu năm nay và năm trước cho so sánh - MỚI
+private fun getYearlyComparisonData(
     dataType: String,
     transactions: List<Transaction>
 ): List<ChartData> {
     val result = mutableListOf<ChartData>()
     val calendar = Calendar.getInstance()
     val currentYear = calendar.get(Calendar.YEAR)
-    val monthFormat = SimpleDateFormat("MM", Locale.getDefault())
+    val previousYear = currentYear - 1
 
-    for (month in 0..11) { // 0-11 cho các tháng
-        val monthTransactions = transactions.filter { transaction ->
-            val transactionDate = parseDate(transaction.date)
-            val transCalendar = Calendar.getInstance().apply { time = transactionDate }
-            transCalendar.get(Calendar.YEAR) == currentYear &&
-                    transCalendar.get(Calendar.MONTH) == month
-        }
-
-        val amount = calculateAmountForDataType(monthTransactions, dataType)
-        result.add(ChartData(amount, "T${month + 1}"))
+    // Dữ liệu năm nay
+    val currentYearTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        val transCalendar = Calendar.getInstance().apply { time = transactionDate }
+        transCalendar.get(Calendar.YEAR) == currentYear
     }
+    val currentYearAmount = calculateAmountForDataType(currentYearTransactions, dataType)
+    result.add(ChartData(currentYearAmount, "Năm nay"))
+
+    // Dữ liệu năm trước
+    val previousYearTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        val transCalendar = Calendar.getInstance().apply { time = transactionDate }
+        transCalendar.get(Calendar.YEAR) == previousYear
+    }
+    val previousYearAmount = calculateAmountForDataType(previousYearTransactions, dataType)
+    result.add(ChartData(previousYearAmount, "Năm trước"))
 
     return result
 }
@@ -975,42 +1073,106 @@ private fun getPreviousPeriodData(
     transactions: List<Transaction>
 ): List<ChartData> {
     return when (timeRange) {
-        "weekly" -> getLastNDaysData(dataType, transactions, 7) // Dùng cùng logic, nhưng đây là để so sánh
-        "monthly" -> getLastNDaysData(dataType, transactions, 30)
-        "yearly" -> getPreviousYearMonthlyData(dataType, transactions)
+        "weekly" -> getPreviousWeekData(dataType, transactions)
+        "monthly" -> getPrevious6MonthsData(dataType, transactions)
+        "yearly" -> getYearBeforeLastData(dataType, transactions)
         else -> emptyList()
     }
 }
 
-// Lấy dữ liệu tháng của năm trước
-private fun getPreviousYearMonthlyData(
+// Lấy dữ liệu tuần trước
+private fun getPreviousWeekData(
     dataType: String,
     transactions: List<Transaction>
 ): List<ChartData> {
     val result = mutableListOf<ChartData>()
     val calendar = Calendar.getInstance()
-    calendar.add(Calendar.YEAR, -1)
-    val previousYear = calendar.get(Calendar.YEAR)
+    calendar.add(Calendar.WEEK_OF_YEAR, -1)
+    val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
 
-    for (month in 0..11) {
-        val monthTransactions = transactions.filter { transaction ->
-            val transactionDate = parseDate(transaction.date)
-            val transCalendar = Calendar.getInstance().apply { time = transactionDate }
-            transCalendar.get(Calendar.YEAR) == previousYear &&
-                    transCalendar.get(Calendar.MONTH) == month
+    for (i in 6 downTo 0) {
+        val dayCalendar = calendar.clone() as Calendar
+        dayCalendar.add(Calendar.DAY_OF_YEAR, i - 6)
+        val date = dayCalendar.time
+        val dateKey = dateFormat.format(date)
+
+        val dayTransactions = transactions.filter { transaction ->
+            try {
+                val transactionDate = parseDate(transaction.date)
+                isSameDay(transactionDate, date)
+            } catch (e: Exception) {
+                false
+            }
         }
 
-        val amount = calculateAmountForDataType(monthTransactions, dataType)
-        result.add(ChartData(amount, "T${month + 1}"))
+        val amount = calculateAmountForDataType(dayTransactions, dataType)
+        result.add(ChartData(amount, dateKey))
     }
 
     return result
 }
 
+// Lấy dữ liệu 6 tháng trước đó - MỚI
+private fun getPrevious6MonthsData(
+    dataType: String,
+    transactions: List<Transaction>
+): List<ChartData> {
+    val result = mutableListOf<ChartData>()
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.MONTH, -6) // Bắt đầu từ 6 tháng trước
+    calendar.set(Calendar.DAY_OF_MONTH, 1)
+
+    for (i in 0..5) {
+        val monthCalendar = calendar.clone() as Calendar
+        monthCalendar.add(Calendar.MONTH, i)
+
+        val startOfMonth = monthCalendar.time
+        monthCalendar.add(Calendar.MONTH, 1)
+        monthCalendar.add(Calendar.DAY_OF_MONTH, -1)
+        val endOfMonth = monthCalendar.time
+
+        val monthTransactions = transactions.filter { transaction ->
+            try {
+                val transactionDate = parseDate(transaction.date)
+                transactionDate in startOfMonth..endOfMonth
+            } catch (e: Exception) {
+                false
+            }
+        }
+
+        val amount = calculateAmountForDataType(monthTransactions, dataType)
+        val monthLabel = SimpleDateFormat("MM/yy", Locale.getDefault()).format(startOfMonth)
+        result.add(ChartData(amount, monthLabel))
+    }
+
+    return result
+}
+
+// Lấy dữ liệu năm trước nữa - MỚI
+private fun getYearBeforeLastData(
+    dataType: String,
+    transactions: List<Transaction>
+): List<ChartData> {
+    val result = mutableListOf<ChartData>()
+    val calendar = Calendar.getInstance()
+    val yearBeforeLast = calendar.get(Calendar.YEAR) - 2
+
+    // Dữ liệu 2 năm trước
+    val yearBeforeLastTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        val transCalendar = Calendar.getInstance().apply { time = transactionDate }
+        transCalendar.get(Calendar.YEAR) == yearBeforeLast
+    }
+    val yearBeforeLastAmount = calculateAmountForDataType(yearBeforeLastTransactions, dataType)
+    result.add(ChartData(yearBeforeLastAmount, "2 năm trước"))
+
+    return result
+}
+
+// Làm tròn lên số đẹp gần nhất
 private fun roundToNearestNiceNumber(value: Double): Double {
     if (value <= 0) return 100.0
 
-    // PHƯƠNG PHÁP KHÔNG DÙNG pow
     var scaledValue = value
     var scaleFactor = 1.0
 
@@ -1037,13 +1199,13 @@ private fun roundToNearestNiceNumber(value: Double): Double {
     return niceFraction * scaleFactor
 }
 
-// Tạo các bước đẹp cho trục Y
+// Tạo các bước đẹp cho trục Y - CẬP NHẬT: tạo các bước đều nhau
 private fun generateNiceYSteps(maxValue: Double): List<Double> {
     val steps = mutableListOf<Double>()
-    val step = maxValue / 4 // 5 điểm (0, 1/4, 2/4, 3/4, 4/4)
 
+    // Tạo 5 bước từ 0 đến maxValue
     for (i in 0..4) {
-        steps.add(step * i)
+        steps.add(maxValue * i / 4)
     }
 
     return steps
@@ -1066,7 +1228,7 @@ private fun isSameDay(date1: Date, date2: Date): Boolean {
             cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
 }
 
-// Các hàm tiện ích cũ (giữ nguyên)
+// Các hàm tiện ích
 private fun parseDate(dateString: String): Date {
     return try {
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateString) ?: Date()
@@ -1088,83 +1250,145 @@ private fun calculateAmountForDataType(transactions: List<Transaction>, dataType
     }
 }
 
-private fun calculatePreviousPeriodAmount(dataType: String, timeRange: String, transactions: List<Transaction>): Double {
+// Các hàm tính toán số tiền theo từng kỳ
+private fun calculateCurrentWeekAmount(dataType: String, transactions: List<Transaction>): Double {
     val calendar = Calendar.getInstance()
+    calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+    val startOfWeek = calendar.time
+    calendar.add(Calendar.DAY_OF_WEEK, 6)
+    val endOfWeek = calendar.time
 
+    val weekTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        transactionDate in startOfWeek..endOfWeek
+    }
+
+    return calculateAmountForDataType(weekTransactions, dataType)
+}
+
+private fun calculatePreviousWeekAmount(dataType: String, transactions: List<Transaction>): Double {
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.WEEK_OF_YEAR, -1)
+    calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+    val startOfWeek = calendar.time
+    calendar.add(Calendar.DAY_OF_WEEK, 6)
+    val endOfWeek = calendar.time
+
+    val weekTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        transactionDate in startOfWeek..endOfWeek
+    }
+
+    return calculateAmountForDataType(weekTransactions, dataType)
+}
+
+private fun calculateCurrentMonthAmount(dataType: String, transactions: List<Transaction>): Double {
+    val calendar = Calendar.getInstance()
+    calendar.set(Calendar.DAY_OF_MONTH, 1)
+    val startOfMonth = calendar.time
+    calendar.add(Calendar.MONTH, 1)
+    calendar.add(Calendar.DAY_OF_MONTH, -1)
+    val endOfMonth = calendar.time
+
+    val monthTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        transactionDate in startOfMonth..endOfMonth
+    }
+
+    return calculateAmountForDataType(monthTransactions, dataType)
+}
+
+private fun calculatePreviousMonthAmount(dataType: String, transactions: List<Transaction>): Double {
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.MONTH, -1)
+    calendar.set(Calendar.DAY_OF_MONTH, 1)
+    val startOfMonth = calendar.time
+    calendar.add(Calendar.MONTH, 1)
+    calendar.add(Calendar.DAY_OF_MONTH, -1)
+    val endOfMonth = calendar.time
+
+    val monthTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        transactionDate in startOfMonth..endOfMonth
+    }
+
+    return calculateAmountForDataType(monthTransactions, dataType)
+}
+
+private fun calculateCurrentYearAmount(dataType: String, transactions: List<Transaction>): Double {
+    val calendar = Calendar.getInstance()
+    calendar.set(Calendar.MONTH, Calendar.JANUARY)
+    calendar.set(Calendar.DAY_OF_MONTH, 1)
+    val startOfYear = calendar.time
+    calendar.set(Calendar.MONTH, Calendar.DECEMBER)
+    calendar.set(Calendar.DAY_OF_MONTH, 31)
+    val endOfYear = calendar.time
+
+    val yearTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        transactionDate in startOfYear..endOfYear
+    }
+
+    return calculateAmountForDataType(yearTransactions, dataType)
+}
+
+private fun calculatePreviousYearAmount(dataType: String, transactions: List<Transaction>): Double {
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.YEAR, -1)
+    calendar.set(Calendar.MONTH, Calendar.JANUARY)
+    calendar.set(Calendar.DAY_OF_MONTH, 1)
+    val startOfYear = calendar.time
+    calendar.set(Calendar.MONTH, Calendar.DECEMBER)
+    calendar.set(Calendar.DAY_OF_MONTH, 31)
+    val endOfYear = calendar.time
+
+    val yearTransactions = transactions.filter { transaction ->
+        val transactionDate = parseDate(transaction.date)
+        transactionDate in startOfYear..endOfYear
+    }
+
+    return calculateAmountForDataType(yearTransactions, dataType)
+}
+
+private fun calculateCurrentAmount(dataType: String, timeRange: String, transactions: List<Transaction>): Double {
     return when (timeRange) {
-        "monthly" -> {
-            calendar.add(Calendar.MONTH, -1)
-            val previousMonth = calendar.get(Calendar.MONTH)
-            val previousYear = calendar.get(Calendar.YEAR)
-
-            val previousTransactions = transactions.filter { transaction ->
-                val transactionDate = parseDate(transaction.date)
-                val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
-                transactionCalendar.get(Calendar.MONTH) == previousMonth &&
-                        transactionCalendar.get(Calendar.YEAR) == previousYear
-            }
-
-            calculateAmountForDataType(previousTransactions, dataType)
-        }
-        "yearly" -> {
-            val previousYear = calendar.get(Calendar.YEAR) - 1
-            val previousTransactions = transactions.filter { transaction ->
-                val transactionDate = parseDate(transaction.date)
-                val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
-                transactionCalendar.get(Calendar.YEAR) == previousYear
-            }
-
-            calculateAmountForDataType(previousTransactions, dataType)
-        }
+        "weekly" -> calculateCurrentWeekAmount(dataType, transactions)
+        "monthly" -> calculateCurrentMonthAmount(dataType, transactions)
+        "yearly" -> calculateCurrentYearAmount(dataType, transactions)
         else -> 0.0
     }
 }
 
-private fun calculateCurrentAmount(dataType: String, timeRange: String, transactions: List<Transaction>): Double {
-    val calendar = Calendar.getInstance()
-
-    return when (timeRange) {
-        "monthly" -> {
-            val currentMonth = calendar.get(Calendar.MONTH)
-            val currentYear = calendar.get(Calendar.YEAR)
-            val currentTransactions = transactions.filter { transaction ->
-                val transactionDate = parseDate(transaction.date)
-                val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
-                transactionCalendar.get(Calendar.MONTH) == currentMonth &&
-                        transactionCalendar.get(Calendar.YEAR) == currentYear
-            }
-            calculateAmountForDataType(currentTransactions, dataType)
-        }
-        "yearly" -> {
-            val currentYear = calendar.get(Calendar.YEAR)
-            val currentTransactions = transactions.filter { transaction ->
-                val transactionDate = parseDate(transaction.date)
-                val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
-                transactionCalendar.get(Calendar.YEAR) == currentYear
-            }
-            calculateAmountForDataType(currentTransactions, dataType)
-        }
-        else -> calculateAmountForDataType(transactions, dataType)
-    }
-}
-
-private fun getTopCategoriesWithAmount(dataType: String, transactions: List<Transaction>): List<CategoryAmount> {
+// Lấy top 5 danh mục với tên thay vì ID - MỚI
+private fun getTopCategoriesWithAmount(
+    dataType: String,
+    transactions: List<Transaction>,
+    categories: List<com.example.financeapp.viewmodel.transaction.Category>
+): List<CategoryAmount> {
     val filteredTransactions = when (dataType) {
         "income" -> transactions.filter { it.isIncome }
         "expense" -> transactions.filter { !it.isIncome }
         else -> transactions
     }
 
-    return filteredTransactions
+    // Nhóm theo category và tính tổng
+    val categoryTotals = filteredTransactions
         .groupBy { it.category }
-        .map { (category, trans) ->
+        .map { (categoryId, trans) ->
+            // Tìm tên danh mục từ danh sách categories
+            val categoryName = categories
+                .find { it.id == categoryId }
+                ?.name ?: "Không xác định"
+
             CategoryAmount(
-                name = category,
+                name = categoryName,
                 amount = trans.sumOf { it.amount.toDouble() }
             )
         }
         .sortedByDescending { it.amount }
-        .take(3)
+        .take(5) // Lấy top 5
+
+    return categoryTotals
 }
 
 private fun getTimeRangeText(timeRange: String, languageViewModel: LanguageViewModel): String {
@@ -1187,7 +1411,7 @@ private fun getPreviousTimeRangeText(timeRange: String, languageViewModel: Langu
 
 private fun getComparisonTitle(timeRange: String, languageViewModel: LanguageViewModel): String {
     return when (timeRange) {
-        "yearly" -> languageViewModel.getTranslation("compared_to_same_period")
+        "yearly" -> "So sánh năm nay với năm trước"
         else -> getTimeRangeText(timeRange, languageViewModel).replaceFirstChar { it.uppercase() }
     }
 }
@@ -1207,4 +1431,29 @@ private fun formatCurrencyCompact(amount: Double): String {
         amount >= 1000 -> String.format("%.0fK", amount / 1000)
         else -> String.format("%.0f", amount)
     }
+}
+
+// Hàm mới để tạo nhãn cho phần so sánh
+private fun getCurrentPeriodLabel(timeRange: String, languageViewModel: LanguageViewModel): String {
+    return when (timeRange) {
+        "weekly" -> "Tuần này"
+        "monthly" -> "Tháng này"
+        "yearly" -> "Năm nay"
+        else -> ""
+    }
+}
+
+private fun getPreviousPeriodLabel(timeRange: String, languageViewModel: LanguageViewModel): String {
+    return when (timeRange) {
+        "weekly" -> "Tuần trước"
+        "monthly" -> "Tháng trước"
+        "yearly" -> "Năm trước"
+        else -> ""
+    }
+}
+
+// Extension để kiểm tra range của Date
+private operator fun Date.rangeTo(other: Date) = object : ClosedRange<Date> {
+    override val start = this@rangeTo
+    override val endInclusive = other
 }

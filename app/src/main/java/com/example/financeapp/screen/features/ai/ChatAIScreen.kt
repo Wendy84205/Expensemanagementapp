@@ -2,31 +2,21 @@ package com.example.financeapp.screen.features.ai
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.ai.ChatMessage
+import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,19 +43,16 @@ fun ChatAIScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
-    // Màu sắc
-    val primaryColor = Color(0xFF0F4C75)
-    val secondaryColor = Color(0xFF2E8B57)
-    val backgroundColor = Color(0xFFF5F7FA)
-    val surfaceColor = Color.White
-    val textPrimary = Color(0xFF2D3748)
-    val textSecondary = Color(0xFF718096)
-    val accentColor = Color(0xFFED8936)
-    val errorColor = Color(0xFFE53E3E)
-    val successColor = Color(0xFF38A169)
-    val proactiveColor = Color(0xFF8B5CF6)
+    // Colors
+    val primaryColor = Color(0xFF2196F3)
+    val backgroundColor = Color(0xFFF5F5F5)
+    val cardColor = Color.White
+    val textColor = Color(0xFF333333)
+    val subtitleColor = Color(0xFF666666)
+    val userBubbleColor = primaryColor
+    val aiBubbleColor = Color(0xFFEEEEEE)
 
-    // ✅ Scroll tự động khi tin nhắn mới xuất hiện
+    // Auto scroll to bottom when new messages
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
@@ -73,88 +61,17 @@ fun ChatAIScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(primaryColor, Color(0xFF1A365D))
-                                    ),
-                                    CircleShape
-                                )
-                                .padding(6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.SmartToy,
-                                contentDescription = "AI",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Wendy AI",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            color = textPrimary
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                primaryColor.copy(alpha = 0.1f),
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = primaryColor
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { aiViewModel.clearChat() },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                textSecondary.copy(alpha = 0.1f),
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Xóa đoạn chat",
-                            tint = textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = surfaceColor,
-                    titleContentColor = textPrimary,
-                    navigationIconContentColor = primaryColor,
-                    actionIconContentColor = primaryColor
-                )
+            SimpleTopAppBar(
+                title = "Trợ lý AI",
+                onBackClick = { navController.popBackStack() }
             )
         },
         containerColor = backgroundColor
     ) { padding ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
+                .padding(padding)
         ) {
             // Chat messages
             LazyColumn(
@@ -168,85 +85,63 @@ fun ChatAIScreen(
                 items(messages.size, key = { index -> messages[index].id }) { index ->
                     val message = messages[index]
                     if (message.text.isNotBlank()) {
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = slideInHorizontally(
-                                initialOffsetX = { fullWidth ->
-                                    if (message.isUser) fullWidth else -fullWidth
-                                },
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
-                                )
-                            ),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { fullWidth ->
-                                    if (message.isUser) fullWidth else -fullWidth
-                                },
-                                animationSpec = tween(400)
-                            )
-                        ) {
-                            ChatBubble(
-                                message = message,
-                                primaryColor = primaryColor,
-                                secondaryColor = secondaryColor,
-                                textPrimary = textPrimary,
-                                textSecondary = textSecondary,
-                                proactiveColor = proactiveColor
-                            )
-                        }
+                        ChatBubble(
+                            message = message,
+                            primaryColor = primaryColor,
+                            textColor = textColor,
+                            userBubbleColor = userBubbleColor,
+                            aiBubbleColor = aiBubbleColor
+                        )
                     }
                 }
 
                 // AI typing indicator
                 item {
                     if (isAITyping) {
-                        TypingIndicator(
-                            primaryColor = primaryColor,
-                            textPrimary = textPrimary,
-                            textSecondary = textSecondary
-                        )
+                        TypingIndicator(primaryColor = primaryColor)
                     }
                 }
             }
 
-            // Hiển thị lỗi
+            // Error display
             lastError?.let { error ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = errorColor.copy(alpha = 0.1f)
+                        containerColor = Color(0xFFF44336).copy(alpha = 0.1f)
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Outlined.Warning,
+                            Icons.Default.Warning,
                             contentDescription = "Error",
-                            tint = errorColor,
+                            tint = Color(0xFFF44336),
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = error,
-                            color = errorColor,
+                            color = Color(0xFF333333),
                             fontSize = 14.sp,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
                             onClick = { aiViewModel.lastError.value = null },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Dismiss",
-                                tint = errorColor,
-                                modifier = Modifier.size(16.dp)
+                                tint = Color(0xFF666666)
                             )
                         }
                     }
@@ -264,11 +159,7 @@ fun ChatAIScreen(
                     }
                 },
                 isAITyping = isAITyping,
-                primaryColor = primaryColor,
-                textPrimary = textPrimary,
-                textSecondary = textSecondary,
-                surfaceColor = surfaceColor,
-                backgroundColor = backgroundColor
+                primaryColor = primaryColor
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -276,55 +167,68 @@ fun ChatAIScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SimpleTopAppBar(
+    title: String,
+    onBackClick: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Quay lại",
+                    tint = Color(0xFF333333)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.White
+        )
+    )
+}
+
 @Composable
 fun ChatBubble(
     message: ChatMessage,
     primaryColor: Color,
-    secondaryColor: Color,
-    textPrimary: Color,
-    textSecondary: Color,
-    proactiveColor: Color
+    textColor: Color,
+    userBubbleColor: Color = primaryColor,
+    aiBubbleColor: Color = Color(0xFFEEEEEE)
 ) {
-    val bubbleColor = if (message.isProactive) {
-        proactiveColor
-    } else if (message.isUser) {
-        primaryColor
-    } else {
-        Color.White
-    }
-
-    val textColor = if (message.isProactive || message.isUser) {
-        Color.White
-    } else {
-        textPrimary
-    }
+    val isUser = message.isUser
+    val bubbleColor = if (isUser) userBubbleColor else aiBubbleColor
+    val contentColor = if (isUser) Color.White else textColor
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp),
-        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start,
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Top
     ) {
-        if (!message.isUser && !message.isProactive) {
+        if (!isUser) {
+            // AI icon
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .shadow(3.dp, CircleShape)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(primaryColor, Color(0xFF1A365D))
-                        ),
-                        CircleShape
-                    )
-                    .padding(6.dp),
+                    .background(primaryColor.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.SmartToy,
+                    Icons.Default.SmartToy,
                     contentDescription = "AI",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    tint = primaryColor,
+                    modifier = Modifier.size(18.dp)
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -332,102 +236,75 @@ fun ChatBubble(
 
         Card(
             modifier = Modifier
+                .widthIn(max = 280.dp)
                 .shadow(
-                    elevation = 4.dp,
+                    elevation = 2.dp,
                     shape = RoundedCornerShape(
-                        topStart = if (message.isUser) 16.dp else 4.dp,
+                        topStart = if (isUser) 16.dp else 4.dp,
                         topEnd = 16.dp,
                         bottomStart = 16.dp,
-                        bottomEnd = if (message.isUser) 4.dp else 16.dp
+                        bottomEnd = if (isUser) 4.dp else 16.dp
                     ),
                     clip = true
                 ),
+            shape = RoundedCornerShape(
+                topStart = if (isUser) 16.dp else 4.dp,
+                topEnd = 16.dp,
+                bottomStart = 16.dp,
+                bottomEnd = if (isUser) 4.dp else 16.dp
+            ),
             colors = CardDefaults.cardColors(
                 containerColor = bubbleColor
             ),
-            shape = RoundedCornerShape(
-                topStart = if (message.isUser) 16.dp else 4.dp,
-                topEnd = 16.dp,
-                bottomStart = 16.dp,
-                bottomEnd = if (message.isUser) 4.dp else 16.dp
-            )
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
-                modifier = Modifier.padding(12.dp)
+                modifier = Modifier.padding(16.dp)
             ) {
-                if (message.isProactive) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Warning,
-                            contentDescription = "Proactive Tip",
-                            tint = Color.White.copy(alpha = 0.8f),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Gợi ý từ Wendy",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
                 Text(
                     text = message.text,
-                    color = textColor,
+                    color = contentColor,
                     fontSize = 15.sp,
-                    lineHeight = 18.sp
+                    lineHeight = 20.sp
                 )
             }
         }
 
-        if (message.isUser) {
+        if (isUser) {
             Spacer(modifier = Modifier.width(8.dp))
+            // User icon
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .shadow(3.dp, CircleShape)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(secondaryColor, secondaryColor.copy(alpha = 0.8f))
-                        ),
-                        CircleShape
-                    )
-                    .padding(6.dp),
+                    .background(primaryColor.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
+                    Icons.Default.Person,
                     contentDescription = "User",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    tint = primaryColor,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
     }
 }
+
 @Composable
 fun ChatInputSection(
     input: String,
     onInputChange: (String) -> Unit,
     onSendClick: () -> Unit,
     isAITyping: Boolean,
-    primaryColor: Color,
-    textPrimary: Color,
-    textSecondary: Color,
-    surfaceColor: Color,
-    backgroundColor: Color
+    primaryColor: Color
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(4.dp, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
@@ -435,165 +312,55 @@ fun ChatInputSection(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChange,
                 modifier = Modifier
                     .weight(1f)
-                    .background(
-                        backgroundColor,
-                        RoundedCornerShape(16.dp)
+                    .heightIn(min = 50.dp),
+                placeholder = {
+                    Text(
+                        "Nhập câu hỏi về tài chính...",
+                        color = Color(0xFF999999)
                     )
-                    .padding(horizontal = 16.dp, vertical = 2.dp)
-            ) {
-                BasicTextField(
-                    value = input,
-                    onValueChange = onInputChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    singleLine = false,
-                    maxLines = 3,
-                    textStyle = TextStyle(
-                        color = textPrimary,
-                        fontSize = 16.sp,
-                        lineHeight = 20.sp
-                    ),
-                    decorationBox = { innerTextField ->
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            if (input.isEmpty()) {
-                                Text(
-                                    text = "Nhập câu hỏi về tài chính...",
-                                    color = textSecondary,
-                                    fontSize = 16.sp
-                                )
-                            }
-                            innerTextField()
-                        }
-                    }
-                )
-            }
+                },
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = primaryColor,
+                    unfocusedBorderColor = Color(0xFFDDDDDD),
+                    focusedTextColor = Color(0xFF333333),
+                    unfocusedTextColor = Color(0xFF333333),
+                    cursorColor = primaryColor
+                ),
+                singleLine = false,
+                maxLines = 3
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Box(
+            IconButton(
+                onClick = onSendClick,
+                enabled = input.isNotBlank() && !isAITyping,
                 modifier = Modifier
-                    .size(50.dp)
-                    .shadow(
-                        elevation = if (input.isNotBlank() && !isAITyping) 6.dp else 2.dp,
-                        shape = CircleShape,
-                        clip = true
-                    )
+                    .size(48.dp)
                     .background(
-                        brush = if (input.isNotBlank() && !isAITyping) {
-                            Brush.verticalGradient(
-                                colors = listOf(primaryColor, Color(0xFF1A365D))
-                            )
-                        } else {
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    textSecondary.copy(alpha = 0.3f),
-                                    textSecondary.copy(alpha = 0.1f)
-                                )
-                            )
-                        },
-                        shape = CircleShape
+                        if (input.isNotBlank() && !isAITyping) primaryColor else Color(0xFFCCCCCC),
+                        CircleShape
                     )
-                    .clip(CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(
-                    onClick = onSendClick,
-                    enabled = input.isNotBlank() && !isAITyping,
-                    modifier = Modifier.size(50.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "Send",
-                        tint = if (input.isNotBlank() && !isAITyping) {
-                            Color.White
-                        } else {
-                            textSecondary.copy(alpha = 0.5f)
-                        },
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun QuickQuestionItem(
-    question: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    primaryColor: Color,
-    textPrimary: Color,
-    textSecondary: Color,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(3.dp, RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(primaryColor.copy(alpha = 0.1f), CircleShape)
-                    .padding(6.dp),
-                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = primaryColor,
-                    modifier = Modifier.size(18.dp)
+                    imageVector = Icons.Default.Send,
+                    contentDescription = "Send",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = question,
-                color = textPrimary,
-                fontSize = 14.sp,
-                modifier = Modifier.weight(1f),
-                lineHeight = 18.sp
-            )
         }
     }
 }
 
 @Composable
-fun TypingIndicator(
-    primaryColor: Color,
-    textPrimary: Color,
-    textSecondary: Color
-) {
-    val dotCount = 3
-    val infiniteTransition = rememberInfiniteTransition()
-    val alphaValues = List(dotCount) { index ->
-        infiniteTransition.animateFloat(
-            initialValue = 0.3f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = 600,
-                    delayMillis = index * 200,
-                    easing = LinearEasing
-                ),
-                repeatMode = RepeatMode.Reverse
-            )
-        )
-    }
-
+fun TypingIndicator(primaryColor: Color) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -604,51 +371,59 @@ fun TypingIndicator(
         Box(
             modifier = Modifier
                 .size(32.dp)
-                .shadow(3.dp, CircleShape)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(primaryColor, Color(0xFF1A365D))
-                    ),
-                    CircleShape
-                )
-                .padding(6.dp),
+                .background(primaryColor.copy(alpha = 0.1f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.SmartToy,
+                Icons.Default.SmartToy,
                 contentDescription = "AI",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
+                tint = primaryColor,
+                modifier = Modifier.size(18.dp)
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
 
         Card(
-            modifier = Modifier.shadow(3.dp, RoundedCornerShape(12.dp)),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(4.dp, 12.dp, 12.dp, 12.dp)
+            modifier = Modifier
+                .widthIn(max = 120.dp),
+            shape = RoundedCornerShape(4.dp, 12.dp, 12.dp, 12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFFEEEEEE)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "AI đang trả lời",
-                    color = textSecondary,
-                    fontSize = 13.sp,
+                    text = "AI đang viết",
+                    color = Color(0xFF666666),
+                    fontSize = 12.sp,
                     modifier = Modifier.padding(end = 8.dp)
                 )
-                repeat(dotCount) { i ->
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .clip(CircleShape)
-                            .background(
-                                primaryColor.copy(alpha = alphaValues[i].value)
-                            )
-                    )
-                    if (i != dotCount - 1) Spacer(modifier = Modifier.width(3.dp))
-                }
+
+                // Dots animation
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(primaryColor)
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(primaryColor.copy(alpha = 0.5f))
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(primaryColor.copy(alpha = 0.3f))
+                )
             }
         }
     }
