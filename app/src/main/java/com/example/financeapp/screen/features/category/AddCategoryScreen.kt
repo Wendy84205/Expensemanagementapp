@@ -3,20 +3,18 @@ package com.example.financeapp.screen.features.category
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,8 +27,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
-import com.example.financeapp.LocalLanguageViewModel
-import com.example.financeapp.viewmodel.settings.LanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,14 +34,9 @@ fun AddCategoryScreen(
     navController: NavController,
     viewModel: CategoryViewModel
 ) {
-    val languageViewModel = LocalLanguageViewModel.current
     val categories by viewModel.categories.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf(
-        languageViewModel.getTranslation("spending"),
-        languageViewModel.getTranslation("income")
-    )
     val tabTypes = listOf("expense", "income")
 
     var categoryName by remember { mutableStateOf(TextFieldValue("")) }
@@ -58,12 +49,14 @@ fun AddCategoryScreen(
         categories.filter { it.isMainCategory && it.type == tabTypes[selectedTab] }
     }
 
-    // 🎨 Màu sắc đồng bộ với app
-    val primaryColor = Color(0xFF0F4C75) // Navy
-    val backgroundColor = Color(0xFFF5F7FA) // SoftGray
+    // Colors
+    val primaryColor = Color(0xFF2196F3)
+    val backgroundColor = Color(0xFFF5F5F5)
     val cardColor = Color.White
-    val textColor = Color(0xFF2D3748)
-    val subtitleColor = Color(0xFF718096)
+    val textColor = Color(0xFF333333)
+    val subtitleColor = Color(0xFF666666)
+
+    val isFormValid = categoryName.text.isNotBlank() && selectedMainCategory != null
 
     LaunchedEffect(mainCategories) {
         Log.d(
@@ -74,27 +67,9 @@ fun AddCategoryScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        languageViewModel.getTranslation("create_category"),
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 18.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = primaryColor
-                )
+            SimpleTopAppBar(
+                title = "Thêm danh mục",
+                onBackClick = { navController.popBackStack() }
             )
         },
         bottomBar = {
@@ -119,23 +94,18 @@ fun AddCategoryScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = categoryName.text.isNotBlank() && selectedMainCategory != null,
-                    shape = RoundedCornerShape(16.dp),
+                        .height(50.dp),
+                    enabled = isFormValid,
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = primaryColor,
-                        disabledContainerColor = Color(0xFFE2E8F0)
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 8.dp,
-                        pressedElevation = 4.dp
+                        disabledContainerColor = Color(0xFFCCCCCC)
                     )
                 ) {
                     Text(
-                        languageViewModel.getTranslation("create_category"),
+                        "THÊM DANH MỤC",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color.White
+                        fontSize = 16.sp
                     )
                 }
             }
@@ -146,231 +116,227 @@ fun AddCategoryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(backgroundColor)
+                .verticalScroll(rememberScrollState())
         ) {
-            // Tabs với thiết kế đẹp hơn
+            // Tab Row
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = Color.Transparent,
                     contentColor = primaryColor,
                     modifier = Modifier.fillMaxWidth(),
-                    divider = {},
-                    indicator = { tabPositions ->
-                        TabRowDefaults.Indicator(
-                            Modifier
-                                .tabIndicatorOffset(tabPositions[selectedTab])
-                                .height(3.dp)
-                                .padding(horizontal = 16.dp),
-                            color = primaryColor
-                        )
-                    }
+                    divider = {}
                 ) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = {
-                                selectedTab = index
-                                selectedMainCategory = null
-                                categoryName = TextFieldValue("")
-                            },
-                            text = {
-                                Text(
-                                    text = title,
-                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (selectedTab == index) primaryColor else subtitleColor,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        )
-                    }
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = {
+                            selectedTab = 0
+                            selectedMainCategory = null
+                            categoryName = TextFieldValue("")
+                        },
+                        text = {
+                            Text(
+                                text = "Chi tiêu",
+                                color = if (selectedTab == 0) primaryColor else subtitleColor,
+                                fontWeight = if (selectedTab == 0) FontWeight.Medium else FontWeight.Normal
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = {
+                            selectedTab = 1
+                            selectedMainCategory = null
+                            categoryName = TextFieldValue("")
+                        },
+                        text = {
+                            Text(
+                                text = "Thu nhập",
+                                color = if (selectedTab == 1) primaryColor else subtitleColor,
+                                fontWeight = if (selectedTab == 1) FontWeight.Medium else FontWeight.Normal
+                            )
+                        }
+                    )
                 }
             }
 
-            // Nội dung chính
+            // Main Form
             Card(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(24.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Icon hiển thị với thiết kế đẹp
+                    Text(
+                        "Thông tin danh mục",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+
+                    // Icon selection
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(100.dp)
-                                .background(
-                                    Color(0xFFF8F9FA),
-                                    CircleShape
-                                )
+                                .size(80.dp)
+                                .background(Color(0xFFF8F9FA), CircleShape)
                                 .clip(CircleShape)
                                 .clickable { showIconPicker = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 selectedIcon,
-                                fontSize = 42.sp
+                                fontSize = 36.sp
                             )
                         }
-
-                        Spacer(Modifier.height(12.dp))
-
+                        Spacer(Modifier.height(8.dp))
                         Text(
-                            languageViewModel.getTranslation("click_to_change_icon"),
+                            "Nhấn để đổi icon",
                             color = primaryColor,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 12.sp
                         )
                     }
 
-                    Spacer(Modifier.height(32.dp))
+                    // Category name
+                    Column {
+                        Text(
+                            "Tên danh mục",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = textColor,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        OutlinedTextField(
+                            value = categoryName,
+                            onValueChange = { if (it.text.length <= 30) categoryName = it },
+                            placeholder = { Text("Ví dụ: Ăn uống, Mua sắm...", color = subtitleColor) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = primaryColor,
+                                unfocusedBorderColor = Color(0xFFDDDDDD),
+                                focusedTextColor = textColor,
+                                unfocusedTextColor = textColor,
+                                cursorColor = primaryColor
+                            ),
+                            singleLine = true
+                        )
+                    }
 
-                    // Form nhập liệu
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        // Nhập tên danh mục
-                        Column {
-                            Text(
-                                languageViewModel.getTranslation("category_name"),
-                                color = textColor,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            OutlinedTextField(
-                                value = categoryName,
-                                onValueChange = { if (it.text.length <= 30) categoryName = it },
-                                placeholder = { Text(languageViewModel.getTranslation("category_name_example")) },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = primaryColor,
-                                    unfocusedBorderColor = Color(0xFFE2E8F0),
-                                    focusedTextColor = textColor,
-                                    unfocusedTextColor = textColor,
-                                    focusedLabelColor = primaryColor,
-                                    unfocusedLabelColor = subtitleColor,
-                                    cursorColor = primaryColor
-                                ),
-                                singleLine = true,
-                                trailingIcon = {
-                                    Text(
-                                        "${categoryName.text.length}/30",
-                                        color = subtitleColor,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            )
-                        }
-
-                        // Chọn danh mục cha
-                        Column {
-                            Text(
-                                languageViewModel.getTranslation("parent_category"),
-                                color = textColor,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            Card(
+                    // Parent category selection
+                    Column {
+                        Text(
+                            "Nhóm danh mục",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = textColor,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showCategoryDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFF8F9FA)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFDDDDDD))
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { showCategoryDialog = true },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 18.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(
-                                            selectedMainCategory?.name ?: languageViewModel.getTranslation("select_parent_category"),
-                                            color = if (selectedMainCategory != null) textColor else subtitleColor,
-                                            fontSize = 16.sp,
-                                            fontWeight = if (selectedMainCategory != null) FontWeight.Medium else FontWeight.Normal
-                                        )
-                                        if (selectedMainCategory != null) {
-                                            Text(
-                                                "${languageViewModel.getTranslation("icon")}: ${selectedMainCategory?.icon}",
-                                                color = subtitleColor,
-                                                fontSize = 12.sp,
-                                                modifier = Modifier.padding(top = 2.dp)
-                                            )
-                                        }
-                                    }
-                                    Icon(
-                                        Icons.Default.KeyboardArrowDown,
-                                        contentDescription = languageViewModel.getTranslation("select_category"),
-                                        tint = subtitleColor
-                                    )
-                                }
-                            }
-                        }
-
-                        // Thông báo trạng thái
-                        if (categoryName.text.isNotBlank() && selectedMainCategory != null) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E8)),
-                                border = BorderStroke(1.dp, Color(0xFFC8E6C9))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                if (selectedMainCategory != null) {
                                     Box(
                                         modifier = Modifier
-                                            .size(24.dp)
-                                            .background(Color(0xFF4CAF50), CircleShape),
+                                            .size(32.dp)
+                                            .background(Color(0xFFEEEEEE), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text("✓", color = Color.White, fontSize = 12.sp)
+                                        Text(
+                                            selectedMainCategory?.icon ?: "📁",
+                                            fontSize = 14.sp
+                                        )
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        languageViewModel.getTranslation("ready_to_create_category"),
-                                        color = Color(0xFF2E7D32),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
                                 }
+
+                                Text(
+                                    selectedMainCategory?.name ?: "Chọn nhóm danh mục",
+                                    color = if (selectedMainCategory != null) textColor else subtitleColor,
+                                    fontSize = 15.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Chọn danh mục",
+                                    tint = subtitleColor
+                                )
+                            }
+                        }
+                    }
+
+                    // Form status
+                    if (isFormValid) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFE8F5E8)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFC8E6C9))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .background(Color(0xFF4CAF50), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("✓", color = Color.White, fontSize = 10.sp)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Sẵn sàng thêm danh mục",
+                                    color = Color(0xFF2E7D32),
+                                    fontSize = 13.sp
+                                )
                             }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
-    // BottomSheet chọn danh mục cha với UI đẹp hơn
+    // Category Selection Dialog
     if (showCategoryDialog) {
-        CategorySelectionBottomSheet(
+        SimpleCategoryDialog(
             mainCategories = mainCategories,
             selectedMainCategory = selectedMainCategory,
             onCategorySelected = { category ->
@@ -378,343 +344,244 @@ fun AddCategoryScreen(
                 showCategoryDialog = false
             },
             onDismiss = { showCategoryDialog = false },
-            primaryColor = primaryColor,
-            backgroundColor = backgroundColor,
-            languageViewModel = languageViewModel
+            primaryColor = primaryColor
         )
     }
 
-    // ✅ Icon Picker BottomSheet
+    // Icon Picker Dialog
     if (showIconPicker) {
-        IconPickerBottomSheet(
+        SimpleIconDialog(
             selectedIcon = selectedIcon,
             onIconSelected = { icon ->
                 selectedIcon = icon
                 showIconPicker = false
             },
             onDismiss = { showIconPicker = false },
-            primaryColor = primaryColor,
-            languageViewModel = languageViewModel
+            primaryColor = primaryColor
         )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun IconPickerBottomSheet(
+private fun SimpleTopAppBar(
+    title: String,
+    onBackClick: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Quay lại",
+                    tint = Color(0xFF333333)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.White
+        )
+    )
+}
+
+@Composable
+private fun SimpleCategoryDialog(
+    mainCategories: List<Category>,
+    selectedMainCategory: Category?,
+    onCategorySelected: (Category) -> Unit,
+    onDismiss: () -> Unit,
+    primaryColor: Color
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ĐÓNG", color = primaryColor, fontWeight = FontWeight.Medium)
+            }
+        },
+        title = {
+            Text(
+                "Chọn nhóm danh mục",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+            ) {
+                if (mainCategories.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.FolderOpen,
+                            contentDescription = "Không có danh mục",
+                            tint = Color(0xFFCCCCCC),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Chưa có nhóm danh mục nào",
+                            color = Color(0xFF666666),
+                            fontSize = 14.sp
+                        )
+                    }
+                } else {
+                    mainCategories.forEach { category ->
+                        CategoryOption(
+                            category = category,
+                            isSelected = selectedMainCategory?.id == category.id,
+                            onClick = { onCategorySelected(category) },
+                            primaryColor = primaryColor
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+private fun CategoryOption(
+    category: Category,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    primaryColor: Color
+) {
+    Surface(
+        onClick = onClick,
+        color = if (isSelected) primaryColor.copy(alpha = 0.1f) else Color(0xFFF8F9FA),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) primaryColor else Color(0xFFEEEEEE)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFEEEEEE), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    category.icon,
+                    fontSize = 16.sp
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                category.name,
+                color = if (isSelected) primaryColor else Color(0xFF333333),
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                fontSize = 15.sp,
+                modifier = Modifier.weight(1f)
+            )
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .background(primaryColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✓", color = Color.White, fontSize = 10.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimpleIconDialog(
     selectedIcon: String,
     onIconSelected: (String) -> Unit,
     onDismiss: () -> Unit,
-    primaryColor: Color,
-    languageViewModel: LanguageViewModel
+    primaryColor: Color
 ) {
-    val sheetState = rememberModalBottomSheetState()
     val commonIcons = listOf(
         "🍽️", "🛍️", "🚗", "🏠", "💄", "🎮", "🏥", "❤️",
         "🧾", "👨‍👩‍👧‍👦", "📊", "🎓", "💵", "🎁", "📈", "💼",
         "☕", "🍕", "🍔", "🎬", "🎵", "📱", "💻", "✈️"
     )
 
-    ModalBottomSheet(
+    AlertDialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color(0xFFF5F7FA),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ĐÓNG", color = primaryColor, fontWeight = FontWeight.Medium)
+            }
+        },
+        title = {
             Text(
-                languageViewModel.getTranslation("select_icon"),
-                fontSize = 20.sp,
+                "Chọn icon",
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF2D3748),
-                modifier = Modifier.padding(bottom = 16.dp)
+                color = Color(0xFF333333)
             )
-
-            LazyColumn(
-                modifier = Modifier.height(400.dp)
-            ) {
-                items(commonIcons.chunked(4)) { rowIcons: List<String> ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        rowIcons.forEach { icon ->
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(
-                                        if (icon == selectedIcon) primaryColor.copy(alpha = 0.2f) else Color.White,
-                                        CircleShape
-                                    )
-                                    .clickable { onIconSelected(icon) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(icon, fontSize = 28.sp)
-                            }
-                        }
-                        // Fill empty spaces
-                        repeat(4 - rowIcons.size) {
-                            Spacer(modifier = Modifier.width(60.dp))
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CategorySelectionBottomSheet(
-    mainCategories: List<Category>,
-    selectedMainCategory: Category?,
-    onCategorySelected: (Category) -> Unit,
-    onDismiss: () -> Unit,
-    primaryColor: Color,
-    backgroundColor: Color,
-    languageViewModel: LanguageViewModel
-) {
-    val sheetState = rememberModalBottomSheetState()
-    var searchText by remember { mutableStateOf("") }
-
-    val filteredCategories = remember(mainCategories, searchText) {
-        if (searchText.isBlank()) {
-            mainCategories
-        } else {
-            mainCategories.filter { category ->
-                category.name.contains(searchText, ignoreCase = true)
-            }
-        }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = backgroundColor,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        languageViewModel.getTranslation("select_parent_category"),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2D3748)
-                    )
-                    Text(
-                        languageViewModel.getTranslation("select_group_for_new_category"),
-                        fontSize = 14.sp,
-                        color = Color(0xFF718096)
-                    )
-                }
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(Color(0xFFF1F5F9), CircleShape)
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF64748B)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Thanh tìm kiếm
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                placeholder = { Text(languageViewModel.getTranslation("search_categories")) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF64748B)
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = primaryColor,
-                    unfocusedBorderColor = Color(0xFFE2E8F0),
-                    focusedTextColor = Color(0xFF2D3748),
-                    unfocusedTextColor = Color(0xFF2D3748)
-                ),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Số lượng kết quả
-            Text(
-                "${languageViewModel.getTranslation("found")} ${filteredCategories.size} ${languageViewModel.getTranslation("categories")}",
-                color = Color(0xFF64748B),
-                fontSize = 12.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            // Danh sách danh mục
-            LazyColumn(
+        },
+        text = {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
+                    .heightIn(max = 400.dp)
             ) {
-                if (filteredCategories.isEmpty()) {
-                    item {
-                        Box(
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(commonIcons.chunked(4)) { rowIcons ->
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "📭",
-                                    fontSize = 48.sp,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                                Text(
-                                    languageViewModel.getTranslation("no_categories_found"),
-                                    color = Color(0xFF64748B),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    languageViewModel.getTranslation("try_different_keywords"),
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 14.sp
-                                )
+                            rowIcons.forEach { icon ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            if (icon == selectedIcon) primaryColor.copy(alpha = 0.1f) else Color(0xFFF8F9FA),
+                                            CircleShape
+                                        )
+                                        .clickable { onIconSelected(icon) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        icon,
+                                        fontSize = 24.sp
+                                    )
+                                }
                             }
                         }
                     }
-                } else {
-                    items(filteredCategories) { category ->
-                        CategorySelectionItem(
-                            category = category,
-                            isSelected = selectedMainCategory?.id == category.id,
-                            onClick = { onCategorySelected(category) },
-                            primaryColor = primaryColor,
-                            languageViewModel = languageViewModel
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun CategorySelectionItem(
-    category: Category,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    primaryColor: Color,
-    languageViewModel: LanguageViewModel
-) {
-    val backgroundColor = if (isSelected) {
-        primaryColor.copy(alpha = 0.1f)
-    } else {
-        Color.White
-    }
-
-    val borderColor = if (isSelected) {
-        primaryColor
-    } else {
-        Color(0xFFF1F5F9)
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        border = BorderStroke(2.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .background(Color(0xFFF8F9FA), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(category.icon, fontSize = 20.sp)
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Thông tin danh mục
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = category.name,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) primaryColor else Color(0xFF2D3748)
-                )
-                Text(
-                    text = if (category.isMainCategory) languageViewModel.getTranslation("main_category") else languageViewModel.getTranslation("sub_category"),
-                    fontSize = 12.sp,
-                    color = Color(0xFF64748B)
-                )
-            }
-
-            // Radio button custom
-            Box(
-                modifier = Modifier
-                    .size(20.dp)
-                    .background(
-                        if (isSelected) primaryColor else Color.Transparent,
-                        CircleShape
-                    )
-                    .border(
-                        width = 2.dp,
-                        color = if (isSelected) primaryColor else Color(0xFFCBD5E1),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isSelected) {
-                    Text(
-                        "✓",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
 }

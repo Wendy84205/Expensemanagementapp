@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.data.local.datastore
 
 import android.content.Context
 import androidx.datastore.preferences.core.*

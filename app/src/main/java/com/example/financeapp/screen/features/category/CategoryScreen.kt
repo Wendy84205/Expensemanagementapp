@@ -47,10 +47,13 @@ fun CategoryScreen(
         languageViewModel.getTranslation("spending"),
         languageViewModel.getTranslation("income")
     )
-    
-    // 🎨 Màu sắc đồng bộ với app
-    val primaryColor = Color(0xFF0F4C75) // Navy
-    val backgroundColor = Color(0xFFF5F7FA) // SoftGray
+
+    // Colors
+    val primaryColor = Color(0xFF2196F3) // Blue
+    val backgroundColor = Color(0xFFF5F5F5) // Light Gray
+    val cardColor = Color.White
+    val textColor = Color(0xFF333333) // Dark Gray
+    val subtitleColor = Color(0xFF666666) // Gray
 
     Scaffold(
         topBar = {

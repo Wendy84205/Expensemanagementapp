@@ -1,20 +1,19 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Money
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -22,180 +21,258 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.financeapp.rememberLanguageText
-
-// 🎨 Màu theo gói ý 1
-private val Navy = Color(0xFF0F4C75)
-private val SoftGray = Color(0xFFF5F7FA)
-private val TextDark = Color(0xFF2D3748)
-private val TextLight = Color(0xFF718096)
-private val GreenDark = Color(0xFF2E8B57)
-private val OrangeAccent = Color(0xFFED8936)
-private val PurpleAccent = Color(0xFF9F7AEA)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExtensionsScreen(navController: NavController) {
 
+    // Colors
+    val primaryColor = Color(0xFF2196F3)
+    val backgroundColor = Color(0xFFF5F5F5)
+    val cardColor = Color.White
+    val textColor = Color(0xFF333333)
+    val subtitleColor = Color(0xFF666666)
+
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        rememberLanguageText("extensions"),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Navy,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+            SimpleTopAppBar(
+                title = "Tiện ích mở rộng",
+                onBackClick = { navController.popBackStack() }
             )
         },
-        containerColor = SoftGray
+        containerColor = backgroundColor
     ) { padding ->
 
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(20.dp)
+                .background(backgroundColor),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        // Danh mục
+                        ExtensionItem(
+                            icon = Icons.Default.Category,
+                            title = "Quản lý danh mục",
+                            subtitle = "Tùy chỉnh danh mục chi tiêu",
+                            color = Color(0xFF2196F3),
+                            onClick = { navController.navigate("categories") }
+                        )
 
-            // 📌 QUẢN LÝ DANH MỤC
-            ExtensionCard(
-                icon = Icons.Default.Category,
-                title = rememberLanguageText("category"),
-                subtitle = rememberLanguageText("customize_spending_categories"),
-                bgColor = Navy,
-                onClick = { navController.navigate("categories") }
-            )
+                        Divider(color = Color(0xFFEEEEEE))
 
-            Spacer(modifier = Modifier.height(18.dp))
+                        // Ngân sách
+                        ExtensionItem(
+                            icon = Icons.Default.Money,
+                            title = "Ngân sách",
+                            subtitle = "Thiết lập và theo dõi ngân sách",
+                            color = Color(0xFF4CAF50),
+                            onClick = { navController.navigate("budgets") }
+                        )
 
-            // 💰 NGÂN SÁCH
-            ExtensionCard(
-                icon = Icons.Default.Money,
-                title = rememberLanguageText("budgets"),
-                subtitle = rememberLanguageText("set_and_track_monthly_budget"),
-                bgColor = GreenDark,
-                onClick = { navController.navigate("budgets") }
-            )
+                        Divider(color = Color(0xFFEEEEEE))
 
-            Spacer(modifier = Modifier.height(18.dp))
+                        // Chi tiêu định kỳ
+                        ExtensionItem(
+                            icon = Icons.Default.Repeat,
+                            title = "Chi tiêu định kỳ",
+                            subtitle = "Quản lý chi tiêu tự động hàng tháng",
+                            color = Color(0xFFFF9800),
+                            onClick = { navController.navigate("recurring_expenses") }
+                        )
 
-            // 🔄 CHI TIÊU ĐỊNH KỲ - THÊM MỚI
-            ExtensionCard(
-                icon = Icons.Default.Repeat,
-                title = "Chi tiêu định kỳ",
-                subtitle = "Quản lý các khoản chi tự động hàng tháng",
-                bgColor = OrangeAccent,
-                onClick = { navController.navigate("recurring_expenses") }
-            )
+                        Divider(color = Color(0xFFEEEEEE))
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // 💎 TIẾT KIỆM (Có thể thêm trong tương lai)
-            ExtensionCard(
-                icon = Icons.Default.Savings,
-                title = "Mục tiêu tiết kiệm",
-                subtitle = "Theo dõi và đạt mục tiêu tiết kiệm",
-                bgColor = PurpleAccent,
-                onClick = {
-                    // navController.navigate("savings_goals")
+                        // Tiết kiệm
+                        ExtensionItem(
+                            icon = Icons.Default.Savings,
+                            title = "Mục tiêu tiết kiệm",
+                            subtitle = "Theo dõi và đạt mục tiêu tiết kiệm",
+                            color = Color(0xFF9C27B0),
+                            onClick = { /* TODO: Navigate to savings */ },
+                            isComingSoon = true
+                        )
+                    }
                 }
-            )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "Tiện ích nâng cao",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = textColor,
+                            modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp)
+                        )
+
+                        // Quét hóa đơn
+                        ExtensionItem(
+                            icon = Icons.Default.Receipt,
+                            title = "Quét hóa đơn",
+                            subtitle = "Quét hóa đơn tự động nhập chi tiêu",
+                            color = Color(0xFF00BCD4),
+                            onClick = { /* TODO: Navigate to receipt scan */ },
+                            isComingSoon = true
+                        )
+
+                        Divider(color = Color(0xFFEEEEEE))
+
+                        // Phân tích AI
+                        ExtensionItem(
+                            icon = Icons.Default.Analytics,
+                            title = "Phân tích AI",
+                            subtitle = "Phân tích chi tiêu với trí tuệ nhân tạo",
+                            color = Color(0xFFFF5722),
+                            onClick = { /* TODO: Navigate to AI analysis */ },
+                            isComingSoon = true
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExtensionCard(
+private fun SimpleTopAppBar(
+    title: String,
+    onBackClick: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Quay lại",
+                    tint = Color(0xFF333333)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.White
+        )
+    )
+}
+
+@Composable
+private fun ExtensionItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    bgColor: Color,
-    onClick: () -> Unit
+    color: Color,
+    onClick: () -> Unit,
+    isComingSoon: Boolean = false
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(20.dp),
-                clip = true
-            )
-            .clickable { onClick() }
-            .height(110.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
+    Surface(
+        onClick = onClick,
+        enabled = !isComingSoon,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
     ) {
-
         Row(
-            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-
-            // ICON với background đẹp
             Box(
                 modifier = Modifier
-                    .size(60.dp)
-                    .background(bgColor, RoundedCornerShape(16.dp)),
+                    .size(40.dp)
+                    .background(color.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = icon,
+                    icon,
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    tint = color,
+                    modifier = Modifier.size(20.dp)
                 )
             }
+            Spacer(modifier = Modifier.width(16.dp))
 
-            Spacer(modifier = Modifier.width(18.dp))
-
-            // NỘI DUNG
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        title,
+                        color = if (isComingSoon) Color(0xFF999999) else Color(0xFF333333),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp
+                    )
+                    if (isComingSoon) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFEEEEEE))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                "Sắp ra mắt",
+                                fontSize = 10.sp,
+                                color = Color(0xFF666666),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
                 Text(
-                    text = title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = subtitle,
+                    subtitle,
                     fontSize = 14.sp,
-                    color = TextLight,
-                    lineHeight = 18.sp
+                    color = if (isComingSoon) Color(0xFF999999) else Color(0xFF666666)
                 )
             }
 
-            // MŨI TÊN CHUYỂN TRANG
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = TextLight.copy(alpha = 0.6f),
-                modifier = Modifier.size(20.dp)
-            )
+            if (!isComingSoon) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = Color(0xFF999999)
+                )
+            } else {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = "Không khả dụng",
+                    tint = Color(0xFFCCCCCC),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

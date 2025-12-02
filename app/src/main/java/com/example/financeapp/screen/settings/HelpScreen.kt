@@ -3,21 +3,20 @@ package com.example.financeapp.screen.settings
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,298 +24,404 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
 
-// 🎨 Màu theo HomeScreen
-private val Navy = Color(0xFF0F4C75)
-private val SoftGray = Color(0xFFF5F7FA)
-private val TextDark = Color(0xFF2D3748)
-private val TextLight = Color(0xFF718096)
-private val AccentOrange = Color(0xFFED8936)
-private val Green = Color(0xFF2E8B57)
-
-// =================== Help Screen ===================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(navController: NavController) {
     val languageViewModel = LocalLanguageViewModel.current
 
-    val gradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFFFFFFFF), Color(0xFFF5F7FA)) // Giống HomeScreen
-    )
+    // Colors
+    val primaryColor = Color(0xFF2196F3)
+    val backgroundColor = Color(0xFFF5F5F5)
+    val cardColor = Color.White
+    val textColor = Color(0xFF333333)
+    val subtitleColor = Color(0xFF666666)
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        languageViewModel.getTranslation("help_support"),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = TextDark // Màu chữ tối
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = languageViewModel.getTranslation("back"),
-                            tint = TextDark // Màu icon tối
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.White, // Nền trắng
-                    titleContentColor = TextDark,
-                    navigationIconContentColor = TextDark
-                )
+            SimpleTopAppBar(
+                title = "Trợ giúp",
+                onBackClick = { navController.popBackStack() }
             )
         },
-        containerColor = Color.Transparent
-    ) { paddingValues ->
-        Box(
+        containerColor = backgroundColor
+    ) { padding ->
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(gradient) // Gradient giống HomeScreen
-                .padding(paddingValues)
+                .padding(padding)
+                .background(backgroundColor),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
+            // Câu hỏi thường gặp
+            item {
+                SettingsCard(title = "Câu hỏi thường gặp") {
+                    FAQItemExpandable(
+                        question = "Làm thế nào để thêm giao dịch?",
+                        answer = "Chuyển đến màn hình Trang chủ, nhấn nút '+' ở dưới cùng, chọn 'Thêm giao dịch', điền thông tin và nhấn 'Lưu'.",
+                        primaryColor = primaryColor
+                    )
 
-                // ================= FAQ =================
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(4.dp, RoundedCornerShape(20.dp), clip = true), // Shadow nhẹ hơn
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White) // Nền trắng
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            "❓ ${languageViewModel.getTranslation("faq")}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Navy // Màu Navy giống HomeScreen
-                        )
+                    Divider(color = Color(0xFFEEEEEE))
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                    FAQItemExpandable(
+                        question = "Làm thế nào để thêm ví mới?",
+                        answer = "Vào màn hình Ví, nhấn nút '+' ở góc dưới bên phải, nhập tên ví và số dư ban đầu.",
+                        primaryColor = primaryColor
+                    )
 
-                        FAQItemExpandable(
-                            languageViewModel.getTranslation("faq_add_transaction"),
-                            languageViewModel.getTranslation("faq_add_transaction_answer")
-                        )
-                        FAQItemExpandable(
-                            languageViewModel.getTranslation("faq_add_wallet"),
-                            languageViewModel.getTranslation("faq_add_wallet_answer")
-                        )
-                        FAQItemExpandable(
-                            languageViewModel.getTranslation("faq_view_statistics"),
-                            languageViewModel.getTranslation("faq_view_statistics_answer")
-                        )
-                        FAQItemExpandable(
-                            languageViewModel.getTranslation("faq_logout"),
-                            languageViewModel.getTranslation("faq_logout_answer")
-                        )
-                        FAQItemExpandable(
-                            languageViewModel.getTranslation("faq_change_theme"),
-                            languageViewModel.getTranslation("faq_change_theme_answer")
-                        )
-                    }
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    FAQItemExpandable(
+                        question = "Làm thế nào để xem thống kê?",
+                        answer = "Vào màn hình Thống kê từ thanh điều hướng dưới cùng để xem biểu đồ và phân tích chi tiêu.",
+                        primaryColor = primaryColor
+                    )
+
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    FAQItemExpandable(
+                        question = "Làm thế nào để đăng xuất?",
+                        answer = "Vào màn hình Cài đặt, cuộn xuống và chọn 'Đăng xuất'.",
+                        primaryColor = primaryColor
+                    )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
+            // Liên hệ hỗ trợ
+            item {
+                SettingsCard(title = "Liên hệ hỗ trợ") {
+                    ContactItem(
+                        icon = Icons.Default.Email,
+                        title = "Email hỗ trợ",
+                        value = "Wendy84205@gmail.com",
+                        description = "Phản hồi trong 24h",
+                        color = primaryColor
+                    )
 
-                // ================= Contact =================
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(4.dp, RoundedCornerShape(20.dp), clip = true),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            "📞 ${languageViewModel.getTranslation("contact_support")}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Navy
-                        )
+                    Divider(color = Color(0xFFEEEEEE))
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                    ContactItem(
+                        icon = Icons.Default.Language,
+                        title = "Website",
+                        value = "",
+                        description = "Hướng dẫn chi tiết",
+                        color = Color(0xFF4CAF50)
+                    )
 
-                        Text(
-                            languageViewModel.getTranslation("contact_description"),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextLight, // Màu text phụ
-                            lineHeight = 20.sp
-                        )
+                    Divider(color = Color(0xFFEEEEEE))
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        ContactInfoItem(
-                            "📧 ${languageViewModel.getTranslation("email")}",
-                            "support@wendyai.com",
-                            languageViewModel.getTranslation("response_time")
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        ContactInfoItem(
-                            "🌐 ${languageViewModel.getTranslation("website")}",
-                            "www.wendyai.com",
-                            languageViewModel.getTranslation("detailed_guide")
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        ContactInfoItem(
-                            "🕒 ${languageViewModel.getTranslation("working_hours")}",
-                            languageViewModel.getTranslation("weekdays"),
-                            languageViewModel.getTranslation("working_time")
-                        )
-                    }
+                    ContactItem(
+                        icon = Icons.Default.AccessTime,
+                        title = "Giờ làm việc",
+                        value = "Thứ 2 - Thứ 6",
+                        description = "8:00 - 17:00",
+                        color = Color(0xFFFF9800)
+                    )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
+            // Mẹo sử dụng
+            item {
+                SettingsCard(title = "Mẹo sử dụng") {
+                    TipItem(
+                        text = "Phân loại chi tiêu vào đúng danh mục để thống kê chính xác",
+                        primaryColor = primaryColor
+                    )
 
-                // ================= Tips =================
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(4.dp, RoundedCornerShape(20.dp), clip = true),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            "💡 ${languageViewModel.getTranslation("usage_tips")}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Navy
-                        )
+                    Divider(color = Color(0xFFEEEEEE))
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                    TipItem(
+                        text = "Thiết lập ngân sách hàng tháng để kiểm soát chi tiêu",
+                        primaryColor = primaryColor
+                    )
 
-                        TipItem(languageViewModel.getTranslation("tip_categories"))
-                        TipItem(languageViewModel.getTranslation("tip_savings"))
-                        TipItem(languageViewModel.getTranslation("tip_statistics"))
-                        TipItem(languageViewModel.getTranslation("tip_reminders"))
-                    }
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    TipItem(
+                        text = "Sử dụng tính năng chi tiêu định kỳ cho các khoản chi cố định",
+                        primaryColor = primaryColor
+                    )
+
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    TipItem(
+                        text = "Xem thống kê hàng tuần để điều chỉnh chi tiêu hợp lý",
+                        primaryColor = primaryColor
+                    )
+                }
+            }
+
+            // Thông tin ứng dụng
+            item {
+                SettingsCard(title = "Thông tin ứng dụng") {
+                    InfoItem(
+                        title = "Phiên bản",
+                        value = "1.0.0",
+                        color = subtitleColor
+                    )
+
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    InfoItem(
+                        title = "Ngày phát hành",
+                        value = "Tháng 12, 2025",
+                        color = subtitleColor
+                    )
+
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    InfoItem(
+                        title = "Nhà phát triển",
+                        value = "Finance App Team",
+                        color = subtitleColor
+                    )
                 }
             }
         }
     }
 }
 
-// ================= Expandable FAQ Item =================
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FAQItemExpandable(question: String, answer: String) {
+private fun SimpleTopAppBar(
+    title: String,
+    onBackClick: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Quay lại",
+                    tint = Color(0xFF333333)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.White
+        )
+    )
+}
+
+@Composable
+private fun SettingsCard(
+    title: String? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            title?.let {
+                Text(
+                    text = it,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF333333),
+                    modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp)
+                )
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun FAQItemExpandable(
+    question: String,
+    answer: String,
+    primaryColor: Color = Color(0xFF2196F3)
+) {
     var expanded by remember { mutableStateOf(false) }
     val rotation by animateFloatAsState(if (expanded) 180f else 0f)
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .background(Color.White, shape = RoundedCornerShape(12.dp)) // Nền trắng
-            .animateContentSize()
-            .shadow(2.dp, RoundedCornerShape(12.dp)) // Shadow nhẹ
+    Surface(
+        onClick = { expanded = !expanded },
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(vertical = 16.dp, horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .animateContentSize()
         ) {
-            Text(
-                text = question,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = TextDark, // Màu chữ tối
-                modifier = Modifier.weight(1f)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(primaryColor.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Help,
+                        contentDescription = "Câu hỏi",
+                        tint = primaryColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Icon(
-                imageVector = Icons.Default.ExpandMore,
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                tint = Navy, // Màu Navy
-                modifier = Modifier.rotate(rotation)
-            )
-        }
-
-        if (expanded) {
-            Text(
-                text = answer,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextLight, // Màu text phụ
-                lineHeight = 20.sp,
-                modifier = Modifier.padding(start = 12.dp, bottom = 16.dp, end = 12.dp)
-            )
-        }
-    }
-}
-
-// ================= Contact Item =================
-@Composable
-private fun ContactInfoItem(type: String, value: String, description: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
                 Text(
-                    text = type,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = question,
+                    color = Color(0xFF333333),
                     fontWeight = FontWeight.Medium,
-                    color = TextDark // Màu chính
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Navy, // Màu Navy cho giá trị
-                    fontWeight = FontWeight.SemiBold
+
+                Icon(
+                    imageVector = Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Thu gọn" else "Mở rộng",
+                    tint = Color(0xFF666666),
+                    modifier = Modifier.rotate(rotation)
                 )
             }
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextLight // Màu phụ
-            )
+
+            if (expanded) {
+                Text(
+                    text = answer,
+                    fontSize = 14.sp,
+                    color = Color(0xFF666666),
+                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(start = 64.dp, end = 20.dp, bottom = 16.dp)
+                )
+            }
         }
     }
 }
 
-// ================= Tips Item =================
 @Composable
-private fun TipItem(tip: String) {
+private fun ContactItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    value: String,
+    description: String,
+    color: Color
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(color.copy(alpha = 0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                color = Color(0xFF333333),
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp
+            )
+            Text(
+                value,
+                fontSize = 15.sp,
+                color = color,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        Text(
+            description,
+            fontSize = 12.sp,
+            color = Color(0xFF666666)
+        )
+    }
+}
+
+@Composable
+private fun TipItem(
+    text: String,
+    primaryColor: Color = Color(0xFF2196F3)
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(primaryColor.copy(alpha = 0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "💡",
+                fontSize = 12.sp
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            color = Color(0xFF333333),
+            modifier = Modifier.weight(1f),
+            lineHeight = 20.sp
+        )
+    }
+}
+
+@Composable
+private fun InfoItem(
+    title: String,
+    value: String,
+    color: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "•",
-            color = Navy, // Màu Navy
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(end = 12.dp)
+            title,
+            color = Color(0xFF333333),
+            fontWeight = FontWeight.Medium,
+            fontSize = 15.sp,
+            modifier = Modifier.weight(1f)
         )
         Text(
-            text = tip,
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextDark, // Màu chính
-            modifier = Modifier.weight(1f),
-            lineHeight = 20.sp
+            value,
+            fontSize = 15.sp,
+            color = color,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }

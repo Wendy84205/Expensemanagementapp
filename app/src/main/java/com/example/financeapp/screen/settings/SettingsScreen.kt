@@ -1,23 +1,6 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.settings
 
 import android.Manifest
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import com.example.financeapp.components.BottomNavBar
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -25,18 +8,31 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
+import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.rememberLanguageText
-
-// 🎨 Màu theo gói ý 1
-private val Navy = Color(0xFF0F4C75)
-private val SoftGray = Color(0xFFF5F7FA)
-private val TextDark = Color(0xFF2D3748)
-private val TextLight = Color(0xFF718096)
-private val AccentOrange = Color(0xFFED8936)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,243 +43,515 @@ fun SettingsScreen(
     val languageViewModel = LocalLanguageViewModel.current
     val context = LocalContext.current
 
+    // Colors
+    val primaryColor = Color(0xFF2196F3)
+    val backgroundColor = Color(0xFFF5F5F5)
+    val cardColor = Color.White
+    val textColor = Color(0xFF333333)
+    val subtitleColor = Color(0xFF666666)
+
+    // State
     var showAboutDialog by remember { mutableStateOf(false) }
-    var showNotificationPermissionDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val currentLanguageName = languageViewModel.getCurrentLanguageName()
 
-    // 🔔 State cho thông báo - kiểm tra trạng thái hiện tại
+    // 🔔 State cho thông báo
     var notificationsEnabled by remember {
         mutableStateOf(areNotificationsEnabled(context))
     }
 
-    // 🔔 Launcher để request permission (cho Android 13+)
+    // 🔔 Launcher để request permission
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         notificationsEnabled = isGranted
-        if (!isGranted) {
-            // Nếu không được cấp quyền, mở cài đặt
-            openNotificationSettings(context)
-        }
     }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        rememberLanguageText("settings"),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Navy,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+            SimpleTopAppBar(
+                title = "Cài đặt",
+                onBackClick = { navController.popBackStack() }
             )
         },
-        bottomBar = { BottomNavBar(navController) },
-        containerColor = SoftGray
-    ) { paddingValues ->
-
-        Column(
+        containerColor = backgroundColor
+    ) { padding ->
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(padding)
+                .background(backgroundColor),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
-            // 🔷 CARD 1 — Settings List với Notification Toggle
-            SettingsCard {
-                SettingsItem(
-                    icon = Icons.Default.Person,
-                    title = rememberLanguageText("account"),
-                    subtitle = rememberLanguageText("manage_personal_info"),
-                    onClick = { navController.navigate("account_settings") }
-                )
-                Divider(color = SoftGray)
-
-                // 🔔 NOTIFICATION TOGGLE - QUAN TRỌNG
-                SettingsSwitchItem(
-                    icon = Icons.Default.Notifications,
-                    title = rememberLanguageText("notifications"),
-                    subtitle = if (notificationsEnabled) "Đã bật • Nhận thông báo" else "Đã tắt • Bật để nhận thông báo",
-                    checked = notificationsEnabled,
-                    onCheckedChange = { newState ->
-                        if (newState) {
-                            // Khi người dùng BẬT thông báo
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                // Android 13+ cần request permission
-                                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                // Android 12 trở xuống - mở cài đặt thông báo
-                                openNotificationSettings(context)
-                                // Cập nhật state sau khi mở cài đặt
-                                notificationsEnabled = areNotificationsEnabled(context)
-                            }
-                        } else {
-                            // Khi người dùng TẮT thông báo - mở cài đặt để tắt
-                            openNotificationSettings(context)
-                            // Cập nhật state
-                            notificationsEnabled = false
-                        }
-                    }
-                )
-                Divider(color = SoftGray)
-
-                SettingsItem(
-                    icon = Icons.Default.Language,
-                    title = rememberLanguageText("language"),
-                    subtitle = currentLanguageName,
-                    onClick = { navController.navigate("language_settings") }
-                )
-                Divider(color = SoftGray)
-
-                SettingsItem(
-                    icon = Icons.Default.Extension,
-                    title = rememberLanguageText("extensions"),
-                    subtitle = rememberLanguageText("extra_tools_like_ai_calendar_scan"),
-                    onClick = { navController.navigate("extensions") }
-                )
-                Divider(color = SoftGray)
-
-                SettingsItem(
-                    icon = Icons.Default.Help,
-                    title = rememberLanguageText("help_support"),
-                    subtitle = rememberLanguageText("faq"),
-                    onClick = { navController.navigate("help") }
-                )
-                Divider(color = SoftGray)
-
-                SettingsItem(
-                    icon = Icons.Default.Info,
-                    title = rememberLanguageText("about_app"),
-                    subtitle = "${rememberLanguageText("version")} 1.0.0",
-                    onClick = { showAboutDialog = true }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 🔶 CARD 2 — Logout
-            SettingsCard {
-                SettingsItem(
-                    icon = Icons.Default.Logout,
-                    title = rememberLanguageText("sign_out"),
-                    subtitle = rememberLanguageText("logout_account"),
-                    onClick = onSignOut,
-                    isWarning = true
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Finance App © 2025 • v1.0.0",
-                color = TextLight,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                fontSize = 12.sp
-            )
-        }
-
-        if (showAboutDialog) {
-            AboutAppDialog(onDismiss = { showAboutDialog = false })
-        }
-
-        if (showNotificationPermissionDialog) {
-            NotificationPermissionDialog(
-                onDismiss = { showNotificationPermissionDialog = false },
-                onGrantPermission = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                    showNotificationPermissionDialog = false
-                },
-                onOpenSettings = {
-                    openNotificationSettings(context)
-                    showNotificationPermissionDialog = false
+            // Phần thông tin cá nhân
+            item {
+                SettingsCard(title = "Tài khoản") {
+                    SettingsItem(
+                        icon = Icons.Default.Person,
+                        title = "Thông tin cá nhân",
+                        subtitle = "Quản lý thông tin tài khoản",
+                        onClick = { navController.navigate("account_settings") },
+                        primaryColor = primaryColor
+                    )
                 }
+            }
+
+            // Phần cài đặt ứng dụng
+            item {
+                SettingsCard(title = "Cài đặt") {
+                    SettingsSwitchItem(
+                        icon = Icons.Default.Notifications,
+                        title = "Thông báo",
+                        subtitle = if (notificationsEnabled) "Đã bật" else "Đã tắt",
+                        checked = notificationsEnabled,
+                        onCheckedChange = { newState ->
+                            if (newState) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    openNotificationSettings(context)
+                                }
+                            } else {
+                                openNotificationSettings(context)
+                            }
+                        },
+                        primaryColor = primaryColor
+                    )
+
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    SettingsItem(
+                        icon = Icons.Default.Language,
+                        title = "Ngôn ngữ",
+                        subtitle = currentLanguageName,
+                        onClick = { navController.navigate("language_settings") },
+                        primaryColor = primaryColor
+                    )
+
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    SettingsItem(
+                        icon = Icons.Default.Extension,
+                        title = "Tiện ích mở rộng",
+                        subtitle = "AI, Lịch, Quét hóa đơn",
+                        onClick = { navController.navigate("extensions") },
+                        primaryColor = primaryColor
+                    )
+                }
+            }
+
+            // Phần hỗ trợ
+            item {
+                SettingsCard(title = "Hỗ trợ") {
+                    SettingsItem(
+                        icon = Icons.Default.Help,
+                        title = "Trợ giúp",
+                        subtitle = "Câu hỏi thường gặp",
+                        onClick = { navController.navigate("help") },
+                        primaryColor = primaryColor
+                    )
+
+                    Divider(color = Color(0xFFEEEEEE))
+
+                    SettingsItem(
+                        icon = Icons.Default.Info,
+                        title = "Về ứng dụng",
+                        subtitle = "Phiên bản 1.0.0",
+                        onClick = { showAboutDialog = true },
+                        primaryColor = primaryColor
+                    )
+                }
+            }
+
+            // Phần đăng xuất
+            item {
+                SettingsCard(title = "Tài khoản") {
+                    SettingsItem(
+                        icon = Icons.Default.Logout,
+                        title = "Đăng xuất",
+                        subtitle = "Đăng xuất khỏi tài khoản",
+                        onClick = { showLogoutDialog = true },
+                        isWarning = true,
+                        primaryColor = Color(0xFFF44336)
+                    )
+                }
+            }
+
+            // Footer
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Finance App © 2025",
+                        color = subtitleColor,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "Phiên bản 1.0.0",
+                        color = Color(0xFF999999),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+    }
+
+    // About Dialog
+    if (showAboutDialog) {
+        AboutAppDialog(
+            onDismiss = { showAboutDialog = false },
+            primaryColor = primaryColor
+        )
+    }
+
+    // Logout Dialog
+    if (showLogoutDialog) {
+        LogoutDialog(
+            onConfirm = {
+                showLogoutDialog = false
+                onSignOut()
+            },
+            onDismiss = { showLogoutDialog = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SimpleTopAppBar(
+    title: String,
+    onBackClick: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        title = {
+            Text(
+                title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Quay lại",
+                    tint = Color(0xFF333333)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.White
+        )
+    )
+}
+
+@Composable
+private fun SettingsCard(
+    title: String? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            title?.let {
+                Text(
+                    text = it,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF333333),
+                    modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp)
+                )
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    isWarning: Boolean = false,
+    primaryColor: Color = Color(0xFF2196F3)
+) {
+    val titleColor = if (isWarning) Color(0xFFF44336) else Color(0xFF333333)
+    val iconColor = if (isWarning) Color(0xFFF44336) else primaryColor
+
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(iconColor.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    color = titleColor,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 16.sp
+                )
+                Text(
+                    subtitle,
+                    fontSize = 14.sp,
+                    color = Color(0xFF666666)
+                )
+            }
+
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color(0xFF999999)
             )
         }
     }
 }
 
-// 🔔 DIALOG YÊU CẦU QUYỀN THÔNG BÁO
 @Composable
-fun NotificationPermissionDialog(
+private fun SettingsSwitchItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    primaryColor: Color = Color(0xFF2196F3)
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(primaryColor.copy(alpha = 0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = primaryColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                color = Color(0xFF333333),
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp
+            )
+            Text(
+                subtitle,
+                fontSize = 14.sp,
+                color = Color(0xFF666666)
+            )
+        }
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = primaryColor,
+                checkedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFC3C7CF),
+                uncheckedThumbColor = Color.White
+            )
+        )
+    }
+}
+
+@Composable
+private fun AboutAppDialog(
     onDismiss: () -> Unit,
-    onGrantPermission: () -> Unit,
-    onOpenSettings: () -> Unit
+    primaryColor: Color = Color(0xFF2196F3)
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ĐÓNG", color = primaryColor, fontWeight = FontWeight.Medium)
+            }
+        },
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(primaryColor.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.AccountBalanceWallet,
+                    contentDescription = "Ứng dụng tài chính",
+                    tint = primaryColor,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        },
         title = {
             Text(
-                "🔔 Cho phép thông báo",
+                "Về ứng dụng",
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextDark
+                color = Color(0xFF333333),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         },
         text = {
             Column {
                 Text(
-                    "Để nhận cảnh báo quan trọng về tài chính, vui lòng cho phép thông báo:",
-                    color = TextLight,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    "Finance App - Ứng dụng quản lý tài chính cá nhân",
+                    fontSize = 14.sp,
+                    color = Color(0xFF666666),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Text(
-                    "• Cảnh báo vượt ngân sách",
-                    color = TextLight,
-                    fontSize = 14.sp
-                )
-                Text(
-                    "• Nhắc nhở chi tiêu định kỳ",
-                    color = TextLight,
-                    fontSize = 14.sp
-                )
-                Text(
-                    "• Phân tích tài chính hàng tuần",
-                    color = TextLight,
-                    fontSize = 14.sp
-                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Phiên bản",
+                        color = Color(0xFF666666),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "1.0.0",
+                        color = Color(0xFF333333),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Ngày phát hành",
+                        color = Color(0xFF666666),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "2025",
+                        color = Color(0xFF333333),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+private fun LogoutDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val primaryColor = Color(0xFFF44336)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
         confirmButton = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text("BỎ QUA", color = TextLight)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    TextButton(onClick = onGrantPermission) {
-                        Text("CHO PHÉP", color = Navy, fontWeight = FontWeight.Medium)
-                    }
-                } else {
-                    TextButton(onClick = onOpenSettings) {
-                        Text("CÀI ĐẶT", color = Navy, fontWeight = FontWeight.Medium)
-                    }
-                }
+            TextButton(onClick = onConfirm) {
+                Text("ĐĂNG XUẤT", color = primaryColor, fontWeight = FontWeight.Medium)
             }
         },
-        shape = RoundedCornerShape(20.dp)
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("HỦY", color = Color(0xFF666666), fontWeight = FontWeight.Medium)
+            }
+        },
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(primaryColor.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Logout,
+                    contentDescription = "Đăng xuất",
+                    tint = primaryColor,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                "Đăng xuất",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Text(
+                "Bạn có chắc muốn đăng xuất khỏi tài khoản?",
+                fontSize = 14.sp,
+                color = Color(0xFF666666),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
     )
 }
 
 // 🔔 KIỂM TRA QUYỀN THÔNG BÁO
 private fun areNotificationsEnabled(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.areNotificationsEnabled()
-    } else {
-        // Trên Android cũ, sử dụng NotificationManagerCompat
-        NotificationManagerCompat.from(context).areNotificationsEnabled()
-    }
+    return NotificationManagerCompat.from(context).areNotificationsEnabled()
 }
 
 // 🔔 MỞ CÀI ĐẶT THÔNG BÁO
@@ -295,11 +563,13 @@ private fun openNotificationSettings(context: Context) {
                     action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
                     putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                 }
+
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP -> {
                     action = "android.settings.APP_NOTIFICATION_SETTINGS"
                     putExtra("app_package", context.packageName)
                     putExtra("app_uid", context.applicationInfo.uid)
                 }
+
                 else -> {
                     action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
                     addCategory(Intent.CATEGORY_DEFAULT)
@@ -316,199 +586,5 @@ private fun openNotificationSettings(context: Context) {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
-    }
-}
-
-// 🎯 THÊM VÀO AndroidManifest.xml
-/*
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-*/
-
-// Các composable cũ giữ nguyên...
-@Composable
-fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(20.dp), clip = true),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Column(content = content)
-    }
-}
-
-@Composable
-fun SettingsItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    isWarning: Boolean = false
-) {
-    val titleColor = if (isWarning) Color(0xFFE53E3E) else TextDark
-    val iconColor = if (isWarning) Color(0xFFE53E3E) else Navy
-
-    Surface(
-        onClick = onClick,
-        color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = titleColor, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-                Text(subtitle, fontSize = 14.sp, color = TextLight)
-            }
-
-            Icon(Icons.Default.ChevronRight, null, tint = Color(0xFFA0AEC0))
-        }
-    }
-}
-
-@Composable
-fun SettingsSwitchItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = Navy, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = TextDark, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            Text(subtitle, fontSize = 14.sp, color = TextLight)
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedTrackColor = Navy,
-                checkedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFC3C7CF),
-                uncheckedThumbColor = Color.White
-            )
-        )
-    }
-}
-
-@Composable
-fun AboutAppDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
-        containerColor = Color.White,
-        title = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    Icons.Default.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = Navy,
-                    modifier = Modifier.size(50.dp)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Wendy AI",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-            }
-        },
-        text = {
-            Column {
-                Text(
-                    text = "Ứng dụng quản lý tài chính cá nhân thông minh với AI hỗ trợ.",
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp,
-                    color = TextLight,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Simple features list
-                FeatureRow(icon = Icons.Default.Savings, text = "Theo dõi chi tiêu thông minh")
-                FeatureRow(icon = Icons.Default.Analytics, text = "Phân tích tài chính AI")
-                FeatureRow(icon = Icons.Default.Security, text = "Bảo mật dữ liệu")
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Version info
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Phiên bản",
-                        color = TextLight,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = "1.0.0",
-                        color = TextDark,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Navy
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Đóng")
-            }
-        }
-    )
-}
-
-@Composable
-private fun FeatureRow(
-    icon: ImageVector,
-    text: String
-) {
-    Row(
-        modifier = Modifier.padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = Navy,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = text,
-            color = TextDark,
-            fontSize = 14.sp
-        )
     }
 }

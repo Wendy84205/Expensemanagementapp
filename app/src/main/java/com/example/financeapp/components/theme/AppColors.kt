@@ -3,11 +3,6 @@ package com.example.financeapp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-
-/**
- * Helper object để lấy colors từ MaterialTheme
- * Đồng bộ với màu sắc của HomeScreen
- */
 @Composable
 fun getAppColors(): AppColors {
     val colorScheme = MaterialTheme.colorScheme

@@ -3,7 +3,7 @@ package com.example.financeapp.viewmodel.auth
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.financeapp.UserPreferencesDataStore
+import com.example.financeapp.data.local.datastore.UserPreferencesDataStore
 import com.example.financeapp.screen.main.dashboard.UserSession
 import com.facebook.AccessToken
 import com.google.firebase.auth.FacebookAuthProvider

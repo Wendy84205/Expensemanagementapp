@@ -1,4 +1,3 @@
-// AI_System_Complete.kt
 package com.example.financeapp.viewmodel.ai
 
 import android.app.Application
