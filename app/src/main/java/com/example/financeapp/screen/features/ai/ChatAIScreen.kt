@@ -62,7 +62,7 @@ fun ChatAIScreen(
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Trợ lý AI",
+                title = "Trợ lý WendyAI",
                 onBackClick = { navController.popBackStack() }
             )
         },

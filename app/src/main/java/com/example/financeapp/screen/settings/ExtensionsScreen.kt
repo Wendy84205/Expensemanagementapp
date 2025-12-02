@@ -21,10 +21,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExtensionsScreen(navController: NavController) {
+    val languageViewModel = LocalLanguageViewModel.current
 
     // Colors
     val primaryColor = Color(0xFF2196F3)
@@ -36,7 +39,7 @@ fun ExtensionsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Tiện ích mở rộng",
+                title = languageViewModel.getTranslation("extensions"),
                 onBackClick = { navController.popBackStack() }
             )
         },
@@ -67,8 +70,8 @@ fun ExtensionsScreen(navController: NavController) {
                         // Danh mục
                         ExtensionItem(
                             icon = Icons.Default.Category,
-                            title = "Quản lý danh mục",
-                            subtitle = "Tùy chỉnh danh mục chi tiêu",
+                            title = languageViewModel.getTranslation("expense_categories"),
+                            subtitle = languageViewModel.getTranslation("customize_spending_categories"),
                             color = Color(0xFF2196F3),
                             onClick = { navController.navigate("categories") }
                         )
@@ -78,8 +81,8 @@ fun ExtensionsScreen(navController: NavController) {
                         // Ngân sách
                         ExtensionItem(
                             icon = Icons.Default.Money,
-                            title = "Ngân sách",
-                            subtitle = "Thiết lập và theo dõi ngân sách",
+                            title = languageViewModel.getTranslation("budgets"),
+                            subtitle = languageViewModel.getTranslation("set_and_track_monthly_budget"),
                             color = Color(0xFF4CAF50),
                             onClick = { navController.navigate("budgets") }
                         )
@@ -89,8 +92,8 @@ fun ExtensionsScreen(navController: NavController) {
                         // Chi tiêu định kỳ
                         ExtensionItem(
                             icon = Icons.Default.Repeat,
-                            title = "Chi tiêu định kỳ",
-                            subtitle = "Quản lý chi tiêu tự động hàng tháng",
+                            title = languageViewModel.getTranslation("recurring_expenses"),
+                            subtitle = languageViewModel.getTranslation("manage_automatic_monthly_expenses"),
                             color = Color(0xFFFF9800),
                             onClick = { navController.navigate("recurring_expenses") }
                         )
@@ -100,11 +103,12 @@ fun ExtensionsScreen(navController: NavController) {
                         // Tiết kiệm
                         ExtensionItem(
                             icon = Icons.Default.Savings,
-                            title = "Mục tiêu tiết kiệm",
-                            subtitle = "Theo dõi và đạt mục tiêu tiết kiệm",
+                            title = languageViewModel.getTranslation("savings_goals"),
+                            subtitle = languageViewModel.getTranslation("track_and_achieve_savings_targets"),
                             color = Color(0xFF9C27B0),
                             onClick = { /* TODO: Navigate to savings */ },
-                            isComingSoon = true
+                            isComingSoon = true,
+                            languageViewModel = languageViewModel
                         )
                     }
                 }
@@ -124,7 +128,7 @@ fun ExtensionsScreen(navController: NavController) {
                             .padding(vertical = 8.dp)
                     ) {
                         Text(
-                            text = "Tiện ích nâng cao",
+                            text = languageViewModel.getTranslation("advanced_features"),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = textColor,
@@ -134,11 +138,12 @@ fun ExtensionsScreen(navController: NavController) {
                         // Quét hóa đơn
                         ExtensionItem(
                             icon = Icons.Default.Receipt,
-                            title = "Quét hóa đơn",
-                            subtitle = "Quét hóa đơn tự động nhập chi tiêu",
+                            title = languageViewModel.getTranslation("receipt_scan"),
+                            subtitle = languageViewModel.getTranslation("scan_receipts_auto_input_expenses"),
                             color = Color(0xFF00BCD4),
                             onClick = { /* TODO: Navigate to receipt scan */ },
-                            isComingSoon = true
+                            isComingSoon = true,
+                            languageViewModel = languageViewModel
                         )
 
                         Divider(color = Color(0xFFEEEEEE))
@@ -146,11 +151,12 @@ fun ExtensionsScreen(navController: NavController) {
                         // Phân tích AI
                         ExtensionItem(
                             icon = Icons.Default.Analytics,
-                            title = "Phân tích AI",
-                            subtitle = "Phân tích chi tiêu với trí tuệ nhân tạo",
+                            title = languageViewModel.getTranslation("ai_analysis"),
+                            subtitle = languageViewModel.getTranslation("ai_powered_spending_analysis"),
                             color = Color(0xFFFF5722),
                             onClick = { /* TODO: Navigate to AI analysis */ },
-                            isComingSoon = true
+                            isComingSoon = true,
+                            languageViewModel = languageViewModel
                         )
                     }
                 }
@@ -165,6 +171,8 @@ private fun SimpleTopAppBar(
     title: String,
     onBackClick: () -> Unit
 ) {
+    val languageViewModel = LocalLanguageViewModel.current
+
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -178,7 +186,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -196,7 +204,8 @@ private fun ExtensionItem(
     subtitle: String,
     color: Color,
     onClick: () -> Unit,
-    isComingSoon: Boolean = false
+    isComingSoon: Boolean = false,
+    languageViewModel: LanguageViewModel? = null
 ) {
     Surface(
         onClick = onClick,
@@ -218,7 +227,7 @@ private fun ExtensionItem(
             ) {
                 Icon(
                     icon,
-                    contentDescription = null,
+                    contentDescription = title,
                     tint = color,
                     modifier = Modifier.size(20.dp)
                 )
@@ -235,7 +244,7 @@ private fun ExtensionItem(
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp
                     )
-                    if (isComingSoon) {
+                    if (isComingSoon && languageViewModel != null) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
@@ -244,7 +253,7 @@ private fun ExtensionItem(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                "Sắp ra mắt",
+                                languageViewModel.getTranslation("coming_soon"),
                                 fontSize = 10.sp,
                                 color = Color(0xFF666666),
                                 fontWeight = FontWeight.Medium
@@ -268,7 +277,7 @@ private fun ExtensionItem(
             } else {
                 Icon(
                     Icons.Default.Lock,
-                    contentDescription = "Không khả dụng",
+                    contentDescription = languageViewModel?.getTranslation("unavailable") ?: "Không khả dụng",
                     tint = Color(0xFFCCCCCC),
                     modifier = Modifier.size(18.dp)
                 )

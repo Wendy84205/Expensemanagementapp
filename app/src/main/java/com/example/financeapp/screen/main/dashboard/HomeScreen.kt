@@ -59,7 +59,7 @@ fun HomeScreen(
         }
     }
 
-    // Tính tổng chi tiêu tháng hiện tại - ĐÃ SỬA
+    // Tính tổng chi tiêu tháng hiện tại
     val monthlySpent = remember(currentMonthTransactions) {
         currentMonthTransactions
             .filter { !it.isIncome }
@@ -130,7 +130,6 @@ fun HomeScreen(
     }
 }
 
-
 @Composable
 private fun HeaderSection(
     currentUser: com.example.financeapp.data.models.User?,
@@ -171,7 +170,7 @@ private fun HeaderSection(
             ) {
                 Icon(
                     Icons.Filled.CalendarToday,
-                    contentDescription = "Calendar",
+                    contentDescription = rememberLanguageText("calendar"),
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
@@ -186,7 +185,7 @@ private fun HeaderSection(
         ) {
             // Card thu nhập
             IncomeExpenseCard(
-                title = "Thu nhập",
+                title = rememberLanguageText("income_card_title"),
                 amount = monthlyIncome,
                 color = Color(0xFF10B981),
                 modifier = Modifier.weight(1f)
@@ -194,7 +193,7 @@ private fun HeaderSection(
 
             // Card chi tiêu
             IncomeExpenseCard(
-                title = "Chi tiêu",
+                title = rememberLanguageText("expense_card_title"),
                 amount = monthlySpent,
                 color = Color(0xFFEF4444),
                 modifier = Modifier.weight(1f)
@@ -232,7 +231,7 @@ private fun IncomeExpenseCard(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Trong tháng",
+                text = rememberLanguageText("this_month"),
                 color = Color(0xFF94A3B8),
                 fontSize = 10.sp
             )
@@ -411,10 +410,10 @@ private fun TransactionItem(transaction: Transaction) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                // SỬA LẠI: Hiển thị title thay vì category ID
+                // Hiển thị title thay vì category ID
                 Text(
                     text = transaction.title.ifBlank {
-                        transaction.description.ifBlank { "Giao dịch" }
+                        transaction.description.ifBlank { rememberLanguageText("transaction") }
                     },
                     color = Color(0xFF0F172A),
                     fontSize = 14.sp,
@@ -475,13 +474,13 @@ private fun SpendingChartCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Chi tiêu 7 ngày qua",
+                    text = rememberLanguageText("spending_7_days"),
                     color = Color(0xFF0F172A),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Tháng này ${formatCurrency(monthlySpent)}",
+                    text = "${rememberLanguageText("monthly_spent")} ${formatCurrency(monthlySpent)}",
                     color = Color(0xFF3B82F6),
                     fontSize = 14.sp,
                     modifier = Modifier.clickable {
@@ -501,7 +500,7 @@ private fun SpendingChartCard(
 @Composable
 private fun SimpleColumnChart(data: List<Pair<String, Float>>) {
     if (data.isEmpty()) {
-        PlaceholderChart(message = "Chưa có dữ liệu biểu đồ")
+        PlaceholderChart(message = rememberLanguageText("no_chart_data"))
         return
     }
 
@@ -593,7 +592,6 @@ private fun BudgetCard(
 
     // Lấy ngân sách tháng hiện tại
     val currentMonthBudget = remember(budgets) {
-        // Lấy budget tháng hiện tại dựa trên startDate và endDate
         budgets.find { budget ->
             val budgetMonth = formatLocalDateMonthYear(budget.startDate)
             budgetMonth == currentMonth && budget.isActive
@@ -625,7 +623,7 @@ private fun BudgetCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Ngân sách tháng",
+                    text = rememberLanguageText("budget_title"),
                     color = Color(0xFF0F172A),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
@@ -659,10 +657,8 @@ private fun BudgetCard(
                     .fillMaxWidth()
                     .clickable {
                         if (currentMonthBudget != null) {
-                            // Navigate đến edit budget nếu đã có ngân sách
                             navController.navigate("edit_budget/${currentMonthBudget.id}")
                         } else {
-                            // Navigate đến add budget nếu chưa có
                             navController.navigate("add_budget")
                         }
                     },
@@ -681,7 +677,7 @@ private fun BudgetCard(
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = if (budgetAmount > 0) "Quản lý ngân sách" else "Thiết lập ngân sách",
+                                text = rememberLanguageText("manage_budget"),
                                 color = Color(0xFF0F172A),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
@@ -689,8 +685,8 @@ private fun BudgetCard(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = if (budgetAmount > 0)
-                                    "Đang theo dõi ${formatCurrency(budgetAmount.toDouble())}"
-                                else "Thiết lập ngân sách để kiểm soát chi tiêu",
+                                    "${rememberLanguageText("tracking_budget")} ${formatCurrency(budgetAmount.toDouble())}"
+                                else rememberLanguageText("setup_budget_description"),
                                 color = Color(0xFF64748B),
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp
@@ -699,7 +695,7 @@ private fun BudgetCard(
 
                         Icon(
                             Icons.Default.ArrowForward,
-                            contentDescription = "Xem ngân sách",
+                            contentDescription = rememberLanguageText("view_details"),
                             tint = Color(0xFF3B82F6),
                             modifier = Modifier.size(20.dp)
                         )
@@ -721,7 +717,10 @@ private fun BudgetCard(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = if (budgetAmount > 0) "Xem chi tiết" else "Thiết lập ngân sách",
+                            text = if (budgetAmount > 0)
+                                rememberLanguageText("view_details")
+                            else
+                                rememberLanguageText("setup_budget_button"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -731,7 +730,6 @@ private fun BudgetCard(
         }
     }
 }
-
 
 @Composable
 private fun BudgetProgressBar(
@@ -745,12 +743,12 @@ private fun BudgetProgressBar(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Đã chi: ${formatCurrency(spent)}",
+                text = "${rememberLanguageText("spent")}: ${formatCurrency(spent)}",
                 color = Color(0xFF64748B),
                 fontSize = 12.sp
             )
             Text(
-                text = "Ngân sách: ${formatCurrency(budget)}",
+                text = "${rememberLanguageText("budget")}: ${formatCurrency(budget)}",
                 color = Color(0xFF64748B),
                 fontSize = 12.sp
             )
@@ -780,7 +778,7 @@ private fun BudgetProgressBar(
         if (remaining > 0) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Còn lại: ${formatCurrency(remaining)}",
+                text = "${rememberLanguageText("remaining")}: ${formatCurrency(remaining)}",
                 color = Color(0xFF10B981),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
@@ -788,7 +786,7 @@ private fun BudgetProgressBar(
         } else if (remaining < 0) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Vượt ngân sách: ${formatCurrency(-remaining)}",
+                text = "${rememberLanguageText("over_budget")}: ${formatCurrency(-remaining)}",
                 color = Color(0xFFEF4444),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
@@ -893,36 +891,6 @@ fun formatCurrencyCompact(amount: Float): String {
         abs(amount) >= 1000 -> String.format("%,.0fK", amount / 1000)
         else -> String.format("%,.0f", amount)
     }.replace(",", ".")
-}
-
-// Hàm helper cho chuỗi ngôn ngữ
-@Composable
-fun rememberLanguageText(key: String): String {
-    return when (key) {
-        "greeting" -> "Xin chào"
-        "user" -> "Người dùng"
-        "monthly_spending_title" -> "Số tiền bạn đã chi trong tháng"
-        "view_details" -> "Xem chi tiết"
-        "view_all" -> "Xem tất cả"
-        "spent_this_month" -> "Số tiền đã chi tiêu trong tháng này"
-        "classification_by_type" -> "Chi theo phân loại"
-        "create_or_select_fund" -> "Tạo hoặc lựa chọn quỹ tiết kiệm"
-        "fund_description" -> "để chúng tôi giúp bạn quản lý tài chính hiệu quả"
-        "balance" -> "Số dư"
-        "recent_transactions" -> "Giao dịch gần đây"
-        "income" -> "Thu"
-        "expense" -> "Chi"
-        "no_recent_transactions" -> "Bạn chưa có giao dịch gần đây"
-        "create_transaction" -> "Tạo giao dịch"
-        "overview" -> "Tổng quan"
-        "this_month" -> "Tháng này"
-        "spending_limit" -> "Hạn mức chi tiêu"
-        "create_or_select_fund_for_limit" -> "Tạo hoặc lựa chọn quỹ tiết kiệm"
-        "limit_description" -> "để chúng tôi tính toán hạn mức chi tiêu"
-        "select_or_create_fund" -> "Lựa chọn / Tạo quỹ tiết kiệm"
-        "no_chart_data" -> "Chưa có dữ liệu biểu đồ"
-        else -> key
-    }
 }
 
 // Data classes - GIỮ NGUYÊN

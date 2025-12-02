@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
-import com.example.financeapp.rememberLanguageText
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +70,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Cài đặt",
+                title = languageViewModel.getTranslation("settings"),
                 onBackClick = { navController.popBackStack() }
             )
         },
@@ -86,11 +86,11 @@ fun SettingsScreen(
         ) {
             // Phần thông tin cá nhân
             item {
-                SettingsCard(title = "Tài khoản") {
+                SettingsCard(title = languageViewModel.getTranslation("account")) {
                     SettingsItem(
                         icon = Icons.Default.Person,
-                        title = "Thông tin cá nhân",
-                        subtitle = "Quản lý thông tin tài khoản",
+                        title = languageViewModel.getTranslation("personal_info"),
+                        subtitle = languageViewModel.getTranslation("manage_account_info"),
                         onClick = { navController.navigate("account_settings") },
                         primaryColor = primaryColor
                     )
@@ -99,11 +99,14 @@ fun SettingsScreen(
 
             // Phần cài đặt ứng dụng
             item {
-                SettingsCard(title = "Cài đặt") {
+                SettingsCard(title = languageViewModel.getTranslation("application_settings")) {
                     SettingsSwitchItem(
                         icon = Icons.Default.Notifications,
-                        title = "Thông báo",
-                        subtitle = if (notificationsEnabled) "Đã bật" else "Đã tắt",
+                        title = languageViewModel.getTranslation("notifications"),
+                        subtitle = if (notificationsEnabled)
+                            languageViewModel.getTranslation("notifications_on")
+                        else
+                            languageViewModel.getTranslation("notifications_off"),
                         checked = notificationsEnabled,
                         onCheckedChange = { newState ->
                             if (newState) {
@@ -123,7 +126,7 @@ fun SettingsScreen(
 
                     SettingsItem(
                         icon = Icons.Default.Language,
-                        title = "Ngôn ngữ",
+                        title = languageViewModel.getTranslation("language"),
                         subtitle = currentLanguageName,
                         onClick = { navController.navigate("language_settings") },
                         primaryColor = primaryColor
@@ -133,8 +136,8 @@ fun SettingsScreen(
 
                     SettingsItem(
                         icon = Icons.Default.Extension,
-                        title = "Tiện ích mở rộng",
-                        subtitle = "AI, Lịch, Quét hóa đơn",
+                        title = languageViewModel.getTranslation("extensions"),
+                        subtitle = languageViewModel.getTranslation("extra_tools_like_ai_calendar_scan"),
                         onClick = { navController.navigate("extensions") },
                         primaryColor = primaryColor
                     )
@@ -143,11 +146,11 @@ fun SettingsScreen(
 
             // Phần hỗ trợ
             item {
-                SettingsCard(title = "Hỗ trợ") {
+                SettingsCard(title = languageViewModel.getTranslation("support")) {
                     SettingsItem(
                         icon = Icons.Default.Help,
-                        title = "Trợ giúp",
-                        subtitle = "Câu hỏi thường gặp",
+                        title = languageViewModel.getTranslation("help"),
+                        subtitle = languageViewModel.getTranslation("frequently_asked_questions"),
                         onClick = { navController.navigate("help") },
                         primaryColor = primaryColor
                     )
@@ -156,8 +159,8 @@ fun SettingsScreen(
 
                     SettingsItem(
                         icon = Icons.Default.Info,
-                        title = "Về ứng dụng",
-                        subtitle = "Phiên bản 1.0.0",
+                        title = languageViewModel.getTranslation("about_app"),
+                        subtitle = "${languageViewModel.getTranslation("version")} 1.0.0",
                         onClick = { showAboutDialog = true },
                         primaryColor = primaryColor
                     )
@@ -166,11 +169,11 @@ fun SettingsScreen(
 
             // Phần đăng xuất
             item {
-                SettingsCard(title = "Tài khoản") {
+                SettingsCard(title = languageViewModel.getTranslation("account")) {
                     SettingsItem(
                         icon = Icons.Default.Logout,
-                        title = "Đăng xuất",
-                        subtitle = "Đăng xuất khỏi tài khoản",
+                        title = languageViewModel.getTranslation("logout"),
+                        subtitle = languageViewModel.getTranslation("logout_account"),
                         onClick = { showLogoutDialog = true },
                         isWarning = true,
                         primaryColor = Color(0xFFF44336)
@@ -187,12 +190,12 @@ fun SettingsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "Finance App © 2025",
+                        languageViewModel.getTranslation("footer_copyright"),
                         color = subtitleColor,
                         fontSize = 12.sp
                     )
                     Text(
-                        "Phiên bản 1.0.0",
+                        "${languageViewModel.getTranslation("version")} 1.0.0",
                         color = Color(0xFF999999),
                         fontSize = 11.sp
                     )
@@ -205,7 +208,8 @@ fun SettingsScreen(
     if (showAboutDialog) {
         AboutAppDialog(
             onDismiss = { showAboutDialog = false },
-            primaryColor = primaryColor
+            primaryColor = primaryColor,
+            languageViewModel = languageViewModel
         )
     }
 
@@ -216,7 +220,8 @@ fun SettingsScreen(
                 showLogoutDialog = false
                 onSignOut()
             },
-            onDismiss = { showLogoutDialog = false }
+            onDismiss = { showLogoutDialog = false },
+            languageViewModel = languageViewModel
         )
     }
 }
@@ -227,6 +232,8 @@ private fun SimpleTopAppBar(
     title: String,
     onBackClick: () -> Unit
 ) {
+    val languageViewModel = LocalLanguageViewModel.current
+
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -240,7 +247,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -313,7 +320,7 @@ private fun SettingsItem(
             ) {
                 Icon(
                     icon,
-                    contentDescription = null,
+                    contentDescription = title,
                     tint = iconColor,
                     modifier = Modifier.size(20.dp)
                 )
@@ -366,7 +373,7 @@ private fun SettingsSwitchItem(
         ) {
             Icon(
                 icon,
-                contentDescription = null,
+                contentDescription = title,
                 tint = primaryColor,
                 modifier = Modifier.size(20.dp)
             )
@@ -403,13 +410,18 @@ private fun SettingsSwitchItem(
 @Composable
 private fun AboutAppDialog(
     onDismiss: () -> Unit,
-    primaryColor: Color = Color(0xFF2196F3)
+    primaryColor: Color = Color(0xFF2196F3),
+    languageViewModel: LanguageViewModel
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("ĐÓNG", color = primaryColor, fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("close").uppercase(),
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         icon = {
@@ -421,7 +433,7 @@ private fun AboutAppDialog(
             ) {
                 Icon(
                     Icons.Default.AccountBalanceWallet,
-                    contentDescription = "Ứng dụng tài chính",
+                    contentDescription = languageViewModel.getTranslation("finance_app"),
                     tint = primaryColor,
                     modifier = Modifier.size(30.dp)
                 )
@@ -429,7 +441,7 @@ private fun AboutAppDialog(
         },
         title = {
             Text(
-                "Về ứng dụng",
+                languageViewModel.getTranslation("about_app"),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333),
@@ -440,7 +452,7 @@ private fun AboutAppDialog(
         text = {
             Column {
                 Text(
-                    "Finance App - Ứng dụng quản lý tài chính cá nhân",
+                    languageViewModel.getTranslation("personal_finance_app"),
                     fontSize = 14.sp,
                     color = Color(0xFF666666),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -454,7 +466,7 @@ private fun AboutAppDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        "Phiên bản",
+                        languageViewModel.getTranslation("version"),
                         color = Color(0xFF666666),
                         fontSize = 14.sp
                     )
@@ -473,7 +485,7 @@ private fun AboutAppDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        "Ngày phát hành",
+                        languageViewModel.getTranslation("release_date"),
                         color = Color(0xFF666666),
                         fontSize = 14.sp
                     )
@@ -494,7 +506,8 @@ private fun AboutAppDialog(
 @Composable
 private fun LogoutDialog(
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     val primaryColor = Color(0xFFF44336)
 
@@ -502,12 +515,20 @@ private fun LogoutDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("ĐĂNG XUẤT", color = primaryColor, fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("logout").uppercase(),
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("HỦY", color = Color(0xFF666666), fontWeight = FontWeight.Medium)
+                Text(
+                    languageViewModel.getTranslation("cancel").uppercase(),
+                    color = Color(0xFF666666),
+                    fontWeight = FontWeight.Medium
+                )
             }
         },
         icon = {
@@ -519,7 +540,7 @@ private fun LogoutDialog(
             ) {
                 Icon(
                     Icons.Default.Logout,
-                    contentDescription = "Đăng xuất",
+                    contentDescription = languageViewModel.getTranslation("logout"),
                     tint = primaryColor,
                     modifier = Modifier.size(30.dp)
                 )
@@ -527,7 +548,7 @@ private fun LogoutDialog(
         },
         title = {
             Text(
-                "Đăng xuất",
+                languageViewModel.getTranslation("logout"),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333),
@@ -537,7 +558,7 @@ private fun LogoutDialog(
         },
         text = {
             Text(
-                "Bạn có chắc muốn đăng xuất khỏi tài khoản?",
+                languageViewModel.getTranslation("confirm_logout"),
                 fontSize = 14.sp,
                 color = Color(0xFF666666),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,

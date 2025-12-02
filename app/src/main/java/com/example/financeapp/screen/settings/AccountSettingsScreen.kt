@@ -23,6 +23,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.launch
@@ -49,9 +50,9 @@ class AccountSettingsViewModel : ViewModel() {
                 if (email != user?.email) {
                     user?.updateEmail(email)?.await()
                 }
-                message = "success"
+                message = "update_success"
             } catch (e: Exception) {
-                message = "Error: ${e.message}"
+                message = "error_update_failed"
             } finally {
                 isLoading = false
             }
@@ -66,7 +67,7 @@ class AccountSettingsViewModel : ViewModel() {
                 FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
                 message = "reset_success"
             } catch (e: Exception) {
-                message = "Error: ${e.message}"
+                message = "error_reset_failed"
             } finally {
                 isLoading = false
             }
@@ -81,7 +82,7 @@ class AccountSettingsViewModel : ViewModel() {
                 FirebaseAuth.getInstance().currentUser?.sendEmailVerification()?.await()
                 message = "verify_email_sent"
             } catch (e: Exception) {
-                message = "Error: ${e.message}"
+                message = "error_verification_failed"
             } finally {
                 isLoading = false
             }
@@ -120,7 +121,7 @@ fun AccountSettingsScreen(
     Scaffold(
         topBar = {
             SimpleTopAppBar(
-                title = "Thông tin tài khoản",
+                title = languageViewModel.getTranslation("account_info"),
                 onBackClick = { navController.popBackStack() }
             )
         },
@@ -137,7 +138,7 @@ fun AccountSettingsScreen(
         ) {
             // Thông tin cá nhân
             item {
-                SettingsCard(title = "Thông tin cá nhân") {
+                SettingsCard(title = languageViewModel.getTranslation("personal_info")) {
                     // Tên
                     Column(
                         modifier = Modifier
@@ -145,7 +146,7 @@ fun AccountSettingsScreen(
                             .padding(horizontal = 20.dp, vertical = 12.dp)
                     ) {
                         Text(
-                            "Tên đầy đủ",
+                            languageViewModel.getTranslation("full_name"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -176,7 +177,7 @@ fun AccountSettingsScreen(
                             .padding(horizontal = 20.dp, vertical = 12.dp)
                     ) {
                         Text(
-                            "Email",
+                            languageViewModel.getTranslation("email"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
@@ -207,14 +208,14 @@ fun AccountSettingsScreen(
                             .padding(horizontal = 20.dp, vertical = 12.dp)
                     ) {
                         Text(
-                            "Số điện thoại",
+                            languageViewModel.getTranslation("phone_number"),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = textColor,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         OutlinedTextField(
-                            value = if (phone.isNotBlank()) phone else "Chưa có",
+                            value = if (phone.isNotBlank()) phone else languageViewModel.getTranslation("not_available"),
                             onValueChange = {},
                             readOnly = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -224,7 +225,15 @@ fun AccountSettingsScreen(
                                 unfocusedTextColor = subtitleColor,
                                 disabledTextColor = subtitleColor
                             ),
-                            singleLine = true
+                            singleLine = true,
+                            trailingIcon = {
+                                Text(
+                                    languageViewModel.getTranslation("read_only"),
+                                    fontSize = 12.sp,
+                                    color = subtitleColor,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                            }
                         )
                     }
                 }
@@ -232,7 +241,7 @@ fun AccountSettingsScreen(
 
             // Thao tác tài khoản
             item {
-                SettingsCard(title = "Thao tác tài khoản") {
+                SettingsCard(title = languageViewModel.getTranslation("actions")) {
                     // Lưu thay đổi
                     Button(
                         onClick = { viewModel.updateProfile(name, email) },
@@ -254,9 +263,15 @@ fun AccountSettingsScreen(
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đang lưu...", color = Color.White)
+                            Text(
+                                languageViewModel.getTranslation("saving"),
+                                color = Color.White
+                            )
                         } else {
-                            Text("LƯU THAY ĐỔI", fontWeight = FontWeight.Bold)
+                            Text(
+                                languageViewModel.getTranslation("save_changes").uppercase(),
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
@@ -274,11 +289,13 @@ fun AccountSettingsScreen(
                     ) {
                         Icon(
                             Icons.Default.LockReset,
-                            contentDescription = "Đặt lại mật khẩu",
+                            contentDescription = languageViewModel.getTranslation("reset_password"),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("ĐẶT LẠI MẬT KHẨU")
+                        Text(
+                            languageViewModel.getTranslation("reset_password").uppercase()
+                        )
                     }
 
                     // Tìm và thay thế phần xác thực email này:
@@ -301,11 +318,13 @@ fun AccountSettingsScreen(
                         ) {
                             Icon(
                                 Icons.Default.MarkEmailRead,
-                                contentDescription = "Xác thực email",
+                                contentDescription = languageViewModel.getTranslation("email_verification"),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("XÁC THỰC EMAIL")
+                            Text(
+                                languageViewModel.getTranslation("email_verification").uppercase()
+                            )
                         }
                     }
                 }
@@ -313,11 +332,11 @@ fun AccountSettingsScreen(
 
             // Thông tin hệ thống
             item {
-                SettingsCard(title = "Thông tin hệ thống") {
+                SettingsCard(title = languageViewModel.getTranslation("system_info")) {
                     // User ID
                     InfoRow(
-                        title = "ID người dùng",
-                        value = user?.uid ?: "Không có",
+                        title = languageViewModel.getTranslation("user_id"),
+                        value = user?.uid ?: languageViewModel.getTranslation("not_available"),
                         color = subtitleColor
                     )
 
@@ -325,8 +344,8 @@ fun AccountSettingsScreen(
 
                     // Nhà cung cấp
                     InfoRow(
-                        title = "Nhà cung cấp",
-                        value = getProviderName(user?.providerId ?: "unknown"),
+                        title = languageViewModel.getTranslation("provider"),
+                        value = getProviderName(user?.providerId ?: "unknown", languageViewModel),
                         color = subtitleColor
                     )
 
@@ -334,8 +353,11 @@ fun AccountSettingsScreen(
 
                     // Trạng thái email
                     InfoRow(
-                        title = "Xác thực email",
-                        value = if (user?.isEmailVerified == true) "Đã xác thực" else "Chưa xác thực",
+                        title = languageViewModel.getTranslation("email_verification"),
+                        value = if (user?.isEmailVerified == true)
+                            languageViewModel.getTranslation("verified")
+                        else
+                            languageViewModel.getTranslation("not_verified"),
                         valueColor = if (user?.isEmailVerified == true) successColor else warningColor
                     )
 
@@ -343,8 +365,9 @@ fun AccountSettingsScreen(
 
                     // Ngày tạo
                     InfoRow(
-                        title = "Ngày tạo",
-                        value = user?.metadata?.creationTimestamp?.formatDate() ?: "Không rõ",
+                        title = languageViewModel.getTranslation("created_at"),
+                        value = user?.metadata?.creationTimestamp?.formatDate() ?:
+                        languageViewModel.getTranslation("unknown"),
                         color = subtitleColor
                     )
 
@@ -352,8 +375,9 @@ fun AccountSettingsScreen(
 
                     // Lần đăng nhập cuối
                     InfoRow(
-                        title = "Lần đăng nhập cuối",
-                        value = user?.metadata?.lastSignInTimestamp?.formatDate() ?: "Không rõ",
+                        title = languageViewModel.getTranslation("last_login"),
+                        value = user?.metadata?.lastSignInTimestamp?.formatDate() ?:
+                        languageViewModel.getTranslation("unknown"),
                         color = subtitleColor
                     )
                 }
@@ -364,10 +388,13 @@ fun AccountSettingsScreen(
         LaunchedEffect(viewModel.message) {
             if (viewModel.message.isNotEmpty()) {
                 val text = when (viewModel.message) {
-                    "success" -> "Cập nhật thông tin thành công"
-                    "reset_success" -> "Đã gửi email đặt lại mật khẩu"
-                    "verify_email_sent" -> "Đã gửi email xác thực"
-                    else -> "Lỗi: ${viewModel.message}"
+                    "update_success" -> languageViewModel.getTranslation("update_success")
+                    "reset_success" -> languageViewModel.getTranslation("reset_success")
+                    "verify_email_sent" -> languageViewModel.getTranslation("verify_email_sent")
+                    "error_update_failed" -> languageViewModel.getTranslation("error_update_failed")
+                    "error_reset_failed" -> languageViewModel.getTranslation("error_reset_failed")
+                    "error_verification_failed" -> languageViewModel.getTranslation("error_verification_failed")
+                    else -> viewModel.message
                 }
                 val snackbarResult = snackbarHostState.showSnackbar(
                     message = text,
@@ -387,6 +414,8 @@ private fun SimpleTopAppBar(
     title: String,
     onBackClick: () -> Unit
 ) {
+    val languageViewModel = LocalLanguageViewModel.current
+
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -400,7 +429,7 @@ private fun SimpleTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
+                    contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
             }
@@ -471,12 +500,13 @@ private fun InfoRow(
     }
 }
 
-private fun getProviderName(providerId: String): String {
+@Composable
+private fun getProviderName(providerId: String, languageViewModel: LanguageViewModel): String {
     return when (providerId) {
-        "password" -> "Email & Mật khẩu"
-        "google.com" -> "Google"
-        "facebook.com" -> "Facebook"
-        "phone" -> "Số điện thoại"
+        "password" -> languageViewModel.getTranslation("email_password")
+        "google.com" -> languageViewModel.getTranslation("google")
+        "facebook.com" -> languageViewModel.getTranslation("facebook")
+        "phone" -> languageViewModel.getTranslation("phone")
         else -> providerId
     }
 }
