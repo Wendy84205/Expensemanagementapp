@@ -224,7 +224,6 @@ Tính năng cộng đồng
 
 Dự án được phân phối dưới giấy phép MIT - xem file LICENSE để biết chi tiết.
 
-text
 MIT License
 
 Copyright (c) 2024 Wendy
@@ -246,9 +245,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-📞 Liên Hệ
 
 GitHub: Wendy84205
+Email: wendy84205@gmail.com
 Issues: GitHub Issues
 🌟 Hỗ Trợ Dự Án
 
