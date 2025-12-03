@@ -1,4 +1,4 @@
-# Ứng Dụng Quản Lý Tài Chính Cá Nhân 💰
+# Ứng Dụng Quản Lý Tài Chính Cá Nhân
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-blue.svg)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Compose-1.5.0-brightgreen.svg)](https://developer.android.com/jetpack/compose)
@@ -8,7 +8,7 @@
 
 Ứng dụng quản lý tài chính cá nhân hiện đại, giúp bạn theo dõi thu chi, lập ngân sách và quản lý tài chính thông minh.
 
-## 📋 Mục Lục
+## Mục Lục
 - [Tính Năng](#tính-năng)
 - [Kiến Trúc](#kiến-trúc)
 - [Cài Đặt](#cài-đặt)
@@ -17,7 +17,7 @@
 - [Giấy Phép](#giấy-phép)
 - [Liên Hệ](#liên-hệ)
 
-## ✨ Tính Năng Chính
+## Tính Năng Chính
 
 ### Quản Lý Cơ Bản
 - **Theo dõi thu chi**: Thêm, sửa, xóa giao dịch dễ dàng
@@ -66,7 +66,7 @@
 - **Xử lý ảnh**: ML Kit
 - **Thông báo**: WorkManager + AlarmManager
 
-## 🚀 Hướng Dẫn Cài Đặt
+## Hướng Dẫn Cài Đặt
 
 ### Yêu Cầu Hệ Thống
 - Android Studio 2022.2.1 trở lên
@@ -123,7 +123,7 @@ Tạo APK
 
 bash
 ./gradlew assembleRelease
-⚙️ Cấu Hình Ứng Dụng
+Cấu Hình Ứng Dụng
 
 Biến Môi Trường
 
@@ -142,7 +142,7 @@ Các Loại Build
 
 free: Bản miễn phí, tính năng cơ bản
 premium: Bản cao cấp, đầy đủ tính năng
-🧪 Kiểm Thử
+Kiểm Thử
 
 Unit Test
 
@@ -156,7 +156,7 @@ UI Test
 
 Dự án có đầy đủ UI test sử dụng Espresso và Compose testing.
 
-🤝 Đóng Góp Cho Dự Án
+Đóng Góp Cho Dự Án
 
 Chúng tôi hoan nghênh mọi đóng góp từ cộng đồng!
 
@@ -219,9 +219,9 @@ Tính năng bảo mật nâng cao
 API cho developer
 Hệ thống plugin
 Tính năng cộng đồng
-📄 Giấy Phép
+Giấy Phép
 
-🛡️ MIT License
+MIT License
 
 Dự án được phân phối dưới giấy phép MIT License, một trong những giấy phép nguồn mở tự do nhất.
 Đọc toàn văn giấy phép tại: LICENSE
@@ -233,21 +233,21 @@ Email: wendy84205@gmail.com
 GitHub: Wendy84205
 Repository: Expensemanagementapp
 Issues: GitHub Issues
-🌟 Hỗ Trợ Dự Án
+Hỗ Trợ Dự Án
 
 Nếu bạn thấy dự án hữu ích, hãy:
 
-⭐ Star trên GitHub - Để theo dõi và hỗ trợ
-🐛 Báo cáo lỗi - Giúp cải thiện chất lượng
-💡 Đề xuất tính năng - Chia sẻ ý tưởng mới
-🔄 Chia sẻ - Giới thiệu với bạn bè và cộng đồng
-💻 Đóng góp code - Tham gia phát triển dự án
+-Star trên GitHub - Để theo dõi và hỗ trợ
+-Báo cáo lỗi - Giúp cải thiện chất lượng
+-Đề xuất tính năng - Chia sẻ ý tưởng mới
+-Chia sẻ - Giới thiệu với bạn bè và cộng đồng
+-Đóng góp code - Tham gia phát triển dự án
 <div align="center">
-📊 Thống kê
+Thống kê
 
 https://img.shields.io/github/stars/Wendy84205/Expensemanagementapp?style=social
 https://img.shields.io/github/forks/Wendy84205/Expensemanagementapp?style=social
 https://img.shields.io/github/issues/Wendy84205/Expensemanagementapp
 https://img.shields.io/github/last-commit/Wendy84205/Expensemanagementapp
 
-Cảm ơn bạn đã quan tâm đến dự án! 🎉
+Cảm ơn bạn đã quan tâm đến dự án! 
