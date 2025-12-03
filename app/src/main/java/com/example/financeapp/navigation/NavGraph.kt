@@ -47,6 +47,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 
 
 @Composable
@@ -326,9 +328,17 @@ fun NavGraph(
         }
 
         composable("calendar") {
+            // Cần lấy categories từ ViewModel
+            val transactionViewModel: TransactionViewModel = viewModel()
+            val categoryViewModel: CategoryViewModel = viewModel()
+
+            val transactions by transactionViewModel.transactions.collectAsState()
+            val categories by categoryViewModel.categories.collectAsState()
+
             CalendarScreen(
                 navController = navController,
-                transactions = transactions
+                transactions = transactions,
+                categories = categories
             )
         }
 

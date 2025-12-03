@@ -21,11 +21,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.rememberLanguageText
+import com.example.financeapp.viewmodel.transaction.Category // Thêm import này
 import com.kizitonwose.calendar.compose.CalendarState
 import com.kizitonwose.calendar.compose.HorizontalCalendar
 import com.kizitonwose.calendar.compose.rememberCalendarState
@@ -40,7 +42,8 @@ import kotlin.math.absoluteValue
 @Composable
 fun CalendarScreen(
     navController: NavHostController,
-    transactions: List<Transaction>
+    transactions: List<Transaction>,
+    categories: List<Category>
 ) {
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     val coroutineScope = rememberCoroutineScope()
@@ -388,7 +391,8 @@ fun CalendarScreen(
                             ) {
                                 items(dayTransactions) { transaction ->
                                     CalendarTransactionItem(
-                                        transaction,
+                                        transaction = transaction,
+                                        categories = categories, // Truyền categories vào
                                         incomeColor = incomeColor,
                                         expenseColor = expenseColor,
                                         textPrimary = textPrimary,
@@ -558,11 +562,21 @@ fun CalendarDayCell(
 @Composable
 fun CalendarTransactionItem(
     transaction: Transaction,
+    categories: List<Category>,
     incomeColor: Color,
     expenseColor: Color,
     textPrimary: Color,
     textSecondary: Color
 ) {
+    // Tìm category name - GIỐNG CÁCH CỦA TransactionListItem TRONG TRANSACTION SCREEN
+    val categoryName = remember(transaction.category, categories) {
+        categories.find {
+            it.id == transaction.categoryId ||
+                    it.id == transaction.category ||  // Kiểm tra cả id
+                    it.name.equals(transaction.category, ignoreCase = true)
+        }?.name ?: transaction.category.ifBlank { "Không xác định" } // Thêm fallback
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -586,17 +600,19 @@ fun CalendarTransactionItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Icon indicator
+                // Icon indicator - CÓ THỂ SỬA THEO HOME SCREEN NẾU CẦN
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .background(
-                            if (transaction.isIncome) incomeColor.copy(alpha = 0.1f) else expenseColor.copy(alpha = 0.1f),
+                            if (transaction.isIncome) incomeColor.copy(alpha = 0.1f)
+                            else expenseColor.copy(alpha = 0.1f),
                             CircleShape
                         )
                         .clip(CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Có thể thay đổi icon nếu muốn giống HomeScreen
                     Text(
                         if (transaction.isIncome) "↑" else "↓",
                         color = if (transaction.isIncome) incomeColor else expenseColor,
@@ -608,21 +624,34 @@ fun CalendarTransactionItem(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column {
+                    // Hiển thị tên category
                     Text(
-                        text = transaction.category,
+                        text = categoryName,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         color = textPrimary
                     )
-                    Text(
-                        text = transaction.wallet,
-                        color = textSecondary,
-                        fontSize = 12.sp
-                    )
+                    // Có thể thêm thông tin khác nếu muốn giống HomeScreen
+                    Row {
+                        Text(
+                            text = "${transaction.date}",
+                            color = textSecondary,
+                            fontSize = 12.sp
+                        )
+                        if (transaction.description.isNotBlank()) {
+                            Text(
+                                text = " • ${transaction.description}",
+                                color = textSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
 
-            // Số tiền
+            // Số tiền - GIỮ NGUYÊN HOẶC SỬA THEO HOME SCREEN
             Text(
                 text = (if (transaction.isIncome) "+" else "-") + formatCurrency(transaction.amount),
                 fontWeight = FontWeight.Bold,
