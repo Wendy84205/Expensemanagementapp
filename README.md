@@ -122,12 +122,12 @@ Cấu Hình Ứng Dụng
 
 Biến Môi Trường
 
-Biến	Mô tả	Bắt buộc	Mặc định
-ENABLE_CLOUD_SYNC	Bật đồng bộ Firebase	Không	true
-ENABLE_AI_FEATURES	Bật tính năng AI	Không	true
-ENABLE_OCR	Bật quét hóa đơn	Không	true
-ENABLE_BIOMETRICS	Bật đăng nhập sinh trắc	Không	true
-DEFAULT_CURRENCY	Tiền tệ mặc định	Không	VND
+Biến	                Mô tả	              Bắt buộc	      Mặc định
+ENABLE_CLOUD_SYNC	Bật đồng bộ Firebase	  Không	            true
+ENABLE_AI_FEATURES	Bật tính năng AI	    Không	            true
+ENABLE_OCR	        Bật quét hóa đơn	    Không	            true
+ENABLE_BIOMETRICS	Bật đăng nhập sinh trắc	Không	            true
+DEFAULT_CURRENCY	Tiền tệ mặc định	      Không	            VND
 Các Biến Thể Build
 
 debug: Build phát triển, có debug
