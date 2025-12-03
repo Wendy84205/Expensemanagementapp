@@ -1,5 +1,6 @@
 package com.example.financeapp.viewmodel.features
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
@@ -22,33 +23,58 @@ import java.util.UUID
 // Định nghĩa typealias để tránh confusion
 typealias FinanceCategory = com.example.financeapp.viewmodel.transaction.Category
 
+/**
+ * ViewModel quản lý chi tiêu định kỳ
+ * Xử lý các chi tiêu được lặp lại theo tần suất (hàng ngày, tuần, tháng, v.v.)
+ */
 class RecurringExpenseViewModel : ViewModel() {
+
+    companion object {
+        private const val TAG = "RecurringExpenseViewModel"
+        private const val COLLECTION_NAME = "recurring_expenses"
+    }
+
+    // ==================== DEPENDENCIES ====================
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private var expensesListener: ListenerRegistration? = null
 
+    // Sử dụng singleton CategoryViewModel
     private val categoryViewModel = CategoryViewModel.getInstance()
 
+    // ==================== STATE FLOWS ====================
+
+    /** Flow danh sách chi tiêu định kỳ */
     private val _recurringExpenses = MutableStateFlow<List<RecurringExpense>>(emptyList())
     val recurringExpenses: StateFlow<List<RecurringExpense>> = _recurringExpenses
 
+    /** Flow trạng thái loading */
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    /** Flow thông báo UI */
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage
 
+    /** Flow danh sách danh mục con có sẵn theo loại */
     private val _availableSubCategories = MutableStateFlow<Map<String, List<FinanceCategory>>>(emptyMap())
     val availableSubCategories: StateFlow<Map<String, List<FinanceCategory>>> = _availableSubCategories
 
+    /** Trạng thái listener đã được thiết lập */
     private var isListenerSetup = false
 
+    // ==================== INITIALIZATION ====================
+
     init {
+        Log.d(TAG, "RecurringExpenseViewModel khởi tạo")
         setupRealtimeListener()
         loadAvailableSubCategories()
     }
 
+    /**
+     * Load danh sách danh mục con có sẵn
+     */
     private fun loadAvailableSubCategories() {
         viewModelScope.launch {
             try {
@@ -59,12 +85,17 @@ class RecurringExpenseViewModel : ViewModel() {
                     "expense" to expenseCategories,
                     "income" to incomeCategories
                 )
+
+                Log.d(TAG, "Đã load danh mục con: Expense=${expenseCategories.size}, Income=${incomeCategories.size}")
             } catch (e: Exception) {
-                println("❌ Lỗi load subcategories: ${e.message}")
+                Log.e(TAG, "Lỗi load subcategories: ${e.message}")
             }
         }
     }
 
+    /**
+     * Thiết lập real-time listener cho Firestore
+     */
     private fun setupRealtimeListener() {
         if (isListenerSetup) {
             _isLoading.value = false
@@ -75,6 +106,7 @@ class RecurringExpenseViewModel : ViewModel() {
         if (currentUser == null) {
             _isLoading.value = false
             isListenerSetup = true
+            Log.w(TAG, "User chưa đăng nhập, không thể setup listener")
             return
         }
 
@@ -83,7 +115,7 @@ class RecurringExpenseViewModel : ViewModel() {
         }
 
         try {
-            expensesListener = db.collection("recurring_expenses")
+            expensesListener = db.collection(COLLECTION_NAME)
                 .whereEqualTo("userId", currentUser.uid)
                 .addSnapshotListener { snapshot, error ->
                     _isLoading.value = false
@@ -91,7 +123,7 @@ class RecurringExpenseViewModel : ViewModel() {
 
                     if (error != null) {
                         _uiMessage.value = "Lỗi tải chi tiêu định kỳ: ${error.message}"
-                        println("❌ Firebase error: ${error.message}")
+                        Log.e(TAG, "Firestore error: ${error.message}")
                         return@addSnapshotListener
                     }
 
@@ -104,52 +136,71 @@ class RecurringExpenseViewModel : ViewModel() {
                                     if (isValidExpenseCategory(expense)) {
                                         expenses.add(expense)
                                     } else {
-                                        println("⚠️ Recurring expense có category không hợp lệ: ${expense.category}")
+                                        Log.w(TAG, "Recurring expense có category không hợp lệ: ${expense.category}")
                                     }
                                 }
                             } catch (e: Exception) {
-                                println("❌ Lỗi parse document: ${e.message}")
+                                Log.e(TAG, "Lỗi parse document: ${e.message}")
                             }
                         }
                         _recurringExpenses.value = expenses
-                        println("✅ Real-time update: ${expenses.size} recurring expenses")
+                        Log.d(TAG, "Real-time update: ${expenses.size} recurring expenses")
                     }
 
                     if (snapshot == null) {
                         _isLoading.value = false
                     }
                 }
+
+            Log.d(TAG, "Đã thiết lập real-time listener thành công")
         } catch (e: Exception) {
             _isLoading.value = false
             isListenerSetup = true
             _uiMessage.value = "Lỗi kết nối: ${e.message}"
-            println("❌ Listener setup error: ${e.message}")
+            Log.e(TAG, "Listener setup error: ${e.message}")
         }
     }
 
+    /**
+     * Load lại danh sách chi tiêu định kỳ
+     */
     fun loadRecurringExpenses() {
         if (!isListenerSetup || expensesListener == null) {
             isListenerSetup = false
             expensesListener?.remove()
             expensesListener = null
             setupRealtimeListener()
+            Log.d(TAG, "Reload recurring expenses listener")
         } else {
             _isLoading.value = false
         }
     }
 
+    /**
+     * Kiểm tra category của expense có hợp lệ không
+     */
     private fun isValidExpenseCategory(expense: RecurringExpense): Boolean {
         return try {
             categoryViewModel.doesCategoryExist(expense.category)
         } catch (e: Exception) {
+            // Nếu có lỗi, vẫn chấp nhận để không block data flow
             true
         }
     }
 
-    fun setCategoryViewModel(categoryViewModel: CategoryViewModel) {
-        // Giữ lại cho tương thích
-    }
+    // ==================== CRUD OPERATIONS ====================
 
+    /**
+     * Thêm chi tiêu định kỳ mới (sử dụng categoryId)
+     * @param title Tiêu đề
+     * @param amount Số tiền
+     * @param categoryId ID danh mục
+     * @param wallet Ví
+     * @param description Mô tả (optional)
+     * @param frequency Tần suất
+     * @param startDate Ngày bắt đầu
+     * @param endDate Ngày kết thúc (optional)
+     */
     fun addRecurringExpense(
         title: String,
         amount: Double,
@@ -165,12 +216,15 @@ class RecurringExpenseViewModel : ViewModel() {
                 val currentUser = auth.currentUser
                 if (currentUser == null) {
                     _uiMessage.value = "Vui lòng đăng nhập"
+                    Log.w(TAG, "User chưa đăng nhập khi thêm recurring expense")
                     return@launch
                 }
 
+                // Validate category
                 val isValidCategory = try {
                     categoryViewModel.validateCategoryForRecurringExpense(categoryId, "expense")
                 } catch (e: Exception) {
+                    Log.w(TAG, "Không thể validate category, vẫn tiếp tục: ${e.message}")
                     true
                 }
 
@@ -179,17 +233,21 @@ class RecurringExpenseViewModel : ViewModel() {
                     return@launch
                 }
 
+                // Lấy thông tin category
                 val categoryInfo = try {
                     categoryViewModel.getCategoryInfoForRecurringExpense(categoryId)
                 } catch (e: Exception) {
+                    Log.w(TAG, "Không thể lấy category info, sử dụng giá trị mặc định: ${e.message}")
                     Pair("💰", "#0F4C75")
                 }
 
                 val categoryIcon = categoryInfo?.first ?: "💰"
                 val categoryColor = categoryInfo?.second ?: "#0F4C75"
 
+                // Tính ngày xảy ra tiếp theo
                 val nextOccurrence = calculateNextOccurrence(startDate, frequency)
 
+                // Tạo object RecurringExpense
                 val expense = RecurringExpense.Companion.fromEnum(
                     id = UUID.randomUUID().toString(),
                     title = title,
@@ -206,20 +264,25 @@ class RecurringExpenseViewModel : ViewModel() {
                     userId = currentUser.uid
                 )
 
-                db.collection("recurring_expenses")
+                // Lưu vào Firestore
+                db.collection(COLLECTION_NAME)
                     .document(expense.id)
                     .set(expense)
                     .await()
 
                 _uiMessage.value = "Đã thêm: $title"
-                println("✅ Đã thêm recurring expense: ${expense.title}")
+                Log.d(TAG, "✅ Đã thêm recurring expense: ${expense.title}")
+
             } catch (e: Exception) {
                 _uiMessage.value = "Lỗi thêm: ${e.message}"
-                println("❌ Lỗi thêm recurring expense: ${e.message}")
+                Log.e(TAG, "Lỗi thêm recurring expense: ${e.message}")
             }
         }
     }
 
+    /**
+     * Thêm chi tiêu định kỳ (sử dụng category name - overload cho backward compatibility)
+     */
     fun addRecurringExpense(
         title: String,
         amount: Double,
@@ -236,48 +299,138 @@ class RecurringExpenseViewModel : ViewModel() {
         addRecurringExpense(title, amount, categoryId, wallet, description, frequency, startDate, endDate)
     }
 
+    /**
+     * Tìm category ID bằng tên
+     */
     private fun findCategoryIdByName(categoryName: String): String? {
         return try {
             val allSubCategories = getAllSubCategories()
             allSubCategories.find { it.name == categoryName }?.id
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi tìm category by name: ${e.message}")
             null
         }
     }
 
+    /**
+     * Lấy tất cả danh mục con
+     */
     private fun getAllSubCategories(): List<FinanceCategory> {
         return try {
             categoryViewModel.getAllSubCategories("expense") + categoryViewModel.getAllSubCategories("income")
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy all subcategories: ${e.message}")
             emptyList()
         }
     }
 
+    /**
+     * Cập nhật chi tiêu định kỳ
+     * @param expense RecurringExpense đã cập nhật
+     */
+    fun updateRecurringExpense(expense: RecurringExpense) {
+        viewModelScope.launch {
+            try {
+                db.collection(COLLECTION_NAME)
+                    .document(expense.id)
+                    .set(expense)
+                    .await()
+
+                _uiMessage.value = "Đã cập nhật: ${expense.title}"
+                Log.d(TAG, "✅ Đã cập nhật recurring expense: ${expense.title}")
+            } catch (e: Exception) {
+                _uiMessage.value = "Lỗi cập nhật: ${e.message}"
+                Log.e(TAG, "Lỗi cập nhật recurring expense: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Xóa chi tiêu định kỳ
+     * @param expenseId ID chi tiêu cần xóa
+     */
+    fun deleteRecurringExpense(expenseId: String) {
+        viewModelScope.launch {
+            try {
+                val expense = _recurringExpenses.value.find { it.id == expenseId }
+                val expenseName = expense?.title ?: "Chi tiêu định kỳ"
+
+                db.collection(COLLECTION_NAME)
+                    .document(expenseId)
+                    .delete()
+                    .await()
+
+                _uiMessage.value = "Đã xóa: $expenseName"
+                Log.d(TAG, "✅ Đã xóa recurring expense: $expenseId")
+            } catch (e: Exception) {
+                _uiMessage.value = "Lỗi xóa: ${e.message}"
+                Log.e(TAG, "Lỗi xóa recurring expense: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Bật/tắt trạng thái active của chi tiêu định kỳ
+     * @param expenseId ID chi tiêu
+     */
+    fun toggleRecurringExpense(expenseId: String) {
+        viewModelScope.launch {
+            try {
+                val expense = _recurringExpenses.value.find { it.id == expenseId }
+                expense?.let {
+                    val updated = it.copy(isActive = !it.isActive)
+                    updateRecurringExpense(updated)
+                    Log.d(TAG, "Đã toggle trạng thái expense: ${it.title} -> ${!it.isActive}")
+                }
+            } catch (e: Exception) {
+                _uiMessage.value = "Lỗi cập nhật trạng thái: ${e.message}"
+                Log.e(TAG, "Lỗi toggle recurring expense: ${e.message}")
+            }
+        }
+    }
+
+    // ==================== DATA QUERY METHODS ====================
+
+    /**
+     * Lấy tên category từ ID
+     */
     fun getCategoryName(categoryId: String): String {
         return try {
             val category = categoryViewModel.getCategoryById(categoryId)
             category?.name ?: "Unknown Category"
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy category name: ${e.message}")
             "Unknown Category"
         }
     }
 
+    /**
+     * Lấy danh sách danh mục con cho chi tiêu
+     */
     fun getExpenseSubCategoriesForSelection(): List<FinanceCategory> {
         return try {
             categoryViewModel.getSubCategoriesForRecurringExpense("expense")
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy expense subcategories: ${e.message}")
             emptyList()
         }
     }
 
+    /**
+     * Lấy danh sách danh mục con cho thu nhập
+     */
     fun getIncomeSubCategoriesForSelection(): List<FinanceCategory> {
         return try {
             categoryViewModel.getSubCategoriesForRecurringExpense("income")
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy income subcategories: ${e.message}")
             emptyList()
         }
     }
 
+    /**
+     * Lấy tổng chi tiêu định kỳ hàng tháng theo category
+     */
     fun getMonthlyRecurringTotalByCategory(categoryId: String): Double {
         return _recurringExpenses.value
             .filter {
@@ -288,62 +441,35 @@ class RecurringExpenseViewModel : ViewModel() {
             .sumOf { it.amount }
     }
 
-    fun updateRecurringExpense(expense: RecurringExpense) {
-        viewModelScope.launch {
-            try {
-                db.collection("recurring_expenses")
-                    .document(expense.id)
-                    .set(expense)
-                    .await()
-
-                _uiMessage.value = "Đã cập nhật: ${expense.title}"
-                println("✅ Đã cập nhật recurring expense: ${expense.title}")
-            } catch (e: Exception) {
-                _uiMessage.value = "Lỗi cập nhật: ${e.message}"
-                println("❌ Lỗi cập nhật recurring expense: ${e.message}")
-            }
-        }
+    /**
+     * Lấy danh sách chi tiêu đang active
+     */
+    fun getActiveExpenses(): List<RecurringExpense> {
+        return _recurringExpenses.value.filter { it.isActive }
     }
 
-    fun deleteRecurringExpense(expenseId: String) {
-        viewModelScope.launch {
-            try {
-                val expense = _recurringExpenses.value.find { it.id == expenseId }
-                val expenseName = expense?.title ?: "Chi tiêu định kỳ"
-
-                db.collection("recurring_expenses")
-                    .document(expenseId)
-                    .delete()
-                    .await()
-
-                _uiMessage.value = "Đã xóa: $expenseName"
-                println("✅ Đã xóa recurring expense: $expenseId")
-            } catch (e: Exception) {
-                _uiMessage.value = "Lỗi xóa: ${e.message}"
-                println("❌ Lỗi xóa recurring expense: ${e.message}")
-            }
-        }
+    /**
+     * Lấy danh sách chi tiêu không active
+     */
+    fun getInactiveExpenses(): List<RecurringExpense> {
+        return _recurringExpenses.value.filter { !it.isActive }
     }
 
-    fun clearMessage() {
-        _uiMessage.value = null
+    /**
+     * Lấy tổng chi tiêu định kỳ hàng tháng
+     */
+    fun getMonthlyRecurringTotal(): Double {
+        return _recurringExpenses.value
+            .filter { it.isActive && it.getFrequencyEnum() == RecurringFrequency.MONTHLY }
+            .sumOf { it.amount }
     }
 
-    fun toggleRecurringExpense(expenseId: String) {
-        viewModelScope.launch {
-            try {
-                val expense = _recurringExpenses.value.find { it.id == expenseId }
-                expense?.let {
-                    val updated = it.copy(isActive = !it.isActive)
-                    updateRecurringExpense(updated)
-                }
-            } catch (e: Exception) {
-                _uiMessage.value = "Lỗi cập nhật trạng thái: ${e.message}"
-                println("❌ Lỗi toggle recurring expense: ${e.message}")
-            }
-        }
-    }
+    // ==================== PROCESSING METHODS ====================
 
+    /**
+     * Xử lý các chi tiêu định kỳ đến hạn
+     * @param onTransactionCreated Callback khi tạo transaction mới
+     */
     fun processDueRecurringExpenses(
         onTransactionCreated: (RecurringExpense) -> Unit
     ) {
@@ -356,7 +482,7 @@ class RecurringExpenseViewModel : ViewModel() {
                             (expense.endDate == null || expense.endDate >= today)
                 }
 
-                println("🔍 Tìm thấy ${dueExpenses.size} chi tiêu cần xử lý")
+                Log.d(TAG, "Tìm thấy ${dueExpenses.size} chi tiêu cần xử lý")
 
                 dueExpenses.forEach { expense ->
                     // 1. Gọi callback để tạo transaction
@@ -371,7 +497,7 @@ class RecurringExpenseViewModel : ViewModel() {
                     )
 
                     updateRecurringExpense(updatedExpense)
-                    println("✅ Đã xử lý: ${expense.title} - ${formatCurrency(expense.amount)}")
+                    Log.d(TAG, "✅ Đã xử lý: ${expense.title} - ${formatCurrency(expense.amount)}")
                 }
 
                 if (dueExpenses.isNotEmpty()) {
@@ -379,26 +505,16 @@ class RecurringExpenseViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _uiMessage.value = "Lỗi xử lý chi tiêu định kỳ: ${e.message}"
-                println("❌ Lỗi xử lý chi tiêu định kỳ: ${e.message}")
+                Log.e(TAG, "Lỗi xử lý chi tiêu định kỳ: ${e.message}")
             }
         }
     }
 
-    fun getActiveExpenses(): List<RecurringExpense> {
-        return _recurringExpenses.value.filter { it.isActive }
-    }
+    // ==================== UTILITY METHODS ====================
 
-    fun getInactiveExpenses(): List<RecurringExpense> {
-        return _recurringExpenses.value.filter { !it.isActive }
-    }
-
-    fun getMonthlyRecurringTotal(): Double {
-        return _recurringExpenses.value
-            .filter { it.isActive && it.getFrequencyEnum() == RecurringFrequency.MONTHLY }
-            .sumOf { it.amount }
-    }
-
-    // 🗓️ DATE UTILITIES
+    /**
+     * Tính ngày xảy ra tiếp theo
+     */
     private fun calculateNextOccurrence(currentDate: String, frequency: RecurringFrequency): String {
         return try {
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -417,14 +533,21 @@ class RecurringExpenseViewModel : ViewModel() {
 
             sdf.format(calendar.time)
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi tính next occurrence: ${e.message}")
             currentDate
         }
     }
 
+    /**
+     * Lấy ngày hiện tại định dạng yyyy-MM-dd
+     */
     private fun getTodayDate(): String {
         return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     }
 
+    /**
+     * Định dạng tiền tệ
+     */
     private fun formatCurrency(amount: Double): String {
         return try {
             val locale = Locale.Builder()
@@ -439,14 +562,39 @@ class RecurringExpenseViewModel : ViewModel() {
         }
     }
 
+    // ==================== CLEANUP & COMPATIBILITY ====================
+
+    /**
+     * Set CategoryViewModel (cho backward compatibility)
+     */
+    fun setCategoryViewModel(categoryViewModel: CategoryViewModel) {
+        // Giữ lại cho tương thích
+        Log.d(TAG, "setCategoryViewModel được gọi (backward compatibility)")
+    }
+
+    /**
+     * Clear message
+     */
+    fun clearMessage() {
+        _uiMessage.value = null
+    }
+
+    /**
+     * Cleanup khi ViewModel bị hủy
+     */
     override fun onCleared() {
         super.onCleared()
         expensesListener?.remove()
         isListenerSetup = false
+        Log.d(TAG, "RecurringExpenseViewModel đã được giải phóng")
     }
 }
 
-// Nếu bạn cần interface để phân biệt, có thể tạo một class wrapper
+// ==================== SUPPORTING DATA CLASS ====================
+
+/**
+ * Data class wrapper cho Category để phân biệt
+ */
 data class CategoryItem(
     val id: String,
     val name: String,
@@ -455,6 +603,9 @@ data class CategoryItem(
     val color: String
 ) {
     companion object {
+        /**
+         * Chuyển đổi từ FinanceCategory sang CategoryItem
+         */
         fun fromFinanceCategory(category: FinanceCategory): CategoryItem {
             return CategoryItem(
                 id = category.id,

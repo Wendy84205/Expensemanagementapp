@@ -16,13 +16,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -32,74 +29,108 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.utils.notification.NotificationHelper
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
+import kotlinx.coroutines.launch
 
+/**
+ * SettingsScreen - Màn hình cài đặt ứng dụng
+ * Đã xóa phần kiểm tra thông báo, giữ nguyên chức năng
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavController,
     onSignOut: () -> Unit
 ) {
+    // ==================== INITIALIZATION ====================
     val languageViewModel = LocalLanguageViewModel.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
-    // Colors
+    // ==================== COLORS ====================
     val primaryColor = Color(0xFF2196F3)
     val backgroundColor = Color(0xFFF5F5F5)
-    val cardColor = Color.White
-    val textColor = Color(0xFF333333)
-    val subtitleColor = Color(0xFF666666)
+    val warningColor = Color(0xFFFF9800)
+    val errorColor = Color(0xFFF44336)
 
-    // State
+    // ==================== STATE MANAGEMENT ====================
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showPermissionInfo by remember { mutableStateOf(false) }
     val currentLanguageName = languageViewModel.getCurrentLanguageName()
 
-    // 🔔 State cho thông báo
+    // 🔔 SIMPLIFIED NOTIFICATION STATE
     var notificationsEnabled by remember {
-        mutableStateOf(areNotificationsEnabled(context))
+        mutableStateOf(checkSystemNotificationPermission(context))
     }
 
-    // 🔔 Launcher để request permission
+    // 🔔 PERMISSION LAUNCHER
     val requestPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         notificationsEnabled = isGranted
+
+        if (isGranted) {
+            // Tạo notification channel và gửi thông báo chào mừng
+            coroutineScope.launch {
+                NotificationHelper.createChannel(context)
+
+                NotificationHelper.showNotification(
+                    context = context,
+                    title = languageViewModel.getTranslation("notifications"),
+                    message = languageViewModel.getTranslation("notifications_on")
+                )
+            }
+        } else {
+            // Hiển thị dialog thông tin khi user từ chối
+            showPermissionInfo = true
+        }
     }
 
+    // ==================== UI - SCAFFOLD ====================
     Scaffold(
         topBar = {
-            SimpleTopAppBar(
+            SettingsTopAppBar(
                 title = languageViewModel.getTranslation("settings"),
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                languageViewModel = languageViewModel
             )
         },
         containerColor = backgroundColor
-    ) { padding ->
+    ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(paddingValues)
                 .background(backgroundColor),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Phần thông tin cá nhân
+            // ==================== SECTION 1: ACCOUNT ====================
             item {
-                SettingsCard(title = languageViewModel.getTranslation("account")) {
+                SettingsSectionCard(
+                    title = languageViewModel.getTranslation("account"),
+                    languageViewModel = languageViewModel
+                ) {
                     SettingsItem(
                         icon = Icons.Default.Person,
                         title = languageViewModel.getTranslation("personal_info"),
                         subtitle = languageViewModel.getTranslation("manage_account_info"),
                         onClick = { navController.navigate("account_settings") },
-                        primaryColor = primaryColor
+                        iconColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
                 }
             }
 
-            // Phần cài đặt ứng dụng
+            // ==================== SECTION 2: APPLICATION SETTINGS ====================
             item {
-                SettingsCard(title = languageViewModel.getTranslation("application_settings")) {
+                SettingsSectionCard(
+                    title = languageViewModel.getTranslation("application_settings"),
+                    languageViewModel = languageViewModel
+                ) {
+                    // 1. NOTIFICATION SWITCH (SIMPLE VERSION)
                     SettingsSwitchItem(
                         icon = Icons.Default.Notifications,
                         title = languageViewModel.getTranslation("notifications"),
@@ -110,99 +141,106 @@ fun SettingsScreen(
                         checked = notificationsEnabled,
                         onCheckedChange = { newState ->
                             if (newState) {
+                                // User wants to enable notifications
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    // Android 13+: Request runtime permission
                                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
-                                    openNotificationSettings(context)
+                                    // Android < 13: Just enable notifications
+                                    notificationsEnabled = true
+                                    coroutineScope.launch {
+                                        NotificationHelper.createChannel(context)
+                                    }
                                 }
                             } else {
-                                openNotificationSettings(context)
+                                // User wants to disable notifications
+                                notificationsEnabled = false
                             }
                         },
-                        primaryColor = primaryColor
+                        primaryColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
+                    // 2. LANGUAGE SETTINGS
                     SettingsItem(
                         icon = Icons.Default.Language,
                         title = languageViewModel.getTranslation("language"),
                         subtitle = currentLanguageName,
                         onClick = { navController.navigate("language_settings") },
-                        primaryColor = primaryColor
+                        iconColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
+                    // 3. EXTENSIONS
                     SettingsItem(
                         icon = Icons.Default.Extension,
                         title = languageViewModel.getTranslation("extensions"),
                         subtitle = languageViewModel.getTranslation("extra_tools_like_ai_calendar_scan"),
                         onClick = { navController.navigate("extensions") },
-                        primaryColor = primaryColor
+                        iconColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
                 }
             }
 
-            // Phần hỗ trợ
+            // ==================== SECTION 3: SUPPORT ====================
             item {
-                SettingsCard(title = languageViewModel.getTranslation("support")) {
+                SettingsSectionCard(
+                    title = languageViewModel.getTranslation("support"),
+                    languageViewModel = languageViewModel
+                ) {
                     SettingsItem(
                         icon = Icons.Default.Help,
                         title = languageViewModel.getTranslation("help"),
                         subtitle = languageViewModel.getTranslation("frequently_asked_questions"),
                         onClick = { navController.navigate("help") },
-                        primaryColor = primaryColor
+                        iconColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
                     SettingsItem(
                         icon = Icons.Default.Info,
                         title = languageViewModel.getTranslation("about_app"),
                         subtitle = "${languageViewModel.getTranslation("version")} 1.0.0",
                         onClick = { showAboutDialog = true },
-                        primaryColor = primaryColor
+                        iconColor = primaryColor,
+                        languageViewModel = languageViewModel
                     )
                 }
             }
 
-            // Phần đăng xuất
+            // ==================== SECTION 4: ACCOUNT ACTIONS ====================
             item {
-                SettingsCard(title = languageViewModel.getTranslation("account")) {
+                SettingsSectionCard(
+                    title = languageViewModel.getTranslation("account"),
+                    languageViewModel = languageViewModel
+                ) {
                     SettingsItem(
                         icon = Icons.Default.Logout,
                         title = languageViewModel.getTranslation("logout"),
                         subtitle = languageViewModel.getTranslation("logout_account"),
                         onClick = { showLogoutDialog = true },
                         isWarning = true,
-                        primaryColor = Color(0xFFF44336)
+                        iconColor = errorColor,
+                        languageViewModel = languageViewModel
                     )
                 }
             }
 
-            // Footer
+            // ==================== SECTION 5: APP INFO FOOTER ====================
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        languageViewModel.getTranslation("footer_copyright"),
-                        color = subtitleColor,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        "${languageViewModel.getTranslation("version")} 1.0.0",
-                        color = Color(0xFF999999),
-                        fontSize = 11.sp
-                    )
-                }
+                AppInfoFooter(languageViewModel = languageViewModel)
             }
         }
     }
+
+    // ==================== DIALOGS ====================
 
     // About Dialog
     if (showAboutDialog) {
@@ -215,7 +253,7 @@ fun SettingsScreen(
 
     // Logout Dialog
     if (showLogoutDialog) {
-        LogoutDialog(
+        LogoutConfirmationDialog(
             onConfirm = {
                 showLogoutDialog = false
                 onSignOut()
@@ -224,20 +262,89 @@ fun SettingsScreen(
             languageViewModel = languageViewModel
         )
     }
+
+    // Permission Info Dialog
+    if (showPermissionInfo) {
+        PermissionInfoDialog(
+            onDismiss = { showPermissionInfo = false },
+            onOpenSettings = {
+                showPermissionInfo = false
+                openNotificationSettings(context)
+            },
+            languageViewModel = languageViewModel
+        )
+    }
 }
+
+// ==================== CORE LOGIC FUNCTIONS ====================
+
+/**
+ * Kiểm tra quyền thông báo hệ thống (đơn giản hóa)
+ */
+private fun checkSystemNotificationPermission(context: Context): Boolean {
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            NotificationManagerCompat.from(context).areNotificationsEnabled()
+        } else {
+            // Android < 13: Không cần runtime permission
+            true
+        }
+    } catch (e: Exception) {
+        true // Mặc định true nếu có lỗi
+    }
+}
+
+/**
+ * Mở cài đặt thông báo hệ thống
+ */
+private fun openNotificationSettings(context: Context) {
+    try {
+        val intent = Intent().apply {
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+                    action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP -> {
+                    action = "android.settings.APP_NOTIFICATION_SETTINGS"
+                    putExtra("app_package", context.packageName)
+                    putExtra("app_uid", context.applicationInfo.uid)
+                }
+                else -> {
+                    action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                    data = Uri.parse("package:${context.packageName}")
+                }
+            }
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        // Fallback
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.parse("package:${context.packageName}")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e2: Exception) {
+            // Không thể mở cài đặt
+        }
+    }
+}
+
+// ==================== UI COMPONENTS ====================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SimpleTopAppBar(
+private fun SettingsTopAppBar(
     title: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
-    val languageViewModel = LocalLanguageViewModel.current
-
     CenterAlignedTopAppBar(
         title = {
             Text(
-                title,
+                text = title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333)
@@ -246,7 +353,7 @@ private fun SimpleTopAppBar(
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = languageViewModel.getTranslation("back"),
                     tint = Color(0xFF333333)
                 )
@@ -259,13 +366,13 @@ private fun SimpleTopAppBar(
 }
 
 @Composable
-private fun SettingsCard(
+private fun SettingsSectionCard(
     title: String? = null,
+    languageViewModel: LanguageViewModel,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -296,10 +403,11 @@ private fun SettingsItem(
     subtitle: String,
     onClick: () -> Unit,
     isWarning: Boolean = false,
-    primaryColor: Color = Color(0xFF2196F3)
+    iconColor: Color = Color(0xFF2196F3),
+    languageViewModel: LanguageViewModel
 ) {
     val titleColor = if (isWarning) Color(0xFFF44336) else Color(0xFF333333)
-    val iconColor = if (isWarning) Color(0xFFF44336) else primaryColor
+    val finalIconColor = if (isWarning) Color(0xFFF44336) else iconColor
 
     Surface(
         onClick = onClick,
@@ -312,39 +420,45 @@ private fun SettingsItem(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Icon with background
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(iconColor.copy(alpha = 0.1f), CircleShape),
+                    .background(finalIconColor.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    icon,
+                    imageVector = icon,
                     contentDescription = title,
-                    tint = iconColor,
+                    tint = finalIconColor,
                     modifier = Modifier.size(20.dp)
                 )
             }
+
             Spacer(modifier = Modifier.width(16.dp))
 
+            // Text content
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    title,
+                    text = title,
                     color = titleColor,
                     fontWeight = FontWeight.Medium,
                     fontSize = 16.sp
                 )
                 Text(
-                    subtitle,
+                    text = subtitle,
                     fontSize = 14.sp,
-                    color = Color(0xFF666666)
+                    color = Color(0xFF666666),
+                    lineHeight = 18.sp
                 )
             }
 
+            // Chevron indicator
             Icon(
-                Icons.Default.ChevronRight,
+                imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = Color(0xFF999999)
+                tint = Color(0xFF999999),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -357,7 +471,8 @@ private fun SettingsSwitchItem(
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    primaryColor: Color = Color(0xFF2196F3)
+    primaryColor: Color,
+    languageViewModel: LanguageViewModel
 ) {
     Row(
         modifier = Modifier
@@ -365,6 +480,7 @@ private fun SettingsSwitchItem(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Icon
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -372,28 +488,32 @@ private fun SettingsSwitchItem(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                icon,
+                imageVector = icon,
                 contentDescription = title,
                 tint = primaryColor,
                 modifier = Modifier.size(20.dp)
             )
         }
+
         Spacer(modifier = Modifier.width(16.dp))
 
+        // Text content
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                title,
+                text = title,
                 color = Color(0xFF333333),
                 fontWeight = FontWeight.Medium,
                 fontSize = 16.sp
             )
             Text(
-                subtitle,
+                text = subtitle,
                 fontSize = 14.sp,
-                color = Color(0xFF666666)
+                color = Color(0xFF666666),
+                lineHeight = 18.sp
             )
         }
 
+        // Switch
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
@@ -408,9 +528,33 @@ private fun SettingsSwitchItem(
 }
 
 @Composable
+private fun AppInfoFooter(languageViewModel: LanguageViewModel) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = languageViewModel.getTranslation("footer_copyright"),
+            color = Color(0xFF666666),
+            fontSize = 12.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "${languageViewModel.getTranslation("version")} 1.0.0",
+            color = Color(0xFF999999),
+            fontSize = 11.sp
+        )
+    }
+}
+
+// ==================== DIALOG COMPONENTS ====================
+
+@Composable
 private fun AboutAppDialog(
     onDismiss: () -> Unit,
-    primaryColor: Color = Color(0xFF2196F3),
+    primaryColor: Color,
     languageViewModel: LanguageViewModel
 ) {
     AlertDialog(
@@ -418,7 +562,7 @@ private fun AboutAppDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text(
-                    languageViewModel.getTranslation("close").uppercase(),
+                    text = languageViewModel.getTranslation("close").uppercase(),
                     color = primaryColor,
                     fontWeight = FontWeight.Medium
                 )
@@ -432,7 +576,7 @@ private fun AboutAppDialog(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.AccountBalanceWallet,
+                    imageVector = Icons.Default.AccountBalanceWallet,
                     contentDescription = languageViewModel.getTranslation("finance_app"),
                     tint = primaryColor,
                     modifier = Modifier.size(30.dp)
@@ -441,37 +585,38 @@ private fun AboutAppDialog(
         },
         title = {
             Text(
-                languageViewModel.getTranslation("about_app"),
+                text = languageViewModel.getTranslation("about_app"),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         },
         text = {
             Column {
                 Text(
-                    languageViewModel.getTranslation("personal_finance_app"),
+                    text = languageViewModel.getTranslation("personal_finance_app"),
                     fontSize = 14.sp,
                     color = Color(0xFF666666),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Version info
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        languageViewModel.getTranslation("version"),
+                        text = languageViewModel.getTranslation("version"),
                         color = Color(0xFF666666),
                         fontSize = 14.sp
                     )
                     Text(
-                        "1.0.0",
+                        text = "1.0.0",
                         color = Color(0xFF333333),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
@@ -480,17 +625,18 @@ private fun AboutAppDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Release date
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        languageViewModel.getTranslation("release_date"),
+                        text = languageViewModel.getTranslation("release_date"),
                         color = Color(0xFF666666),
                         fontSize = 14.sp
                     )
                     Text(
-                        "2025",
+                        text = "2024",
                         color = Color(0xFF333333),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
@@ -504,20 +650,24 @@ private fun AboutAppDialog(
 }
 
 @Composable
-private fun LogoutDialog(
+private fun LogoutConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     languageViewModel: LanguageViewModel
 ) {
-    val primaryColor = Color(0xFFF44336)
+    val errorColor = Color(0xFFF44336)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = errorColor
+                )
+            ) {
                 Text(
-                    languageViewModel.getTranslation("logout").uppercase(),
-                    color = primaryColor,
+                    text = languageViewModel.getTranslation("logout").uppercase(),
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -525,9 +675,9 @@ private fun LogoutDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(
-                    languageViewModel.getTranslation("cancel").uppercase(),
-                    color = Color(0xFF666666),
-                    fontWeight = FontWeight.Medium
+                    text = languageViewModel.getTranslation("cancel").uppercase(),
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF666666)
                 )
             }
         },
@@ -535,34 +685,34 @@ private fun LogoutDialog(
             Box(
                 modifier = Modifier
                     .size(60.dp)
-                    .background(primaryColor.copy(alpha = 0.1f), CircleShape),
+                    .background(errorColor.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.Logout,
+                    imageVector = Icons.Default.Logout,
                     contentDescription = languageViewModel.getTranslation("logout"),
-                    tint = primaryColor,
+                    tint = errorColor,
                     modifier = Modifier.size(30.dp)
                 )
             }
         },
         title = {
             Text(
-                languageViewModel.getTranslation("logout"),
+                text = languageViewModel.getTranslation("logout"),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF333333),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         },
         text = {
             Text(
-                languageViewModel.getTranslation("confirm_logout"),
+                text = languageViewModel.getTranslation("confirm_logout"),
                 fontSize = 14.sp,
                 color = Color(0xFF666666),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         },
         containerColor = Color.White,
@@ -570,42 +720,75 @@ private fun LogoutDialog(
     )
 }
 
-// 🔔 KIỂM TRA QUYỀN THÔNG BÁO
-private fun areNotificationsEnabled(context: Context): Boolean {
-    return NotificationManagerCompat.from(context).areNotificationsEnabled()
-}
+@Composable
+private fun PermissionInfoDialog(
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit,
+    languageViewModel: LanguageViewModel
+) {
+    val warningColor = Color(0xFFFF9800)
 
-// 🔔 MỞ CÀI ĐẶT THÔNG BÁO
-private fun openNotificationSettings(context: Context) {
-    try {
-        val intent = Intent().apply {
-            when {
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
-                    action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
-                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                }
-
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP -> {
-                    action = "android.settings.APP_NOTIFICATION_SETTINGS"
-                    putExtra("app_package", context.packageName)
-                    putExtra("app_uid", context.applicationInfo.uid)
-                }
-
-                else -> {
-                    action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                    addCategory(Intent.CATEGORY_DEFAULT)
-                    data = Uri.parse("package:${context.packageName}")
-                }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = onOpenSettings,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = warningColor
+                )
+            ) {
+                Text(
+                    text = languageViewModel.getTranslation("open_settings").uppercase(),
+                    fontWeight = FontWeight.Medium
+                )
             }
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        // Fallback: mở cài đặt app chung
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:${context.packageName}")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
-    }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = languageViewModel.getTranslation("cancel").uppercase(),
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF666666)
+                )
+            }
+        },
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(warningColor.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Warning",
+                    tint = warningColor,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                text = languageViewModel.getTranslation("notification_permission_denied"),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333),
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = languageViewModel.getTranslation("permission_denied_message"),
+                    fontSize = 14.sp,
+                    color = Color(0xFF666666),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Start
+                )
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
 }

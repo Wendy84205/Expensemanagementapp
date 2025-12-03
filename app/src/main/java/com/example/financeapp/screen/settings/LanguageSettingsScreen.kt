@@ -1,4 +1,4 @@
-package com.example.financeapp.screen
+package com.example.financeapp.screen.settings
 
 import android.content.Context
 import androidx.compose.foundation.background

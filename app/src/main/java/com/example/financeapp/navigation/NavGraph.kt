@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,12 +23,13 @@ import com.example.financeapp.screen.features.CalendarScreen
 import com.example.financeapp.screen.features.category.CategoryScreen
 import com.example.financeapp.screen.settings.ExtensionsScreen
 import com.example.financeapp.screen.main.dashboard.HomeScreen
-import com.example.financeapp.screen.LanguageSettingsScreen
+import com.example.financeapp.screen.settings.LanguageSettingsScreen
 import com.example.financeapp.screen.features.recurring.RecurringExpenseScreen
 import com.example.financeapp.screen.auth.RegisterScreen
 import com.example.financeapp.screen.settings.SettingsScreen
 import com.example.financeapp.screen.main.statistics.StatisticsScreen
 import com.example.financeapp.screen.main.transaction.TransactionScreen
+import com.example.financeapp.utils.notification.NotificationPreferences
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.auth.AuthViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
@@ -39,7 +41,12 @@ import com.example.financeapp.components.ui.CategorySelectionScreen
 import com.example.financeapp.screen.features.ai.ChatAIScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 
 @Composable
@@ -58,6 +65,10 @@ fun NavGraph(
     val transactions by transactionViewModel.transactions.collectAsState()
     val recurringExpenses by recurringExpenseViewModel.recurringExpenses.collectAsState()
     val startDestination = if (currentUser != null) "home" else "auth"
+
+    // Create NotificationPreferences instance
+    val context = LocalContext.current
+    val notificationPrefs = remember { NotificationPreferences(context) }
 
     NavHost(navController = navController, startDestination = startDestination) {
 
@@ -199,7 +210,7 @@ fun NavGraph(
             )
         }
 
-        // 🔹 Cài đặt
+        // 🔹 Cài đặt - ĐÃ CẬP NHẬT VỚI notificationPrefs
         composable("settings") {
             SettingsScreen(
                 navController = navController,
@@ -216,8 +227,6 @@ fun NavGraph(
         composable("account_settings") {
             AccountSettingsScreen(navController = navController)
         }
-
-        // ✅ Đã xóa notification_settings route - thông báo được quản lý trực tiếp trong SettingsScreen
 
         composable("language_settings") {
             LanguageSettingsScreen(
@@ -277,7 +286,7 @@ fun NavGraph(
             )
         }
 
-        // 🔹 BUDGET ROUTES - ĐÃ SỬA
+        // 🔹 BUDGET ROUTES
         composable("budgets") {
             BudgetScreen(
                 navController = navController,
@@ -338,9 +347,6 @@ fun NavGraph(
             )
         }
 
-        // 🔹 XÓA ROUTE TRÙNG LẶP recurring_expenses
-        // composable("recurring_expenses") { ... } // ĐÃ XÓA
-
         composable("add_recurring_expense") {
             AddRecurringExpenseScreen(
                 navController = navController,
@@ -367,6 +373,50 @@ fun NavGraph(
                 recurringExpenseViewModel = recurringExpenseViewModel,
                 categoryViewModel = categoryViewModel,
                 existingExpense = existingExpense
+            )
+        }
+    }
+}
+
+// LanguageSettingsScreen implementation - thêm vào cuối file hoặc tạo file riêng
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LanguageSettingsScreen(
+    navController: NavHostController,
+    languageViewModel: LanguageViewModel
+) {
+    // TODO: Implement LanguageSettingsScreen
+    // For now, we'll create a simple placeholder
+    androidx.compose.material3.Scaffold(
+        topBar = {
+            androidx.compose.material3.TopAppBar(
+                title = { androidx.compose.material3.Text("Language Settings") },
+                navigationIcon = {
+                    androidx.compose.material3.IconButton(onClick = { navController.popBackStack() }) {
+                        androidx.compose.material3.Icon(
+                            androidx.compose.material.icons.Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        androidx.compose.foundation.layout.Column(
+            modifier = androidx.compose.ui.Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+        ) {
+            androidx.compose.material3.Text(
+                "Language Settings Screen",
+                style = androidx.compose.material3.MaterialTheme.typography.headlineMedium
+            )
+            androidx.compose.material3.Text(
+                "This screen will allow users to select their preferred language",
+                modifier = androidx.compose.ui.Modifier.padding(top = 16.dp)
             )
         }
     }
