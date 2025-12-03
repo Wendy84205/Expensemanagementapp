@@ -224,50 +224,9 @@ Tính năng cộng đồng
 🛡️ MIT License
 
 Dự án được phân phối dưới giấy phép MIT License, một trong những giấy phép nguồn mở tự do nhất.
-
-📋 Quyền của bạn:
-
-Quyền	Mô tả	Biểu tượng
-Sử dụng thương mại	Có thể sử dụng cho mục đích kinh doanh	✅
-Phân phối	Có thể chia sẻ và phân phối	✅
-Sửa đổi	Có thể chỉnh sửa mã nguồn	✅
-Sử dụng riêng tư	Có thể sử dụng mà không công khai thay đổi	✅
-Đặt bản quyền phụ	Có thể sử dụng giấy phép khác	✅
-⚠️ Điều kiện:
-
-Điều kiện	Mô tả	Biểu tượng
-Ghi nhận bản quyền	Phải giữ nguyên thông báo bản quyền	📝
-Thông báo giấy phép	Phải bao gồm bản sao giấy phép MIT	📄
-🔍 Tóm tắt:
-
-text
-Bạn có thể tự do:
-- Sử dụng mã nguồn cho bất kỳ mục đích nào
-- Sao chép và phân phối
-- Sửa đổi và tích hợp vào dự án của bạn
-- Bán sản phẩm chứa mã nguồn này
-
-Với điều kiện:
-- Giữ nguyên thông báo bản quyền và giấy phép
-- Không chịu trách nhiệm pháp lý từ tác giả
-📖 Bản đầy đủ:
-
 Đọc toàn văn giấy phép tại: LICENSE
-
-text
 MIT License
-
 Copyright (c) 2024 Wendy
-
-Permission is hereby granted...
-[Chi tiết xem trong file LICENSE]
-🎯 Tại sao chọn MIT?
-
-🆓 Tự do nhất: Không hạn chế sử dụng thương mại
-🤝 Cộng đồng: Khuyến khích đóng góp và chia sẻ
-📚 Đơn giản: Dễ hiểu, dễ tuân thủ
-🌍 Phổ biến: Được sử dụng rộng rãi
-📞 Liên Hệ
 
 Tác giả: Wendy
 Email: wendy84205@gmail.com
