@@ -195,8 +195,10 @@ fun AddCategoryScreen(
                     )
 
                     // Icon selection
+                    // Sửa phần Icon selection trong AddCategoryScreen
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Box(
                             modifier = Modifier

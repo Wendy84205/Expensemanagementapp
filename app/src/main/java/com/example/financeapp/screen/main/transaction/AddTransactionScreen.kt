@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
@@ -604,17 +606,20 @@ private fun CategoryItemCompact(
     primaryColor: Color
 ) {
     val categoryColor = parseColor(category.color)
+    val backgroundColor = if (isSelected) primaryColor else Color(0xFFF9FAFB)
+    val textColor = if (isSelected) Color.White else Color(0xFF374151)
+    val iconColor = if (isSelected) Color.White else Color(0xFF374151)
 
     Card(
         modifier = modifier.height(80.dp),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) categoryColor.copy(alpha = 0.1f) else Color(0xFFF9FAFB)
+            containerColor = backgroundColor
         ),
         elevation = CardDefaults.cardElevation(if (isSelected) 3.dp else 1.dp),
         border = BorderStroke(
             width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) categoryColor else Color(0xFFE5E7EB)
+            color = if (isSelected) primaryColor else Color(0xFFE5E7EB)
         ),
         onClick = onClick
     ) {
@@ -628,11 +633,12 @@ private fun CategoryItemCompact(
                 Text(
                     category.icon,
                     fontSize = 20.sp,
+                    color = iconColor,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
                 Text(
                     category.name,
-                    color = if (isSelected) categoryColor else Color(0xFF374151),
+                    color = textColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -865,7 +871,6 @@ private fun DeleteButtonCompact(
 }
 
 // ============== DATE PICKER BOTTOM SHEET ==============
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DatePickerBottomSheet(
@@ -880,35 +885,62 @@ private fun DatePickerBottomSheet(
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = calendar.timeInMillis
     )
-    val sheetState = rememberModalBottomSheetState()
+
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false
+    )
+
+    // Lấy chiều cao màn hình
+    val configuration = LocalConfiguration.current
+    val screenHeightDp = configuration.screenHeightDp.dp
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = Color.White,
-        tonalElevation = 8.dp,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.95f) // Gần full màn hình
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .fillMaxSize()
+                .background(Color.White)
         ) {
-            // Header
+            // Handle nhỏ
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(Color(0xFFD1D5DB), RoundedCornerShape(2.dp))
+                )
+            }
+
+            // Header gọn
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     "Chọn ngày",
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF1F2937)
                 )
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
                         Icons.Default.Close,
@@ -919,66 +951,114 @@ private fun DatePickerBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // DatePicker nhỏ hơn
+            // DatePicker chiếm nhiều không gian nhất
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .heightIn(min = 450.dp, max = 550.dp) // Chiều cao linh hoạt
+                    .weight(1f, fill = false) // Chiếm không gian còn lại
             ) {
                 DatePicker(
                     state = datePickerState,
                     colors = DatePickerDefaults.colors(
                         selectedDayContainerColor = primaryColor,
-                        todayDateBorderColor = primaryColor,
                         selectedDayContentColor = Color.White,
-                        todayContentColor = primaryColor,
-                        containerColor = Color.White
+                        todayDateBorderColor = primaryColor,
+                        todayContentColor = primaryColor
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            // Footer với ít padding hơn
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .background(Color.White)
             ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f).height(42.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
-                ) {
-                    Text("Hủy", fontSize = 14.sp, color = Color(0xFF6B7280))
-                }
-                Button(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let {
-                            onDateSelected(Date(it))
-                        }
-                    },
-                    modifier = Modifier.weight(1f).height(42.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = primaryColor,
-                        contentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 3.dp,
-                        pressedElevation = 2.dp
-                    )
-                ) {
-                    Text("Chọn", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
+                datePickerState.selectedDateMillis?.let { millis ->
+                    val selectedDate = Date(millis)
+                    val formattedDate = formatDate(selectedDate)
+                    val dayOfWeek = getDayOfWeekFromDate(selectedDate, LocalLanguageViewModel.current)
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = primaryColor.copy(alpha = 0.08f)
+                        ),
+                        border = BorderStroke(1.dp, primaryColor.copy(alpha = 0.2f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    "Đã chọn:",
+                                    color = Color(0xFF6B7280),
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    "$dayOfWeek, $formattedDate",
+                                    color = Color(0xFF1F2937),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Đã chọn",
+                                tint = primaryColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Nút nhỏ hơn
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+                    ) {
+                        Text("Hủy", fontSize = 14.sp, color = Color(0xFF6B7280))
+                    }
+
+                    Button(
+                        onClick = {
+                            datePickerState.selectedDateMillis?.let {
+                                onDateSelected(Date(it))
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = primaryColor
+                        ),
+                        enabled = datePickerState.selectedDateMillis != null
+                    ) {
+                        Text("Xác nhận", fontSize = 14.sp, color = Color.White)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }

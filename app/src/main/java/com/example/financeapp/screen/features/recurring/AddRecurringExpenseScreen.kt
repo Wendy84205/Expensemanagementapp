@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -68,7 +69,10 @@ fun AddRecurringExpenseScreen(
     var description by remember { mutableStateOf(existingExpense?.description ?: "") }
     var frequency by remember { mutableStateOf(existingExpense?.getFrequencyEnum() ?: RecurringFrequency.MONTHLY) }
     var startDate by remember { mutableStateOf(existingExpense?.startDate ?: getTodayDate()) }
-    var endDate by remember { mutableStateOf(existingExpense?.endDate ?: "") }
+    var startDateDayOfWeek by remember { mutableStateOf(getDayOfWeekFromDate(parseDate(startDate), languageViewModel)) }
+
+    // State cho DatePicker
+    var showDatePicker by remember { mutableStateOf(false) }
 
     // Colors
     val primaryColor = Color(0xFF2196F3)
@@ -110,7 +114,7 @@ fun AddRecurringExpenseScreen(
                             description = description.ifBlank { null },
                             frequency = frequency,
                             startDate = startDate,
-                            endDate = endDate.ifBlank { null },
+                            endDate = null,
                             nextOccurrence = existingExpense?.nextOccurrence ?: startDate
                         )
                         if (existingExpense == null) {
@@ -152,248 +156,495 @@ fun AddRecurringExpenseScreen(
         },
         containerColor = backgroundColor
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(backgroundColor)
-                .verticalScroll(rememberScrollState())
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Form content
-            Card(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(backgroundColor)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Column(
+                // Form content
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Text(
-                        languageViewModel.getTranslation("expense_info"),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-
-                    // Tiêu đề
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
                         Text(
-                            languageViewModel.getTranslation("title"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            languageViewModel.getTranslation("expense_info"),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
                         )
-                        OutlinedTextField(
-                            value = title,
-                            onValueChange = { if (it.length <= 50) title = it },
-                            placeholder = { Text(languageViewModel.getTranslation("title_placeholder"), color = subtitleColor) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = primaryColor,
-                                unfocusedBorderColor = Color(0xFFDDDDDD),
-                                focusedTextColor = textColor,
-                                unfocusedTextColor = textColor,
-                                cursorColor = primaryColor
+
+                        // Tiêu đề
+                        Column {
+                            Text(
+                                languageViewModel.getTranslation("title"),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
-                        )
-                    }
+                            OutlinedTextField(
+                                value = title,
+                                onValueChange = { if (it.length <= 50) title = it },
+                                placeholder = { Text(languageViewModel.getTranslation("title_placeholder"), color = subtitleColor) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = primaryColor,
+                                    unfocusedBorderColor = Color(0xFFDDDDDD),
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    cursorColor = primaryColor
+                                )
+                            )
+                        }
 
-                    // Số tiền
-                    Column {
-                        Text(
-                            languageViewModel.getTranslation("amount"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        OutlinedTextField(
-                            value = amount,
-                            onValueChange = {
-                                if (it.matches(Regex("^\\d*\\.?\\d*$"))) amount = it
-                            },
-                            placeholder = { Text("0", color = subtitleColor) },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = primaryColor,
-                                unfocusedBorderColor = Color(0xFFDDDDDD),
-                                focusedTextColor = textColor,
-                                unfocusedTextColor = textColor,
-                                cursorColor = primaryColor
-                            ),
-                            trailingIcon = {
+                        // Số tiền
+                        Column {
+                            Text(
+                                languageViewModel.getTranslation("amount"),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            OutlinedTextField(
+                                value = amount,
+                                onValueChange = {
+                                    if (it.matches(Regex("^\\d*\\.?\\d*$"))) amount = it
+                                },
+                                placeholder = { Text("0", color = subtitleColor) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = primaryColor,
+                                    unfocusedBorderColor = Color(0xFFDDDDDD),
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    cursorColor = primaryColor
+                                ),
+                                trailingIcon = {
+                                    Text(
+                                        languageViewModel.getTranslation("currency_vnd"),
+                                        color = subtitleColor,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            )
+                        }
+
+                        // Danh mục
+                        Column {
+                            Text(
+                                languageViewModel.getTranslation("category"),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            if (subCategories.isNotEmpty()) {
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(subCategories) { category ->
+                                        SimpleCategoryChip(
+                                            category = category,
+                                            isSelected = selectedCategory?.id == category.id,
+                                            onClick = { selectedCategory = category },
+                                            primaryColor = primaryColor
+                                        )
+                                    }
+                                }
+                            } else {
                                 Text(
-                                    languageViewModel.getTranslation("currency_vnd"),
+                                    languageViewModel.getTranslation("no_categories"),
                                     color = subtitleColor,
                                     fontSize = 14.sp
                                 )
                             }
-                        )
-                    }
+                        }
 
-                    // Danh mục
-                    Column {
-                        Text(
-                            languageViewModel.getTranslation("category"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        if (subCategories.isNotEmpty()) {
+                        // Tần suất
+                        Column {
+                            Text(
+                                languageViewModel.getTranslation("frequency"),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(subCategories) { category ->
-                                    SimpleCategoryChip(
-                                        category = category,
-                                        isSelected = selectedCategory?.id == category.id,
-                                        onClick = { selectedCategory = category },
-                                        primaryColor = primaryColor
+                                items(RecurringFrequency.entries.toList()) { freq ->
+                                    SimpleFrequencyChip(
+                                        frequency = freq,
+                                        isSelected = frequency == freq,
+                                        onClick = { frequency = freq },
+                                        primaryColor = primaryColor,
+                                        languageViewModel = languageViewModel
                                     )
                                 }
                             }
-                        } else {
+                        }
+
+                        // Ví
+                        Column {
                             Text(
-                                languageViewModel.getTranslation("no_categories"),
-                                color = subtitleColor,
-                                fontSize = 14.sp
+                                languageViewModel.getTranslation("wallet"),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            OutlinedTextField(
+                                value = wallet,
+                                onValueChange = { wallet = it },
+                                placeholder = { Text(languageViewModel.getTranslation("main_wallet_placeholder"), color = subtitleColor) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = primaryColor,
+                                    unfocusedBorderColor = Color(0xFFDDDDDD),
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    cursorColor = primaryColor
+                                )
                             )
                         }
-                    }
 
-                    // Tần suất
-                    Column {
-                        Text(
-                            languageViewModel.getTranslation("frequency"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(RecurringFrequency.entries.toList()) { freq ->
-                                SimpleFrequencyChip(
-                                    frequency = freq,
-                                    isSelected = frequency == freq,
-                                    onClick = { frequency = freq },
-                                    primaryColor = primaryColor,
-                                    languageViewModel = languageViewModel
-                                )
+                        // Ngày bắt đầu - Giống AddTransaction
+                        Column {
+                            Text(
+                                languageViewModel.getTranslation("start_date"),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showDatePicker = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .background(
+                                                    primaryColor.copy(alpha = 0.08f),
+                                                    RoundedCornerShape(10.dp)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.CalendarToday,
+                                                contentDescription = "Ngày",
+                                                tint = primaryColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Column {
+                                            Text(
+                                                startDateDayOfWeek,
+                                                color = Color(0xFF1F2937),
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 14.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                startDate,
+                                                color = Color(0xFF6B7280),
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = "Chọn ngày",
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    // Ví
-                    Column {
-                        Text(
-                            languageViewModel.getTranslation("wallet"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        OutlinedTextField(
-                            value = wallet,
-                            onValueChange = { wallet = it },
-                            placeholder = { Text(languageViewModel.getTranslation("main_wallet_placeholder"), color = subtitleColor) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = primaryColor,
-                                unfocusedBorderColor = Color(0xFFDDDDDD),
-                                focusedTextColor = textColor,
-                                unfocusedTextColor = textColor,
-                                cursorColor = primaryColor
+                        // Ghi chú
+                        Column {
+                            Text(
+                                languageViewModel.getTranslation("notes"),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
-                        )
-                    }
-
-                    // Ngày bắt đầu
-                    Column {
-                        Text(
-                            languageViewModel.getTranslation("start_date"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        SimpleDateChip(
-                            date = startDate,
-                            placeholder = languageViewModel.getTranslation("select_date"),
-                            onClick = { /* TODO: Implement date picker */ },
-                            primaryColor = primaryColor,
-                            languageViewModel
-                        )
-                    }
-
-                    // Ngày kết thúc (tùy chọn)
-                    Column {
-                        Text(
-                            languageViewModel.getTranslation("end_date_optional"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = subtitleColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        SimpleDateChip(
-                            date = endDate,
-                            placeholder = languageViewModel.getTranslation("no_end_date"),
-                            onClick = { /* TODO: Implement date picker */ },
-                            primaryColor = primaryColor,
-                            languageViewModel
-                        )
-                    }
-
-                    // Ghi chú
-                    Column {
-                        Text(
-                            languageViewModel.getTranslation("notes"),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { if (it.length <= 200) description = it },
-                            placeholder = { Text(languageViewModel.getTranslation("add_note_placeholder"), color = subtitleColor) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp),
-                            singleLine = false,
-                            maxLines = 3,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = primaryColor,
-                                unfocusedBorderColor = Color(0xFFDDDDDD),
-                                focusedTextColor = textColor,
-                                unfocusedTextColor = textColor,
-                                cursorColor = primaryColor
+                            OutlinedTextField(
+                                value = description,
+                                onValueChange = { if (it.length <= 200) description = it },
+                                placeholder = { Text(languageViewModel.getTranslation("add_note_placeholder"), color = subtitleColor) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(80.dp),
+                                singleLine = false,
+                                maxLines = 3,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = primaryColor,
+                                    unfocusedBorderColor = Color(0xFFDDDDDD),
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    cursorColor = primaryColor
+                                )
                             )
-                        )
+                        }
                     }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+
+    // DatePicker Bottom Sheet - Sử dụng cùng hàm với AddTransaction
+    if (showDatePicker) {
+        DatePickerBottomSheetForRecurring(
+            initialDate = parseDate(startDate),
+            onDateSelected = { date ->
+                startDate = formatDate(date)
+                startDateDayOfWeek = getDayOfWeekFromDate(date, languageViewModel)
+                showDatePicker = false
+            },
+            onDismiss = { showDatePicker = false },
+            primaryColor = primaryColor
+        )
+    }
+}
+
+// Tạo lại hàm DatePickerBottomSheet cho Recurring (copy từ AddTransaction)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerBottomSheetForRecurring(
+    initialDate: Date,
+    onDateSelected: (Date) -> Unit,
+    onDismiss: () -> Unit,
+    primaryColor: Color
+) {
+    val calendar = Calendar.getInstance().apply {
+        time = initialDate
+    }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = calendar.timeInMillis
+    )
+
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false
+    )
+
+    // Lấy chiều cao màn hình
+    val configuration = LocalConfiguration.current
+    val screenHeightDp = configuration.screenHeightDp.dp
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.95f) // Gần full màn hình
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+        ) {
+            // Handle nhỏ
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(Color(0xFFD1D5DB), RoundedCornerShape(2.dp))
+                )
+            }
+
+            // Header gọn
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Chọn ngày bắt đầu",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1F2937)
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Đóng",
+                        tint = Color(0xFF6B7280),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // DatePicker chiếm nhiều không gian nhất
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 450.dp, max = 550.dp) // Chiều cao linh hoạt
+                    .weight(1f, fill = false) // Chiếm không gian còn lại
+            ) {
+                DatePicker(
+                    state = datePickerState,
+                    colors = DatePickerDefaults.colors(
+                        selectedDayContainerColor = primaryColor,
+                        selectedDayContentColor = Color.White,
+                        todayDateBorderColor = primaryColor,
+                        todayContentColor = primaryColor
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Footer với ít padding hơn
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .background(Color.White)
+            ) {
+                datePickerState.selectedDateMillis?.let { millis ->
+                    val selectedDate = Date(millis)
+                    val formattedDate = formatDate(selectedDate)
+                    val dayOfWeek = getDayOfWeekFromDate(selectedDate, LocalLanguageViewModel.current)
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = primaryColor.copy(alpha = 0.08f)
+                        ),
+                        border = BorderStroke(1.dp, primaryColor.copy(alpha = 0.2f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    "Đã chọn:",
+                                    color = Color(0xFF6B7280),
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    "$dayOfWeek, $formattedDate",
+                                    color = Color(0xFF1F2937),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Đã chọn",
+                                tint = primaryColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Nút nhỏ hơn
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+                    ) {
+                        Text("Hủy", fontSize = 14.sp, color = Color(0xFF6B7280))
+                    }
+
+                    Button(
+                        onClick = {
+                            datePickerState.selectedDateMillis?.let {
+                                onDateSelected(Date(it))
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = primaryColor
+                        ),
+                        enabled = datePickerState.selectedDateMillis != null
+                    ) {
+                        Text("Xác nhận", fontSize = 14.sp, color = Color.White)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
@@ -504,47 +755,6 @@ private fun getSimpleFrequencyName(frequency: RecurringFrequency, languageViewMo
 }
 
 @Composable
-private fun SimpleDateChip(
-    date: String,
-    placeholder: String,
-    onClick: () -> Unit,
-    primaryColor: Color,
-    languageViewModel: LanguageViewModel
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF8F9FA)
-        ),
-        border = BorderStroke(1.dp, Color(0xFFDDDDDD))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                if (date.isNotBlank()) date else placeholder,
-                fontSize = 15.sp,
-                color = if (date.isNotBlank()) Color(0xFF333333) else Color(0xFF888888),
-                fontWeight = if (date.isNotBlank()) FontWeight.Medium else FontWeight.Normal
-            )
-            Icon(
-                Icons.Default.CalendarToday,
-                contentDescription = languageViewModel.getTranslation("select_date"),
-                tint = Color(0xFF666666),
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
 private fun parseColor(colorString: String): Color {
     return try {
         val color = colorString.toColorInt()
@@ -558,4 +768,33 @@ private fun parseColor(colorString: String): Color {
 private fun getTodayDate(): String {
     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     return sdf.format(Date())
+}
+
+// ============== HÀM UTILITY GIỐNG AddTransactionScreen ==============
+private fun parseDate(dateString: String): Date {
+    return try {
+        val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        format.parse(dateString) ?: Date()
+    } catch (e: Exception) {
+        Date()
+    }
+}
+
+private fun formatDate(date: Date): String {
+    val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    return format.format(date)
+}
+
+private fun getDayOfWeekFromDate(date: Date, languageViewModel: LanguageViewModel): String {
+    val days = listOf(
+        languageViewModel.getTranslation("sunday"),
+        languageViewModel.getTranslation("monday"),
+        languageViewModel.getTranslation("tuesday"),
+        languageViewModel.getTranslation("wednesday"),
+        languageViewModel.getTranslation("thursday"),
+        languageViewModel.getTranslation("friday"),
+        languageViewModel.getTranslation("saturday")
+    )
+    val cal = Calendar.getInstance().apply { time = date }
+    return days[cal.get(Calendar.DAY_OF_WEEK) - 1]
 }
