@@ -34,8 +34,8 @@ import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
-import com.example.financeapp.components.BottomNavBar
-import com.example.financeapp.getAppColors
+import com.example.financeapp.components.ui.BottomNavBar
+import com.example.financeapp.components.theme.getAppColors
 import com.example.financeapp.rememberLanguageText
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat

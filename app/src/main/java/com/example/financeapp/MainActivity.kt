@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
+import com.example.financeapp.components.theme.FinanceAppTheme
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.navigation.NavGraph
 import com.example.financeapp.screen.main.dashboard.UserSession
@@ -99,7 +100,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun createTransactionFromRecurring(expense: com.example.financeapp.model.RecurringExpense) {
+    private fun createTransactionFromRecurring(expense: com.example.financeapp.data.models.RecurringExpense) {
         lifecycleScope.launch {
             try {
                 val today = getTodayDate()

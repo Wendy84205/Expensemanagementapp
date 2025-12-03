@@ -29,7 +29,7 @@ import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.data.models.Transaction
-import com.example.financeapp.components.BottomNavBar
+import com.example.financeapp.components.ui.BottomNavBar
 import com.example.financeapp.screen.features.formatCurrency
 import com.example.financeapp.viewmodel.transaction.Category
 import java.text.SimpleDateFormat

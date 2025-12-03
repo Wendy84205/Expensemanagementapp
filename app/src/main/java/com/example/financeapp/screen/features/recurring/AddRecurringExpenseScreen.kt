@@ -27,8 +27,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
-import com.example.financeapp.model.RecurringExpense
-import com.example.financeapp.model.RecurringFrequency
+import com.example.financeapp.data.models.RecurringExpense
+import com.example.financeapp.data.models.RecurringFrequency
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.viewmodel.settings.LanguageViewModel

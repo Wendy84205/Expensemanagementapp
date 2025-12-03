@@ -1,4 +1,4 @@
-package com.example.financeapp.components
+package com.example.financeapp.components.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List

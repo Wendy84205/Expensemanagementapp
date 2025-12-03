@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.financeapp.model.RecurringExpense
-import com.example.financeapp.model.RecurringFrequency
+import com.example.financeapp.data.models.RecurringExpense
+import com.example.financeapp.data.models.RecurringFrequency
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import androidx.core.graphics.toColorInt
 import com.example.financeapp.screen.features.formatCurrency

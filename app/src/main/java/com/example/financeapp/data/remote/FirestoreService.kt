@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.data.remote
 
 import com.example.financeapp.data.models.Transaction
 import com.google.firebase.firestore.FirebaseFirestore

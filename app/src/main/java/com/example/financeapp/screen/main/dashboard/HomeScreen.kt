@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.financeapp.data.models.Transaction
-import com.example.financeapp.components.BottomNavBar
+import com.example.financeapp.components.ui.BottomNavBar
 import com.example.financeapp.formatCurrency
 import com.example.financeapp.rememberLanguageText
 import java.text.SimpleDateFormat

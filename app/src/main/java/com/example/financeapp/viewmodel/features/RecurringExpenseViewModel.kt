@@ -3,8 +3,8 @@ package com.example.financeapp.viewmodel.features
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
-import com.example.financeapp.model.RecurringExpense
-import com.example.financeapp.model.RecurringFrequency
+import com.example.financeapp.data.models.RecurringExpense
+import com.example.financeapp.data.models.RecurringFrequency
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration

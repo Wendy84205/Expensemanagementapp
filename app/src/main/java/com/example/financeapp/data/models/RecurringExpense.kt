@@ -1,4 +1,4 @@
-package com.example.financeapp.model
+package com.example.financeapp.data.models
 
 import com.google.firebase.firestore.PropertyName
 import java.text.SimpleDateFormat

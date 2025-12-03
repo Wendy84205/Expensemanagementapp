@@ -1,8 +1,8 @@
-package com.example.financeapp
+package com.example.financeapp.data.repository
 
 import android.app.Application
 import android.util.Log
-import com.example.financeapp.data.FinancialData
+import com.example.financeapp.data.models.FinancialData
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.data.models.User
 import com.google.firebase.firestore.FirebaseFirestore
@@ -118,7 +118,7 @@ class FinanceRepository @Inject constructor(
                 transactions = transactions,
                 accounts = accounts,
                 budgets = emptyList(), // Bỏ qua
-                savingsGoals = emptyList(), // Bỏ qua
+               // savingsGoals = emptyList(), // Bỏ qua
                 userProfile = null // Bỏ qua
             )
         } catch (e: Exception) {

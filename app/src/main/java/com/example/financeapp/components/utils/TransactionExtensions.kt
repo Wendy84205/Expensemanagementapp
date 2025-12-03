@@ -1,7 +1,7 @@
 package com.example.financeapp
 
 import com.example.financeapp.data.models.Transaction
-import com.example.financeapp.data.TransactionData
+import com.example.financeapp.data.models.TransactionData
 
 // Extension function để convert TransactionData sang Transaction
 fun TransactionData.toTransaction(): Transaction {

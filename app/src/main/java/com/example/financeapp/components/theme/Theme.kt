@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.components.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme

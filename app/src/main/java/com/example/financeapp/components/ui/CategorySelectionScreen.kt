@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.financeapp.AppColorConstants
+import com.example.financeapp.components.theme.AppColorConstants
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel

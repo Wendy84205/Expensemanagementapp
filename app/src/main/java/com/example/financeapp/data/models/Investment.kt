@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.data.models
 
 import com.google.firebase.firestore.PropertyName
 
