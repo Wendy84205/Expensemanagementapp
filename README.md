@@ -23,15 +23,12 @@
 - **Theo dõi thu chi**: Thêm, sửa, xóa giao dịch dễ dàng
 - **Phân loại danh mục**: Tùy chỉnh danh mục thu chi
 - **Chi tiêu định kỳ**: Tự động ghi nhận chi tiêu hàng tháng
-- **Đa tiền tệ**: Hỗ trợ nhiều loại tiền tệ khác nhau
-- **Xuất dữ liệu**: Xuất file CSV, Excel, PDF
 
 ### Phân Tích & Báo Cáo
 - **Dashboard trực quan**: Biểu đồ và thống kê sinh động
 - **Phân tích danh mục**: Xem chi tiêu theo từng hạng mục
 - **Xu hướng chi tiêu**: Theo dõi thói quen chi tiêu theo thời gian
 - **Báo cáo chi tiết**: Báo cáo tuần, tháng, năm
-- **Mục tiêu tiết kiệm**: Đặt và theo dõi mục tiêu tài chính
 
 ### Tính Năng Thông Minh
 - **Gợi ý từ AI**: Đề xuất tối ưu ngân sách thông minh
@@ -42,8 +39,6 @@
 
 ### Trải Nghiệm Người Dùng
 - **Giao diện hiện đại**: Thiết kế Material 3 đẹp mắt
-- **Chế độ sáng/tối**: Tự động thay đổi theo hệ thống
-- **Bảo mật vân tay**: Đăng nhập bằng vân tay/face ID
 - **Hoạt động offline**: Sử dụng không cần internet
 - **Đa ngôn ngữ**: Tiếng Việt và Tiếng Anh
 
