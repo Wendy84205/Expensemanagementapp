@@ -1,82 +1,81 @@
-Ứng Dụng Quản Lý Tài Chính Cá Nhân 💰
+# Ứng Dụng Quản Lý Tài Chính Cá Nhân 💰
 
-https://img.shields.io/badge/Kotlin-1.9.0-blue.svg
-https://img.shields.io/badge/Compose-1.5.0-brightgreen.svg
-https://img.shields.io/badge/License-MIT-yellow.svg
-https://img.shields.io/badge/minSdk-24-orange.svg
-https://img.shields.io/badge/Firebase-%C4%90%C3%A3%2520k%C3%ADch%2520ho%E1%BA%A1t-red.svg
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-blue.svg)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Compose-1.5.0-brightgreen.svg)](https://developer.android.com/jetpack/compose)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Min SDK](https://img.shields.io/badge/minSdk-24-orange.svg)](https://developer.android.com/about/versions/android-7.0)
+[![Firebase](https://img.shields.io/badge/Firebase-Đã%20kích%20hoạt-red.svg)](https://firebase.google.com)
 
 Ứng dụng quản lý tài chính cá nhân hiện đại, giúp bạn theo dõi thu chi, lập ngân sách và quản lý tài chính thông minh.
 
-📋 Mục Lục
+## 📋 Mục Lục
+- [Tính Năng](#tính-năng)
+- [Kiến Trúc](#kiến-trúc)
+- [Cài Đặt](#cài-đặt)
+- [Cấu Hình](#cấu-hình)
+- [Đóng Góp](#đóng-góp)
+- [Giấy Phép](#giấy-phép)
+- [Liên Hệ](#liên-hệ)
 
-Tính Năng
-Hình Ảnh
-Kiến Trúc
-Cài Đặt
-Cấu Hình
-Đóng Góp
-Giấy Phép
-✨ Tính Năng Chính
+## ✨ Tính Năng Chính
 
-Quản Lý Cơ Bản
+### Quản Lý Cơ Bản
+- **Theo dõi thu chi**: Thêm, sửa, xóa giao dịch dễ dàng
+- **Phân loại danh mục**: Tùy chỉnh danh mục thu chi
+- **Chi tiêu định kỳ**: Tự động ghi nhận chi tiêu hàng tháng
+- **Đa tiền tệ**: Hỗ trợ nhiều loại tiền tệ khác nhau
+- **Xuất dữ liệu**: Xuất file CSV, Excel, PDF
 
-Theo dõi thu chi: Thêm, sửa, xóa giao dịch dễ dàng
-Phân loại danh mục: Tùy chỉnh danh mục thu chi
-Chi tiêu định kỳ: Tự động ghi nhận chi tiêu hàng tháng
-Đa tiền tệ: Hỗ trợ nhiều loại tiền tệ khác nhau
-Xuất dữ liệu: Xuất file CSV, Excel, PDF
-Phân Tích & Báo Cáo
+### Phân Tích & Báo Cáo
+- **Dashboard trực quan**: Biểu đồ và thống kê sinh động
+- **Phân tích danh mục**: Xem chi tiêu theo từng hạng mục
+- **Xu hướng chi tiêu**: Theo dõi thói quen chi tiêu theo thời gian
+- **Báo cáo chi tiết**: Báo cáo tuần, tháng, năm
+- **Mục tiêu tiết kiệm**: Đặt và theo dõi mục tiêu tài chính
 
-Dashboard trực quan: Biểu đồ và thống kê sinh động
-Phân tích danh mục: Xem chi tiêu theo từng hạng mục
-Xu hướng chi tiêu: Theo dõi thói quen chi tiêu theo thời gian
-Báo cáo chi tiết: Báo cáo tuần, tháng, năm
-Mục tiêu tiết kiệm: Đặt và theo dõi mục tiêu tài chính
-Tính Năng Thông Minh
+### Tính Năng Thông Minh
+- **Gợi ý từ AI**: Đề xuất tối ưu ngân sách thông minh
+- **Quét hóa đơn**: Tự động nhập liệu từ ảnh hóa đơn
+- **Nhắc nhở thanh toán**: Không bỏ lỡ hạn thanh toán
+- **Dự báo tài chính**: Dự đoán chi tiêu dựa trên lịch sử
+- **Cảnh báo chi tiêu**: Thông báo khi chi tiêu bất thường
 
-Gợi ý từ AI: Đề xuất tối ưu ngân sách thông minh
-Quét hóa đơn: Tự động nhập liệu từ ảnh hóa đơn
-Nhắc nhở thanh toán: Không bỏ lỡ hạn thanh toán
-Dự báo tài chính: Dự đoán chi tiêu dựa trên lịch sử
-Cảnh báo chi tiêu: Thông báo khi chi tiêu bất thường
-Trải Nghiệm Người Dùng
+### Trải Nghiệm Người Dùng
+- **Giao diện hiện đại**: Thiết kế Material 3 đẹp mắt
+- **Chế độ sáng/tối**: Tự động thay đổi theo hệ thống
+- **Bảo mật vân tay**: Đăng nhập bằng vân tay/face ID
+- **Hoạt động offline**: Sử dụng không cần internet
+- **Đa ngôn ngữ**: Tiếng Việt và Tiếng Anh
 
-Giao diện hiện đại: Thiết kế Material 3 đẹp mắt
-Chế độ sáng/tối: Tự động thay đổi theo hệ thống
-Bảo mật vân tay: Đăng nhập bằng vân tay/face ID
-Hoạt động offline: Sử dụng không cần internet
-Đa ngôn ngữ: Tiếng Việt và Tiếng Anh
-Bảo Mật & Đồng Bộ
+### Bảo Mật & Đồng Bộ
+- **Mã hóa dữ liệu**: Bảo vệ thông tin tài chính
+- **Sao lưu đám mây**: Đồng bộ với Firebase
+- **Lưu trữ cục bộ**: Tùy chọn lưu dữ liệu local
+- **Bảo mật riêng tư**: Không thu thập dữ liệu cá nhân
 
-Mã hóa dữ liệu: Bảo vệ thông tin tài chính
-Sao lưu đám mây: Đồng bộ với Firebase
-Lưu trữ cục bộ: Tùy chọn lưu dữ liệu local
-Bảo mật riêng tư: Không thu thập dữ liệu cá nhân
-🏗️ Kiến Trúc Ứng Dụng
+## 🏗️ Kiến Trúc Ứng Dụng
 
-Công Nghệ Sử Dụng
+### Công Nghệ Sử Dụng
+- **Ngôn ngữ**: Kotlin 1.9.0
+- **Giao diện**: Jetpack Compose 1.5.0
+- **Kiến trúc**: Clean Architecture với MVVM
+- **Dependency Injection**: Dagger Hilt
+- **Database local**: Room
+- **Database cloud**: Firebase Firestore
+- **Xác thực**: Firebase Auth
+- **Xử lý ảnh**: ML Kit
+- **Thông báo**: WorkManager + AlarmManager
 
-Ngôn ngữ: Kotlin 1.9.0
-Giao diện: Jetpack Compose 1.5.0
-Kiến trúc: Clean Architecture với MVVM
-Dependency Injection: Dagger Hilt
-Database local: Room
-Database cloud: Firebase Firestore
-Xác thực: Firebase Auth
-Xử lý ảnh: ML Kit
-Thông báo: WorkManager + AlarmManager
-🚀 Hướng Dẫn Cài Đặt
+## 🚀 Hướng Dẫn Cài Đặt
 
-Yêu Cầu Hệ Thống
+### Yêu Cầu Hệ Thống
+- Android Studio 2022.2.1 trở lên
+- JDK 17 trở lên
+- Android SDK 33 (API Level 33)
+- Kotlin 1.9.0
 
-Android Studio 2022.2.1 trở lên
-JDK 17 trở lên
-Android SDK 33 (API Level 33)
-Kotlin 1.9.0
-Bước 1: Clone Dự Án
-
-bash
+### Bước 1: Clone Dự Án
+```bash
 git clone https://github.com/Wendy84205/Expensemanagementapp.git
 cd Expensemanagementapp
 Bước 2: Mở Trong Android Studio
@@ -127,8 +126,6 @@ bash
 ⚙️ Cấu Hình Ứng Dụng
 
 Biến Môi Trường
-
-Các biến môi trường có thể cấu hình:
 
 Biến	Mô tả	Bắt buộc	Mặc định
 ENABLE_CLOUD_SYNC	Bật đồng bộ Firebase	Không	true
@@ -224,34 +221,74 @@ Hệ thống plugin
 Tính năng cộng đồng
 📄 Giấy Phép
 
-### **Giấy Phép MIT**
+🛡️ MIT License
 
-Dự án được phân phối dưới giấy phép **MIT License** - một giấy phép nguồn mở cho phép sử dụng tự do với một số điều kiện đơn giản.
+Dự án được phân phối dưới giấy phép MIT License, một trong những giấy phép nguồn mở tự do nhất.
 
-#### **Quyền của bạn:**
-- ✅ **Sử dụng miễn phí**: Cho mục đích cá nhân và thương mại
-- ✅ **Chỉnh sửa tự do**: Tùy chỉnh mã nguồn theo nhu cầu
-- ✅ **Phân phối lại**: Chia sẻ bản gốc hoặc đã chỉnh sửa
-- ✅ **Nhúng vào dự án khác**: Sử dụng làm thư viện hoặc module
+📋 Quyền của bạn:
 
-#### **Điều kiện:**
-- 📝 **Ghi nhận bản quyền**: Giữ nguyên thông báo bản quyền gốc trong mọi bản phân phối
-- ⚠️ **Không bảo hành**: Phần mềm được cung cấp "nguyên trạng", không có bảo hành
+Quyền	Mô tả	Biểu tượng
+Sử dụng thương mại	Có thể sử dụng cho mục đích kinh doanh	✅
+Phân phối	Có thể chia sẻ và phân phối	✅
+Sửa đổi	Có thể chỉnh sửa mã nguồn	✅
+Sử dụng riêng tư	Có thể sử dụng mà không công khai thay đổi	✅
+Đặt bản quyền phụ	Có thể sử dụng giấy phép khác	✅
+⚠️ Điều kiện:
 
-#### **Tóm tắt ngắn:**
-Bạn có thể làm hầu hết mọi thứ với mã nguồn này, miễn là giữ thông báo bản quyền và không kiện tác giả nếu có vấn đề xảy ra.
+Điều kiện	Mô tả	Biểu tượng
+Ghi nhận bản quyền	Phải giữ nguyên thông báo bản quyền	📝
+Thông báo giấy phép	Phải bao gồm bản sao giấy phép MIT	📄
+🔍 Tóm tắt:
 
-*Đọc bản đầy đủ tại: [LICENSE](LICENSE)*
+text
+Bạn có thể tự do:
+- Sử dụng mã nguồn cho bất kỳ mục đích nào
+- Sao chép và phân phối
+- Sửa đổi và tích hợp vào dự án của bạn
+- Bán sản phẩm chứa mã nguồn này
 
-**Copyright © 2024 Wendy**  
-📧 Email: wendy84205@gmail.com  
-🐙 GitHub: [Wendy84205](https://github.com/Wendy84205)
+Với điều kiện:
+- Giữ nguyên thông báo bản quyền và giấy phép
+- Không chịu trách nhiệm pháp lý từ tác giả
+📖 Bản đầy đủ:
 
+Đọc toàn văn giấy phép tại: LICENSE
+
+text
+MIT License
+
+Copyright (c) 2024 Wendy
+
+Permission is hereby granted...
+[Chi tiết xem trong file LICENSE]
+🎯 Tại sao chọn MIT?
+
+🆓 Tự do nhất: Không hạn chế sử dụng thương mại
+🤝 Cộng đồng: Khuyến khích đóng góp và chia sẻ
+📚 Đơn giản: Dễ hiểu, dễ tuân thủ
+🌍 Phổ biến: Được sử dụng rộng rãi
+📞 Liên Hệ
+
+Tác giả: Wendy
+Email: wendy84205@gmail.com
+GitHub: Wendy84205
+Repository: Expensemanagementapp
+Issues: GitHub Issues
 🌟 Hỗ Trợ Dự Án
 
 Nếu bạn thấy dự án hữu ích, hãy:
 
-Cho ⭐ trên GitHub
-Chia sẻ với người khác
-Đóng góp code hoặc tài liệu
-Báo cáo lỗi và đề xuất tính năng
+⭐ Star trên GitHub - Để theo dõi và hỗ trợ
+🐛 Báo cáo lỗi - Giúp cải thiện chất lượng
+💡 Đề xuất tính năng - Chia sẻ ý tưởng mới
+🔄 Chia sẻ - Giới thiệu với bạn bè và cộng đồng
+💻 Đóng góp code - Tham gia phát triển dự án
+<div align="center">
+📊 Thống kê
+
+https://img.shields.io/github/stars/Wendy84205/Expensemanagementapp?style=social
+https://img.shields.io/github/forks/Wendy84205/Expensemanagementapp?style=social
+https://img.shields.io/github/issues/Wendy84205/Expensemanagementapp
+https://img.shields.io/github/last-commit/Wendy84205/Expensemanagementapp
+
+Cảm ơn bạn đã quan tâm đến dự án! 🎉
