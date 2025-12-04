@@ -1,4 +1,4 @@
-# Ứng Dụng Quản Lý Tài Chính Cá Nhân 💰
+# Ứng Dụng Quản Lý Tài Chính Cá Nhân
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-blue.svg)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Compose-1.5.0-brightgreen.svg)](https://developer.android.com/jetpack/compose)
@@ -8,30 +8,27 @@
 
 Ứng dụng quản lý tài chính cá nhân hiện đại, giúp bạn theo dõi thu chi, lập ngân sách và quản lý tài chính thông minh.
 
-## 📋 Mục Lục
+## Mục Lục
 - [Tính Năng](#tính-năng)
-- [Hình Ảnh](#hình-ảnh)
 - [Kiến Trúc](#kiến-trúc)
 - [Cài Đặt](#cài-đặt)
 - [Cấu Hình](#cấu-hình)
 - [Đóng Góp](#đóng-góp)
 - [Giấy Phép](#giấy-phép)
+- [Liên Hệ](#liên-hệ)
 
-## ✨ Tính Năng Chính
+## Tính Năng Chính
 
 ### Quản Lý Cơ Bản
 - **Theo dõi thu chi**: Thêm, sửa, xóa giao dịch dễ dàng
 - **Phân loại danh mục**: Tùy chỉnh danh mục thu chi
 - **Chi tiêu định kỳ**: Tự động ghi nhận chi tiêu hàng tháng
-- **Đa tiền tệ**: Hỗ trợ nhiều loại tiền tệ khác nhau
-- **Xuất dữ liệu**: Xuất file CSV, Excel, PDF
 
 ### Phân Tích & Báo Cáo
 - **Dashboard trực quan**: Biểu đồ và thống kê sinh động
 - **Phân tích danh mục**: Xem chi tiêu theo từng hạng mục
 - **Xu hướng chi tiêu**: Theo dõi thói quen chi tiêu theo thời gian
 - **Báo cáo chi tiết**: Báo cáo tuần, tháng, năm
-- **Mục tiêu tiết kiệm**: Đặt và theo dõi mục tiêu tài chính
 
 ### Tính Năng Thông Minh
 - **Gợi ý từ AI**: Đề xuất tối ưu ngân sách thông minh
@@ -42,8 +39,6 @@
 
 ### Trải Nghiệm Người Dùng
 - **Giao diện hiện đại**: Thiết kế Material 3 đẹp mắt
-- **Chế độ sáng/tối**: Tự động thay đổi theo hệ thống
-- **Bảo mật vân tay**: Đăng nhập bằng vân tay/face ID
 - **Hoạt động offline**: Sử dụng không cần internet
 - **Đa ngôn ngữ**: Tiếng Việt và Tiếng Anh
 
@@ -65,7 +60,8 @@
 - **Xác thực**: Firebase Auth
 - **Xử lý ảnh**: ML Kit
 - **Thông báo**: WorkManager + AlarmManager
-## 🚀 Hướng Dẫn Cài Đặt
+
+## Hướng Dẫn Cài Đặt
 
 ### Yêu Cầu Hệ Thống
 - Android Studio 2022.2.1 trở lên
@@ -122,18 +118,16 @@ Tạo APK
 
 bash
 ./gradlew assembleRelease
-⚙️ Cấu Hình Ứng Dụng
+Cấu Hình Ứng Dụng
 
 Biến Môi Trường
 
-Các biến môi trường có thể cấu hình:
-
-Biến	Mô tả	Bắt buộc	Mặc định
-ENABLE_CLOUD_SYNC	Bật đồng bộ Firebase	Không	true
-ENABLE_AI_FEATURES	Bật tính năng AI	Không	true
-ENABLE_OCR	Bật quét hóa đơn	Không	true
-ENABLE_BIOMETRICS	Bật đăng nhập sinh trắc	Không	true
-DEFAULT_CURRENCY	Tiền tệ mặc định	Không	VND
+Biến	                Mô tả	              Bắt buộc	      Mặc định
+ENABLE_CLOUD_SYNC	Bật đồng bộ Firebase	  Không	            true
+ENABLE_AI_FEATURES	Bật tính năng AI	    Không	            true
+ENABLE_OCR	        Bật quét hóa đơn	    Không	            true
+ENABLE_BIOMETRICS	Bật đăng nhập sinh trắc	Không	            true
+DEFAULT_CURRENCY	Tiền tệ mặc định	      Không	            VND
 Các Biến Thể Build
 
 debug: Build phát triển, có debug
@@ -143,7 +137,7 @@ Các Loại Build
 
 free: Bản miễn phí, tính năng cơ bản
 premium: Bản cao cấp, đầy đủ tính năng
-🧪 Kiểm Thử
+Kiểm Thử
 
 Unit Test
 
@@ -157,7 +151,7 @@ UI Test
 
 Dự án có đầy đủ UI test sử dụng Espresso và Compose testing.
 
-🤝 Đóng Góp Cho Dự Án
+Đóng Góp Cho Dự Án
 
 Chúng tôi hoan nghênh mọi đóng góp từ cộng đồng!
 
@@ -220,40 +214,35 @@ Tính năng bảo mật nâng cao
 API cho developer
 Hệ thống plugin
 Tính năng cộng đồng
-📄 Giấy Phép
-
-Dự án được phân phối dưới giấy phép MIT - xem file LICENSE để biết chi tiết.
+Giấy Phép
 
 MIT License
 
+Dự án được phân phối dưới giấy phép MIT License, một trong những giấy phép nguồn mở tự do nhất.
+Đọc toàn văn giấy phép tại: LICENSE
+MIT License
 Copyright (c) 2024 Wendy
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-GitHub: Wendy84205
+Tác giả: Wendy
 Email: wendy84205@gmail.com
+GitHub: Wendy84205
+Repository: Expensemanagementapp
 Issues: GitHub Issues
-🌟 Hỗ Trợ Dự Án
+Hỗ Trợ Dự Án
 
 Nếu bạn thấy dự án hữu ích, hãy:
 
-Cho ⭐ trên GitHub
-Chia sẻ với người khác
-Đóng góp code hoặc tài liệu
-Báo cáo lỗi và đề xuất tính năng
+-Star trên GitHub - Để theo dõi và hỗ trợ
+-Báo cáo lỗi - Giúp cải thiện chất lượng
+-Đề xuất tính năng - Chia sẻ ý tưởng mới
+-Chia sẻ - Giới thiệu với bạn bè và cộng đồng
+-Đóng góp code - Tham gia phát triển dự án
+<div align="center">
+Thống kê
+
+https://img.shields.io/github/stars/Wendy84205/Expensemanagementapp?style=social
+https://img.shields.io/github/forks/Wendy84205/Expensemanagementapp?style=social
+https://img.shields.io/github/issues/Wendy84205/Expensemanagementapp
+https://img.shields.io/github/last-commit/Wendy84205/Expensemanagementapp
+
+Cảm ơn bạn đã quan tâm đến dự án! 
