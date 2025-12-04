@@ -32,8 +32,6 @@
 
 ### Tính Năng Thông Minh
 - **Gợi ý từ AI**: Đề xuất tối ưu ngân sách thông minh
-- **Quét hóa đơn**: Tự động nhập liệu từ ảnh hóa đơn
-- **Nhắc nhở thanh toán**: Không bỏ lỡ hạn thanh toán
 - **Dự báo tài chính**: Dự đoán chi tiêu dựa trên lịch sử
 - **Cảnh báo chi tiêu**: Thông báo khi chi tiêu bất thường
 
@@ -135,10 +133,6 @@ release: Build sản phẩm, tối ưu hóa
 staging: Build thử nghiệm trước sản phẩm
 Các Loại Build
 
-free: Bản miễn phí, tính năng cơ bản
-premium: Bản cao cấp, đầy đủ tính năng
-Kiểm Thử
-
 Unit Test
 
 bash
@@ -192,7 +186,6 @@ Quản lý giao dịch cơ bản
 Theo dõi ngân sách
 Chi tiêu định kỳ
 Đa ngôn ngữ
-Chế độ sáng/tối
 Phiên Bản 1.1 (Đang Phát Triển)
 
 Tích hợp tài khoản ngân hàng
@@ -200,6 +193,7 @@ Theo dõi đầu tư
 Phân tích nâng cao
 Ngân sách gia đình
 Lưu trữ hóa đơn
+Chế độ sáng/tối
 Phiên Bản 1.2 (Kế Hoạch)
 
 Tính thuế tự động
