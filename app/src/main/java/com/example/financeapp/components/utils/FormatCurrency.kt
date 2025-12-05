@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.components.utils
 
 import java.text.NumberFormat
 import java.util.*

@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.components.utils
 
 import com.example.financeapp.data.models.User
 import com.google.firebase.auth.FirebaseUser

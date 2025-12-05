@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.components.utils
 
 class Utils {
     fun formatCurrency(value: Double): String {

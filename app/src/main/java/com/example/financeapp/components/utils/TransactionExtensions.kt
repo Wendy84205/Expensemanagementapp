@@ -1,4 +1,4 @@
-package com.example.financeapp
+package com.example.financeapp.components.utils
 
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.data.models.TransactionData

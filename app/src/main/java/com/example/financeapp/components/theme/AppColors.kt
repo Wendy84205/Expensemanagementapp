@@ -15,7 +15,6 @@ fun getAppColors(): AppColors {
         onPrimary = Color.White,
         onBackground = Color(0xFF2D3748), // TextDark
         onSurface = Color(0xFF2D3748),
-        // Custom colors đồng bộ với HomeScreen
         incomeColor = Color(0xFF2E8B57), // Success Green
         expenseColor = Color(0xFFED8936), // Accent Orange
         warningColor = Color(0xFFED8936), // Accent Orange

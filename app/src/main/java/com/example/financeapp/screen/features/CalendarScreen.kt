@@ -631,7 +631,6 @@ fun CalendarTransactionItem(
                         fontSize = 16.sp,
                         color = textPrimary
                     )
-                    // Có thể thêm thông tin khác nếu muốn giống HomeScreen
                     Row {
                         Text(
                             text = "${transaction.date}",

@@ -118,7 +118,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
     }
-
     // 🔹 Gửi email đặt lại mật khẩu
     fun sendPasswordResetEmail(email: String, onResult: (Boolean, String?) -> Unit) {
         firebaseAuth.sendPasswordResetEmail(email)
@@ -130,7 +129,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
     }
-
     // 🔹 Đăng xuất
     fun signOut() {
         firebaseAuth.signOut()
