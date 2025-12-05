@@ -110,51 +110,15 @@ fun ExtensionsScreen(navController: NavController) {
                             isComingSoon = true,
                             languageViewModel = languageViewModel
                         )
-                    }
-                }
-            }
 
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = languageViewModel.getTranslation("advanced_features"),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = textColor,
-                            modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp)
-                        )
-
-                        // Quét hóa đơn
+                        Divider(color = Color(0xFFEEEEEE))
+                        // Quét hoá đơn
                         ExtensionItem(
                             icon = Icons.Default.Receipt,
                             title = languageViewModel.getTranslation("receipt_scan"),
                             subtitle = languageViewModel.getTranslation("scan_receipts_auto_input_expenses"),
                             color = Color(0xFF00BCD4),
                             onClick = { /* TODO: Navigate to receipt scan */ },
-                            isComingSoon = true,
-                            languageViewModel = languageViewModel
-                        )
-
-                        Divider(color = Color(0xFFEEEEEE))
-
-                        // Phân tích AI
-                        ExtensionItem(
-                            icon = Icons.Default.Analytics,
-                            title = languageViewModel.getTranslation("ai_analysis"),
-                            subtitle = languageViewModel.getTranslation("ai_powered_spending_analysis"),
-                            color = Color(0xFFFF5722),
-                            onClick = { /* TODO: Navigate to AI analysis */ },
                             isComingSoon = true,
                             languageViewModel = languageViewModel
                         )

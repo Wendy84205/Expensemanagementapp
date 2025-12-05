@@ -8,8 +8,6 @@ data class UserProfile(
     val financialGoals: List<String> = emptyList(),
     val currency: String = "VNĐ",
     val joinDate: Long = System.currentTimeMillis(),
-
-    // Các property để tương thích
     val photoUrl: String = "",
     val phoneNumber: String = "",
     val dateOfBirth: Long = 0,

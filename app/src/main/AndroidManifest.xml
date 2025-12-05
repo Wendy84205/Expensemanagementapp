@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.financeapp">
 
+    <!-- ==================== PERMISSIONS ==================== -->
+
+    <!-- ĐÃ CÓ -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -10,9 +13,19 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- THÊM MỚI - QUAN TRỌNG CHO NOTIFICATION BACKGROUND -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <uses-feature
         android:name="android.hardware.microphone"
         android:required="false" />
+
+    <!-- ==================== APPLICATION ==================== -->
 
     <application
         android:name=".FinanceApp"
@@ -24,36 +37,57 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Financeapp"
-        tools:targetApi="31">
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31"
+        tools:ignore="GoogleAppIndexingWarning">
+
+        <!-- ==================== MAIN ACTIVITY ==================== -->
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- AI Butler Service (nếu dùng foreground service) -->
+        <service
+            android:name=".viewmodel.ai.AIButlerService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
+        <!-- WorkManager Provider (quan trọng) -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+        <!-- ==================== EXISTING COMPONENTS ==================== -->
         <service
             android:name="android.speech.SpeechRecognizer"
             android:permission="android.permission.BIND_VOICE_INTERACTION"
             tools:ignore="WrongManifestParent" />
 
-        <!-- 🔥 TTS SERVICE (NẾU CẦN) -->
         <service
             android:name="android.speech.tts.TextToSpeechService"
             android:permission="android.permission.BIND_TTS_SERVICE"
             tools:ignore="WrongManifestParent" />
 
-        <!-- 🔹 Facebook SDK Activity -->
         <activity
             android:name="com.facebook.FacebookActivity"
             android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
             android:exported="false" />
 
-        <!-- 🔹 Facebook SDK Activity -->
         <activity
             android:name="com.facebook.CustomTabActivity"
             android:exported="true">
@@ -65,12 +99,10 @@
             </intent-filter>
         </activity>
 
-        <!-- 🔹 Facebook SDK metadata -->
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
             android:value="@string/facebook_app_id" />
 
-        <!-- 🔹 Firebase metadata -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@mipmap/ic_launcher" />
@@ -80,6 +112,12 @@
         <meta-data
             android:name="com.google.android.tts.engine"
             android:resource="@xml/tts_engine" />
+
+        <!-- WorkManager Configuration -->
+        <meta-data
+            android:name="androidx.work.WorkManagerInitializer"
+            android:value="androidx.startup"
+            tools:node="remove" />
 
     </application>
 

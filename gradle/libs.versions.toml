@@ -15,13 +15,17 @@ uiText = "1.9.4"
 foundation = "1.9.4"
 uiTextVersion = "1.9.5"
 composeMaterial = "1.5.5"
-roomKtx = "2.8.4"
+room = "2.6.1"
+ksp = "2.0.21-1.0.27"
 foundationVersion = "1.9.5"
 litertSupportApi = "1.4.1"
 workRuntimeKtx = "2.11.0"
 ui = "1.9.5"
 
 [libraries]
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -36,7 +40,6 @@ androidx-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.re
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiTextVersion" }
 androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
-androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 litert-support-api = { group = "com.google.ai.edge.litert", name = "litert-support-api", version.ref = "litertSupportApi" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
@@ -45,4 +48,4 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

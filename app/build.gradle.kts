@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
@@ -133,4 +134,12 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.31.0-alpha")
     implementation("androidx.media:media:1.7.0")
     implementation("androidx.compose.ui:ui-graphics:1.7.0")
+
+    // Room Database
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+
+    // SQLite debug helper
+    debugImplementation("com.github.ajalt:timberkt:1.5.1")
 }

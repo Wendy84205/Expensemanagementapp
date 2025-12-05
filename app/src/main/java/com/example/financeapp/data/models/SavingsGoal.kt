@@ -8,8 +8,6 @@ data class SavingsGoal(
     val deadline: Long = 0,
     val category: String = "",
     val userId: String = "",
-
-    // Các property để tương thích
     val color: Int = 0,
     val icon: Int = 0,
     val description: String = "",
