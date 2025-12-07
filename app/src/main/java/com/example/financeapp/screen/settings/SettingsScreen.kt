@@ -35,7 +35,6 @@ import kotlinx.coroutines.launch
 
 /**
  * SettingsScreen - Màn hình cài đặt ứng dụng
- * Đã xóa phần kiểm tra thông báo, giữ nguyên chức năng
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

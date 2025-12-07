@@ -1,41 +1,38 @@
 package com.example.financeapp.viewmodel.ai
 
 import android.app.Application
-import android.content.Context
 import android.util.Log
 import com.example.financeapp.FinanceApp
 import com.example.financeapp.data.models.isOverBudget
 import com.example.financeapp.utils.notification.NotificationHelper
+import com.example.financeapp.utils.notification.NotificationPreferences
+import com.example.financeapp.utils.work.AIButlerWorker
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 /**
  * AI Butler Service - Quản gia thông minh chạy background
- * Service kiểm tra định kỳ và gửi thông báo nhắc nhở về tài chính
- * Chạy độc lập với AIViewModel (không tương tác trực tiếp với user)
  */
 class AIButlerService(private val application: Application) {
 
     companion object {
         private const val TAG = "AIButlerService"
-
-        /** Khoảng thời gian kiểm tra định kỳ (mỗi giờ) */
         private const val CHECK_INTERVAL_MS = 3600000L
-
-        /** Khoảng thời gian tối thiểu giữa các lần kiểm tra (5 phút) */
         private const val MIN_CHECK_INTERVAL = 300000L
-
-        /** Giờ bắt đầu kiểm tra giao dịch trong ngày (18:00) */
         private const val TRANSACTION_CHECK_HOUR = 18
+        private const val LARGE_TRANSACTION_THRESHOLD = 1000000.0
     }
 
     // ==================== DEPENDENCIES ====================
@@ -52,285 +49,401 @@ class AIButlerService(private val application: Application) {
         (application as FinanceApp).categoryViewModel
     }
 
+    private val notificationPreferences: NotificationPreferences by lazy {
+        NotificationPreferences(application)
+    }
+
     // ==================== SERVICE STATE ====================
 
-    /** Trạng thái service đang chạy */
     private var isRunning = false
-
-    /** Thời gian kiểm tra lần cuối */
     private var lastCheckTime = 0L
+    private var periodicCheckJob: Job? = null
 
     // ==================== COROUTINE SCOPE ====================
 
-    /** Coroutine scope riêng cho service */
-    private val serviceScope = CoroutineScope(
-        Dispatchers.Main + SupervisorJob()
-    )
-
-    /** Alias cho serviceScope để dễ sử dụng */
-    private val viewModelScope = serviceScope
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     // ==================== SERVICE LIFECYCLE ====================
 
-    /**
-     * Khởi động service - sẽ chạy định kỳ để kiểm tra và gửi thông báo
-     */
-    fun start() {
+    fun start(): Boolean {
         if (isRunning) {
-            Log.d(TAG, "Service đã đang chạy")
-            return
+            Log.w(TAG, "Service đã đang chạy")
+            return false
         }
 
         isRunning = true
-        Log.d(TAG, "AI Butler Service đã khởi động")
+        Log.i(TAG, "AI Butler Service đã khởi động")
 
         // Tạo notification channel
         NotificationHelper.createChannel(application)
 
-        // Gửi thông báo chào mừng để user biết AI đang hoạt động
-        viewModelScope.launch {
-            delay(2000) // Đợi 2 giây sau khi app khởi động
-            if (isNotificationsEnabled(application)) {
-                NotificationHelper.showNotification(
-                    application,
-                    "Chào mừng!",
-                    "AI Butler đã sẵn sàng. Tôi sẽ nhắc nhở bạn về tài chính!"
-                )
-            }
-        }
+        // Gửi thông báo chào mừng
+        sendWelcomeNotification()
 
         // Bắt đầu kiểm tra định kỳ
         startPeriodicChecks()
+
+        return true
     }
 
-    /**
-     * Dừng service
-     */
     fun stop() {
         isRunning = false
-        Log.d(TAG, "AI Butler Service đã dừng")
+        periodicCheckJob?.cancel()
+        periodicCheckJob = null
+        Log.i(TAG, "AI Butler Service đã dừng")
     }
+
+    fun isServiceRunning(): Boolean = isRunning
 
     // ==================== PERIODIC CHECKING ====================
 
-    /**
-     * Bắt đầu kiểm tra định kỳ
-     */
     private fun startPeriodicChecks() {
-        viewModelScope.launch {
+        periodicCheckJob?.cancel()
+        periodicCheckJob = serviceScope.launch {
+            Log.d(TAG, "Bắt đầu kiểm tra định kỳ...")
+
+            // Kiểm tra ngay lập tức khi khởi động
+            forceCheckNow()
+
+            // Lặp kiểm tra định kỳ
             while (isRunning) {
                 try {
-                    checkAndSendNotifications()
-                    delay(CHECK_INTERVAL_MS) // Đợi 1 giờ
+                    delay(CHECK_INTERVAL_MS)
+                    forceCheckNow()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Lỗi trong periodic check: ${e.message}", e)
-                    delay(60000) // Đợi 1 phút nếu có lỗi
+                    Log.e(TAG, "Lỗi trong quá trình kiểm tra định kỳ", e)
+                    delay(MIN_CHECK_INTERVAL)
                 }
             }
         }
-    }
-
-    /**
-     * Kiểm tra các điều kiện và gửi thông báo
-     */
-    private suspend fun checkAndSendNotifications() {
-        val now = System.currentTimeMillis()
-
-        // Kiểm tra xem có nên gửi thông báo không (tránh spam)
-        if (now - lastCheckTime < MIN_CHECK_INTERVAL) {
-            return
-        }
-
-        lastCheckTime = now
-
-        // Kiểm tra quyền thông báo
-        if (!isNotificationsEnabled(application)) {
-            Log.d(TAG, "Thông báo đã bị tắt")
-            return
-        }
-
-        // Kiểm tra các điều kiện
-        checkBudgetExceeded()
-        checkLargeTransaction()
-        checkNoTransactionToday()
-        checkMonthlySummary()
-
-        Log.d(TAG, "Đã hoàn thành kiểm tra định kỳ")
     }
 
     // ==================== CHECKING METHODS ====================
 
-    /**
-     * Kiểm tra ngân sách vượt quá
-     */
     private suspend fun checkBudgetExceeded() {
         try {
-            val budgets = budgetViewModel.budgets.value.filter { it.isActive && it.isOverBudget }
+            Log.d(TAG, "Kiểm tra ngân sách vượt quá...")
 
-            if (budgets.isNotEmpty()) {
-                val categoryNames = budgets.mapNotNull { budget ->
-                    categoryViewModel.categories.value.find { it.id == budget.categoryId }?.name
-                }.joinToString(", ")
-
-                if (categoryNames.isNotEmpty()) {
-                    sendNotification(
-                        "Ngân sách vượt quá",
-                        "Bạn đã vượt ngân sách cho: $categoryNames. Hãy kiểm soát chi tiêu!"
-                    )
-                    Log.d(TAG, "Phát hiện ngân sách vượt: $categoryNames")
+            val budgets = withContext(Dispatchers.Main) {
+                budgetViewModel.budgets.value.filter {
+                    it.isActive &&
+                            it.isOverBudget &&
+                            isBudgetInCurrentPeriod(it)
                 }
             }
+
+            if (budgets.isNotEmpty()) {
+                Log.i(TAG, "Phát hiện ${budgets.size} ngân sách vượt quá")
+
+                val categoryNames = budgets.mapNotNull { budget ->
+                    withContext(Dispatchers.Main) {
+                        categoryViewModel.categories.value.find { it.id == budget.categoryId }?.name
+                    }
+                }.distinct().joinToString(", ")
+
+                if (categoryNames.isNotEmpty() && notificationPreferences.canSendBudgetNotification()) {
+                    val exceededAmount = budgets.first().spent - budgets.first().amount
+
+                    sendNotification(
+                        "Vượt ngân sách",
+                        "Bạn đã vượt ngân sách cho: $categoryNames\n" +
+                                "Vượt quá: ${formatCurrency(exceededAmount)}\n" +
+                                "Hãy kiểm soát chi tiêu!"
+                    )
+                    Log.d(TAG, "Đã gửi thông báo vượt ngân sách: $categoryNames")
+                }
+            } else {
+                Log.d(TAG, "Không có ngân sách nào vượt quá")
+            }
+
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi kiểm tra ngân sách vượt: ${e.message}")
+            Log.e(TAG, "Lỗi khi kiểm tra ngân sách vượt quá", e)
         }
     }
 
-    /**
-     * Kiểm tra giao dịch lớn (> 1 triệu)
-     */
+    private suspend fun checkBudgetWarning() {
+        try {
+            Log.d(TAG, "Kiểm tra ngân sách sắp vượt...")
+
+            // Lấy tất cả budget active trong kỳ
+            val allBudgets = withContext(Dispatchers.Main) {
+                budgetViewModel.budgets.value.filter {
+                    it.isActive &&
+                            isBudgetInCurrentPeriod(it) &&
+                            it.amount > 0
+                }
+            }
+
+            Log.d(TAG, "Đang kiểm tra ${allBudgets.size} ngân sách active...")
+
+            // DEBUG: In thông tin từng budget
+            allBudgets.forEach { budget ->
+                val spentRatio = budget.spent / budget.amount
+                val percentage = (spentRatio * 100).toInt()
+                Log.d(TAG,
+                    "Budget ${budget.categoryId}: " +
+                            "amount=${budget.amount}, " +
+                            "spent=${budget.spent}, " +
+                            "spentAmount=${budget.spentAmount}, " +
+                            "ratio=$spentRatio ($percentage%), " +
+                            "isOverBudget=${budget.isOverBudget}"
+                )
+            }
+
+            // Tìm ngân sách >80% và CHƯA vượt quá
+            val warningBudgets = allBudgets.filter { budget ->
+                val spentRatio = budget.spent / budget.amount
+                spentRatio >= 0.8 && spentRatio < 1.0
+            }
+
+            Log.d(TAG, "Tìm thấy ${warningBudgets.size} ngân sách >80% và chưa vượt")
+
+            if (warningBudgets.isNotEmpty()) {
+                Log.i(TAG, "Phát hiện ${warningBudgets.size} ngân sách sắp vượt (>80%)")
+
+                // Lấy 3 ngân sách có tỷ lệ cao nhất
+                val topBudgets = warningBudgets.sortedByDescending {
+                    it.spent / it.amount
+                }.take(3)
+
+                // Tạo message chi tiết
+                val message = buildString {
+                    append("Các ngân sách sắp vượt:\n")
+                    topBudgets.forEach { budget ->
+                        val categoryName = withContext(Dispatchers.Main) {
+                            categoryViewModel.categories.value.find { it.id == budget.categoryId }?.name
+                                ?: "Không xác định"
+                        }
+                        val percentage = (budget.spent / budget.amount * 100).toInt()
+                        val remaining = budget.amount - budget.spent
+
+                        append("• $categoryName: $percentage% (còn ${formatCurrency(remaining)})\n")
+                    }
+                    append("\nHãy kiểm soát chi tiêu để không vượt ngân sách!")
+                }
+
+                if (notificationPreferences.canSendBudgetNotification()) {
+                    sendNotification(
+                        "Ngân sách sắp vượt",
+                        message
+                    )
+                    Log.d(TAG, "Đã gửi cảnh báo ngân sách sắp vượt")
+                }
+            } else {
+                Log.d(TAG, "Không có ngân sách nào sắp vượt (>80%)")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi kiểm tra cảnh báo ngân sách", e)
+            Log.e(TAG, "Chi tiết lỗi: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
     private suspend fun checkLargeTransaction() {
         try {
-            val recentTransactions = transactionViewModel.transactions.value
-                .filter { !it.isIncome }
-                .sortedByDescending { parseDate(it.date) }
-                .take(5)
+            Log.d(TAG, "Kiểm tra giao dịch lớn...")
 
-            val largeTransactions = recentTransactions.filter { it.amount > 1000000 }
+            val recentTransactions = withContext(Dispatchers.Main) {
+                transactionViewModel.transactions.value
+                    .filter { !it.isIncome }
+                    .sortedByDescending { parseDate(it.date) }
+                    .take(5)
+            }
 
-            if (largeTransactions.isNotEmpty()) {
+            val largeTransactions = recentTransactions.filter { it.amount > LARGE_TRANSACTION_THRESHOLD }
+
+            if (largeTransactions.isNotEmpty() && notificationPreferences.canSendTransactionNotification()) {
+                Log.i(TAG, "Phát hiện ${largeTransactions.size} giao dịch lớn")
+
                 val latest = largeTransactions.first()
+                val categoryName = withContext(Dispatchers.Main) {
+                    categoryViewModel.categories.value
+                        .find { it.id == latest.categoryId }?.name ?: latest.category
+                }
+
                 sendNotification(
                     "Giao dịch lớn",
-                    "Bạn vừa chi ${formatCurrency(latest.amount)} cho '${latest.title}'. Hãy kiểm tra lại!"
+                    "Bạn vừa chi ${formatCurrency(latest.amount)} cho '${latest.title}' ($categoryName). Hãy kiểm tra lại!"
                 )
-                Log.d(TAG, "Phát hiện giao dịch lớn: ${latest.title} - ${formatCurrency(latest.amount)}")
             }
+
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi kiểm tra giao dịch lớn: ${e.message}")
+            Log.e(TAG, "Lỗi khi kiểm tra giao dịch lớn", e)
         }
     }
 
-    /**
-     * Kiểm tra chưa có giao dịch hôm nay (sau 18:00)
-     */
     private suspend fun checkNoTransactionToday() {
         try {
+            Log.d(TAG, "Kiểm tra giao dịch hôm nay...")
+
             val today = getTodayDate()
-            val todayTransactions = transactionViewModel.transactions.value
-                .filter { it.date == today }
+            val todayTransactions = withContext(Dispatchers.Main) {
+                transactionViewModel.transactions.value.filter { it.date == today }
+            }
 
             val calendar = Calendar.getInstance()
-            // Nếu chưa có giao dịch nào hôm nay và đã qua 18h
-            if (todayTransactions.isEmpty() && calendar.get(Calendar.HOUR_OF_DAY) >= TRANSACTION_CHECK_HOUR) {
+            val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+
+            if (todayTransactions.isEmpty() && currentHour >= TRANSACTION_CHECK_HOUR) {
+                Log.i(TAG, "Chưa có giao dịch nào hôm nay (sau $TRANSACTION_CHECK_HOUR giờ)")
+
                 sendNotification(
-                    "Nhắc nhở",
+                    "Nhắc nhở ghi chép",
                     "Bạn chưa ghi nhận giao dịch nào hôm nay. Hãy cập nhật để theo dõi chi tiêu tốt hơn!"
                 )
-                Log.d(TAG, "Chưa có giao dịch hôm nay (sau 18:00)")
             }
+
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi kiểm tra giao dịch hôm nay: ${e.message}")
+            Log.e(TAG, "Lỗi khi kiểm tra giao dịch hôm nay", e)
         }
     }
 
-    /**
-     * Kiểm tra và gửi tổng kết tháng (vào ngày cuối tháng)
-     */
     private suspend fun checkMonthlySummary() {
         try {
+            Log.d(TAG, "Kiểm tra tổng kết tháng...")
+
             val calendar = Calendar.getInstance()
             val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
             val lastDayOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-            // Gửi tổng kết vào ngày cuối tháng
-            if (dayOfMonth == lastDayOfMonth) {
-                val currentMonthTransactions = transactionViewModel.transactions.value
-                    .filter { isInCurrentMonth(it.date) }
+            if (dayOfMonth >= (lastDayOfMonth - 2)) {
+                Log.i(TAG, "Đang trong 3 ngày cuối tháng, kiểm tra tổng kết")
 
-                val totalIncome = currentMonthTransactions.filter { it.isIncome }.sumOf { it.amount }
-                val totalExpense = currentMonthTransactions.filter { !it.isIncome }.sumOf { it.amount }
-                val savings = totalIncome - totalExpense
-
-                val message = buildString {
-                    append("Tổng kết tháng:\n")
-                    append("Thu nhập: ${formatCurrency(totalIncome)}\n")
-                    append("Chi tiêu: ${formatCurrency(totalExpense)}\n")
-                    append("Tiết kiệm: ${formatCurrency(savings)}")
+                val currentMonthTransactions = withContext(Dispatchers.Main) {
+                    transactionViewModel.transactions.value.filter { isInCurrentMonth(it.date) }
                 }
 
-                sendNotification("Tổng kết tháng", message)
-                Log.d(TAG, "Đã gửi tổng kết tháng")
+                if (currentMonthTransactions.isNotEmpty()) {
+                    val totalIncome = currentMonthTransactions
+                        .filter { it.isIncome }
+                        .sumOf { it.amount }
+                    val totalExpense = currentMonthTransactions
+                        .filter { !it.isIncome }
+                        .sumOf { it.amount }
+                    val savings = totalIncome - totalExpense
+
+                    val message = """
+                        Tổng kết tháng:
+                        • Thu nhập: ${formatCurrency(totalIncome)}
+                        • Chi tiêu: ${formatCurrency(totalExpense)}
+                        • Tiết kiệm: ${formatCurrency(savings)}
+                        
+                        ${if (savings > 0) "Tuyệt vời! Bạn đang tiết kiệm được tiền."
+                    else if (savings < 0) "Cần xem xét lại chi tiêu tháng sau."
+                    else "Chi tiêu cân bằng với thu nhập."}
+                    """.trimIndent()
+
+                    sendNotification("Tổng kết tháng", message)
+                }
             }
+
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi kiểm tra tổng kết tháng: ${e.message}")
+            Log.e(TAG, "Lỗi khi kiểm tra tổng kết tháng", e)
+        }
+    }
+
+    // Thêm vào AIButlerService.kt
+    fun scheduleBackgroundWorker() {
+        try {
+            Log.i(TAG, "Đang lên lịch background worker...")
+
+            // Lên lịch worker với WorkManager
+            AIButlerWorker.schedule(application)
+
+            Log.i(TAG, "Đã lên lịch background worker thành công")
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi lên lịch background worker", e)
+        }
+    }
+
+    fun stopBackgroundWorker() {
+        try {
+            Log.i(TAG, "Đang dừng background worker...")
+            AIButlerWorker.cancel(application)
+            Log.i(TAG, "Đã dừng background worker thành công")
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi dừng background worker", e)
         }
     }
 
     // ==================== NOTIFICATION METHODS ====================
 
-    /**
-     * Gửi thông báo
-     * @param title Tiêu đề thông báo
-     * @param message Nội dung thông báo
-     */
+    private fun sendWelcomeNotification() {
+        serviceScope.launch {
+            delay(2000)
+
+            if (NotificationHelper.hasNotificationPermission(application) &&
+                notificationPreferences.canSendAINotification()) {
+                NotificationHelper.showNotification(
+                    application,
+                    "Chào mừng đến với WendyAI",
+                    "AI Butler đã sẵn sàng. Tôi sẽ nhắc nhở bạn về tài chính!"
+                )
+            }
+        }
+    }
+
     private fun sendNotification(title: String, message: String) {
         try {
-            if (isNotificationsEnabled(application)) {
-                NotificationHelper.showNotification(application, title, message)
-                Log.d(TAG, "Đã gửi thông báo: $title - $message")
+            if (title.contains("vượt", ignoreCase = true) ||
+                title.contains("VƯỢT", ignoreCase = true)) {
+                NotificationHelper.showBudgetAlertNotification(
+                    application,
+                    title,
+                    message
+                )
+            } else {
+                NotificationHelper.showAINotification(
+                    application,
+                    title,
+                    message
+                )
             }
+
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi gửi thông báo: ${e.message}", e)
+            Log.e(TAG, "Lỗi khi gửi thông báo: $title", e)
         }
     }
 
     // ==================== UTILITY METHODS ====================
 
     /**
-     * Kiểm tra xem thông báo có được bật không
-     * @param context Context của ứng dụng
-     * @return true nếu thông báo được bật
+     * Kiểm tra budget có đang trong kỳ hiện tại không
      */
-    private fun isNotificationsEnabled(context: Context): Boolean {
-        return context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            .getBoolean("notifications_enabled", true)
+    private fun isBudgetInCurrentPeriod(budget: com.example.financeapp.data.models.Budget): Boolean {
+        return try {
+            val today = LocalDate.now()
+            (today.isAfter(budget.startDate) || today.isEqual(budget.startDate)) &&
+                    (today.isBefore(budget.endDate) || today.isEqual(budget.endDate))
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi kiểm tra budget period", e)
+            true // Nếu lỗi, giả sử đang trong kỳ
+        }
     }
 
-    /**
-     * Định dạng tiền tệ
-     * @param amount Số tiền cần định dạng
-     * @return Chuỗi tiền tệ đã định dạng
-     */
     private fun formatCurrency(amount: Double): String {
-        return "%,.0f".format(amount) + "đ"
+        return try {
+            val formatter = java.text.NumberFormat.getInstance(Locale.getDefault())
+            "${formatter.format(amount)}đ"
+        } catch (e: Exception) {
+            "${amount.toInt()}đ"
+        }
     }
 
-    /**
-     * Parse ngày từ string
-     * @param dateString Chuỗi ngày (dd/MM/yyyy)
-     * @return Date object
-     */
     private fun parseDate(dateString: String): Date {
         return try {
             SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateString) ?: Date()
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi parse date: $dateString", e)
             Date()
         }
     }
 
-    /**
-     * Lấy ngày hiện tại dạng dd/MM/yyyy
-     * @return Ngày hiện tại
-     */
     private fun getTodayDate(): String {
         return SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
     }
 
-    /**
-     * Kiểm tra xem ngày có trong tháng hiện tại không
-     * @param dateString Chuỗi ngày cần kiểm tra
-     * @return true nếu trong tháng hiện tại
-     */
     private fun isInCurrentMonth(dateString: String): Boolean {
         return try {
             val transactionDate = parseDate(dateString)
@@ -344,7 +457,62 @@ class AIButlerService(private val application: Application) {
 
             currentMonth == transactionMonth && currentYear == transactionYear
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi kiểm tra tháng: $dateString", e)
             false
         }
+    }
+
+    fun forceCheckNow() {
+        serviceScope.launch {
+            Log.i(TAG, "Buộc kiểm tra ngay lập tức...")
+            executeAllChecks()
+        }
+    }
+
+    private suspend fun executeAllChecks() {
+        try {
+            Log.d(TAG, "Thực hiện tất cả các kiểm tra...")
+
+            // Đợi để đảm bảo dữ liệu đã load
+            delay(2000)
+
+            checkBudgetExceeded()
+            checkBudgetWarning()
+            checkLargeTransaction()
+            checkNoTransactionToday()
+            checkMonthlySummary()
+
+            Log.i(TAG, "Đã hoàn thành tất cả kiểm tra định kỳ")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi thực hiện các kiểm tra", e)
+        }
+    }
+
+    private suspend fun checkAndSendNotifications() {
+        val now = System.currentTimeMillis()
+
+        if (now - lastCheckTime < MIN_CHECK_INTERVAL) {
+            Log.d(TAG, "Bỏ qua kiểm tra, vừa kiểm tra gần đây")
+            return
+        }
+
+        lastCheckTime = now
+        Log.d(TAG, "Bắt đầu kiểm tra điều kiện thông báo")
+
+        // Kiểm tra quyền thông báo
+        if (!NotificationHelper.hasNotificationPermission(application)) {
+            Log.w(TAG, "Không có quyền thông báo, bỏ qua kiểm tra")
+            return
+        }
+
+        // Kiểm tra notification preferences
+        if (!notificationPreferences.canSendAINotification()) {
+            Log.w(TAG, "Thông báo AI đã bị tắt trong cài đặt")
+            return
+        }
+
+        // Thực hiện các kiểm tra
+        executeAllChecks()
     }
 }

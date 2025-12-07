@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -47,15 +48,27 @@ fun BudgetScreen(
     val languageViewModel = LocalLanguageViewModel.current
     val budgets by budgetViewModel.budgets.collectAsState()
     val categories by categoryViewModel.categories.collectAsState()
+    val budgetExceededEvent by budgetViewModel.budgetExceededEvent.collectAsState()
     val isLoading = false
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showStatusDialog by remember { mutableStateOf(false) }
+    var showBudgetExceededDialog by remember { mutableStateOf(false) }
     var selectedBudget by remember { mutableStateOf<Budget?>(null) }
+    var exceededBudgetInfo by remember { mutableStateOf<Pair<Budget, Double>?>(null) }
 
     // Load data khi vào màn hình
     LaunchedEffect(Unit) {
         budgetViewModel.startRealTimeUpdates()
+    }
+
+    // Xử lý sự kiện vượt quá ngân sách
+    LaunchedEffect(budgetExceededEvent) {
+        budgetExceededEvent?.let { (budget, exceededAmount) ->
+            exceededBudgetInfo = budget to exceededAmount
+            showBudgetExceededDialog = true
+            budgetViewModel.clearBudgetExceededEvent()
+        }
     }
 
     Scaffold(
@@ -106,7 +119,9 @@ fun BudgetScreen(
             onAddClick = {
                 navController.navigate("add_budget")
             },
-            languageViewModel = languageViewModel
+            languageViewModel = languageViewModel,
+            budgetViewModel = budgetViewModel,
+            categoryViewModel = categoryViewModel
         )
     }
 
@@ -144,6 +159,226 @@ fun BudgetScreen(
             },
             languageViewModel = languageViewModel
         )
+    }
+
+    // Dialog thông báo vượt quá ngân sách
+    if (showBudgetExceededDialog && exceededBudgetInfo != null) {
+        BudgetExceededDialog(
+            budget = exceededBudgetInfo!!.first,
+            exceededAmount = exceededBudgetInfo!!.second,
+            categoryViewModel = categoryViewModel,
+            languageViewModel = languageViewModel,
+            onDismiss = {
+                showBudgetExceededDialog = false
+                exceededBudgetInfo = null
+            }
+        )
+    }
+}
+
+@Composable
+fun BudgetExceededDialog(
+    budget: Budget,
+    exceededAmount: Double,
+    categoryViewModel: CategoryViewModel,
+    languageViewModel: LanguageViewModel,
+    onDismiss: () -> Unit
+) {
+    val categoryName = categoryViewModel.categories.value
+        .find { it.id == budget.categoryId }
+        ?.name ?: languageViewModel.getTranslation("unknown_category")
+
+    Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Icon cảnh báo
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .background(
+                            Color(0xFFFFEBEE),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFF44336),
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tiêu đề
+                Text(
+                    languageViewModel.getTranslation("budget_exceeded"),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF333333)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Danh mục
+                Text(
+                    categoryName,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFF44336)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Thông tin chi tiết
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Color(0xFFF8F9FA),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    // Ngân sách
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            languageViewModel.getTranslation("budget") + ":",
+                            fontSize = 14.sp,
+                            color = Color(0xFF666666)
+                        )
+                        Text(
+                            formatCurrency(budget.amount),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF333333)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Đã chi
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            languageViewModel.getTranslation("spent") + ":",
+                            fontSize = 14.sp,
+                            color = Color(0xFF666666)
+                        )
+                        Text(
+                            formatCurrency(budget.spent),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF333333)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Vượt quá
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            languageViewModel.getTranslation("exceeded_by") + ":",
+                            fontSize = 14.sp,
+                            color = Color(0xFF666666)
+                        )
+                        Text(
+                            formatCurrency(exceededAmount),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF44336)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Progress bar
+                    val percentage = (budget.spent / budget.amount * 100).toInt().coerceIn(0, 100)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .background(Color(0xFFEEEEEE), RoundedCornerShape(4.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(percentage / 100f)
+                                .height(8.dp)
+                                .background(Color(0xFFF44336), RoundedCornerShape(4.dp))
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "$percentage%",
+                        fontSize = 12.sp,
+                        color = Color(0xFF666666),
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Nút OK
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF44336)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        languageViewModel.getTranslation("understand").uppercase(),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Nút xem chi tiết (nếu cần)
+                TextButton(
+                    onClick = {
+                        // Có thể điều hướng đến trang chi tiết ngân sách
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        languageViewModel.getTranslation("view_details"),
+                        color = Color(0xFF2196F3),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -188,15 +423,31 @@ private fun BudgetContent(
     onToggleStatus: (Budget) -> Unit,
     onDelete: (Budget) -> Unit,
     onAddClick: () -> Unit,
-    languageViewModel: LanguageViewModel
+    languageViewModel: LanguageViewModel,
+    budgetViewModel: BudgetViewModel,
+    categoryViewModel: CategoryViewModel
 ) {
     Column(modifier = modifier) {
         if (isLoading) {
             LoadingState()
         } else {
+            // Thêm banner cảnh báo nếu có ngân sách vượt quá
+            val exceededBudgets = budgets.filter { it.isOverBudget }
+            if (exceededBudgets.isNotEmpty()) {
+                WarningBanner(
+                    exceededBudgets = exceededBudgets,
+                    categories = categories,
+                    languageViewModel = languageViewModel,
+                    budgetViewModel = budgetViewModel,
+                    categoryViewModel = categoryViewModel
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             SimpleStatsCard(
                 budgets = budgets,
-                languageViewModel = languageViewModel
+                languageViewModel = languageViewModel,
+                budgetViewModel = budgetViewModel
             )
             Spacer(modifier = Modifier.height(16.dp))
             BudgetList(
@@ -208,6 +459,76 @@ private fun BudgetContent(
                 onAddClick = onAddClick,
                 languageViewModel = languageViewModel
             )
+        }
+    }
+}
+
+@Composable
+private fun WarningBanner(
+    exceededBudgets: List<Budget>,
+    categories: List<Category>,
+    languageViewModel: LanguageViewModel,
+    budgetViewModel: BudgetViewModel,
+    categoryViewModel: CategoryViewModel
+) {
+    val totalExceededAmount = budgetViewModel.getTotalExceededAmount()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFEBEE)
+        ),
+        border = BorderStroke(1.dp, Color(0xFFF44336).copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                tint = Color(0xFFF44336),
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "${languageViewModel.getTranslation("budget_exceeded_warning")} (${exceededBudgets.size})",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFF44336)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    languageViewModel.getTranslation("total_exceeded") + ": ${formatCurrency(totalExceededAmount)}",
+                    fontSize = 12.sp,
+                    color = Color(0xFF666666)
+                )
+            }
+
+            // Badge số lượng
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFFF44336), CircleShape)
+                    .size(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    exceededBudgets.size.toString(),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -228,11 +549,13 @@ private fun LoadingState() {
 @Composable
 private fun SimpleStatsCard(
     budgets: List<Budget>,
-    languageViewModel: LanguageViewModel
+    languageViewModel: LanguageViewModel,
+    budgetViewModel: BudgetViewModel
 ) {
     val activeBudgets = budgets.count { it.isActive }
-    val totalBudget = budgets.filter { it.isActive }.sumOf { it.amount }
-    val totalSpent = budgets.filter { it.isActive }.sumOf { it.spentAmount }
+    val totalBudget = budgetViewModel.getTotalBudgetAmount()
+    val totalSpent = budgetViewModel.getTotalSpentAmount()
+    val exceededBudgets = budgetViewModel.exceededBudgets.value.size
 
     Card(
         modifier = Modifier
@@ -282,7 +605,33 @@ private fun SimpleStatsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Progress bar đơn giản
+            // Stats row
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                StatItem(
+                    title = languageViewModel.getTranslation("spent"),
+                    value = formatCurrency(totalSpent),
+                    color = Color(0xFFF44336)
+                )
+
+                StatItem(
+                    title = languageViewModel.getTranslation("remaining"),
+                    value = formatCurrency(totalBudget - totalSpent),
+                    color = Color(0xFF4CAF50)
+                )
+
+                StatItem(
+                    title = languageViewModel.getTranslation("exceeded"),
+                    value = exceededBudgets.toString(),
+                    color = Color(0xFFFF9800)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Progress bar
             if (totalBudget > 0) {
                 val progress = (totalSpent / totalBudget).toFloat().coerceIn(0f, 1f)
 
@@ -297,7 +646,11 @@ private fun SimpleStatsCard(
                             .fillMaxWidth(progress)
                             .height(8.dp)
                             .background(
-                                if (progress > 0.8) Color(0xFFF44336) else Color(0xFF2196F3),
+                                when {
+                                    exceededBudgets > 0 -> Color(0xFFF44336)
+                                    progress > 0.8 -> Color(0xFFFF9800)
+                                    else -> Color(0xFF2196F3)
+                                },
                                 RoundedCornerShape(4.dp)
                             )
                     )
@@ -310,19 +663,41 @@ private fun SimpleStatsCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        "${languageViewModel.getTranslation("spent")}: ${formatCurrency(totalSpent)}",
+                        "${(progress * 100).toInt()}% ${languageViewModel.getTranslation("used")}",
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
                     Text(
-                        "${(progress * 100).toInt()}%",
+                        "${(100 - (progress * 100).toInt())}% ${languageViewModel.getTranslation("left")}",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF333333)
+                        color = Color(0xFF666666)
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StatItem(
+    title: String,
+    value: String,
+    color: Color
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            value,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            title,
+            fontSize = 11.sp,
+            color = Color(0xFF666666)
+        )
     }
 }
 
@@ -351,16 +726,56 @@ private fun BudgetList(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(budgets) { budget ->
+                // Hiển thị ngân sách vượt quá trước
+                val exceededBudgets = budgets.filter { it.isOverBudget }
+                val normalBudgets = budgets.filterNot { it.isOverBudget }
+
+                if (exceededBudgets.isNotEmpty()) {
+                    item {
+                        Text(
+                            languageViewModel.getTranslation("exceeded_budgets"),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF44336),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+
+                    items(exceededBudgets) { budget ->
+                        SimpleBudgetCard(
+                            budget = budget,
+                            category = categories.find { it.id == budget.categoryId },
+                            onEdit = { onEdit(budget) },
+                            onToggleStatus = { onToggleStatus(budget) },
+                            onDelete = { onDelete(budget) },
+                            languageViewModel = languageViewModel,
+                            isExceeded = true
+                        )
+                    }
+
+                    item {
+                        Text(
+                            languageViewModel.getTranslation("other_budgets"),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF666666),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+
+                items(normalBudgets) { budget ->
                     SimpleBudgetCard(
                         budget = budget,
                         category = categories.find { it.id == budget.categoryId },
                         onEdit = { onEdit(budget) },
                         onToggleStatus = { onToggleStatus(budget) },
                         onDelete = { onDelete(budget) },
-                        languageViewModel = languageViewModel
+                        languageViewModel = languageViewModel,
+                        isExceeded = false
                     )
                 }
+
                 item {
                     Spacer(modifier = Modifier.height(80.dp))
                 }
@@ -376,12 +791,12 @@ private fun SimpleBudgetCard(
     onEdit: () -> Unit,
     onToggleStatus: () -> Unit,
     onDelete: () -> Unit,
-    languageViewModel: LanguageViewModel
+    languageViewModel: LanguageViewModel,
+    isExceeded: Boolean
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val formatter = DateTimeFormatter.ofPattern("dd/MM")
 
-    // Tên ngắn gọn cho budget period
     val periodText = when (budget.periodType) {
         BudgetPeriodType.WEEK -> languageViewModel.getTranslation("week")
         BudgetPeriodType.MONTH -> languageViewModel.getTranslation("month")
@@ -395,9 +810,10 @@ private fun SimpleBudgetCard(
             .clickable { /* Có thể thêm navigation chi tiết */ },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = if (isExceeded) Color(0xFFFFF8E1) else Color.White
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isExceeded) 3.dp else 2.dp),
+        border = if (isExceeded) BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.3f)) else null
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Header với danh mục và menu
@@ -413,14 +829,17 @@ private fun SimpleBudgetCard(
                             modifier = Modifier
                                 .size(40.dp)
                                 .background(
-                                    parseColor(category?.color ?: "#2196F3").copy(alpha = 0.1f),
+                                    parseColor(category?.color ?: "#2196F3").copy(
+                                        alpha = if (isExceeded) 0.2f else 0.1f
+                                    ),
                                     CircleShape
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 category?.icon ?: "💰",
-                                fontSize = 16.sp
+                                fontSize = 16.sp,
+                                color = if (isExceeded) Color(0xFFF44336) else Color(0xFF333333)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -429,7 +848,7 @@ private fun SimpleBudgetCard(
                                 category?.name ?: languageViewModel.getTranslation("unknown_category"),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF333333)
+                                color = if (isExceeded) Color(0xFFF44336) else Color(0xFF333333)
                             )
                             Row(
                                 verticalAlignment = CenterVertically
@@ -469,7 +888,7 @@ private fun SimpleBudgetCard(
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = languageViewModel.getTranslation("menu"),
-                            tint = Color(0xFF666666)
+                            tint = if (isExceeded) Color(0xFFF44336) else Color(0xFF666666)
                         )
                     }
 
@@ -596,26 +1015,36 @@ private fun SimpleBudgetCard(
                         "${formatCurrency(budget.spentAmount)} / ${formatCurrency(budget.amount)}",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF333333)
+                        color = if (isExceeded) Color(0xFFF44336) else Color(0xFF333333)
                     )
                     Text(
                         "${languageViewModel.getTranslation("remaining")}: ${formatCurrency(budget.remainingAmount)}",
                         fontSize = 12.sp,
-                        color = Color(0xFF666666)
+                        color = if (isExceeded) Color(0xFFF44336) else Color(0xFF666666)
                     )
                 }
 
-                Text(
-                    "${(budget.progressPercentage * 100).toInt()}%",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = when {
-                        !budget.isActive -> Color(0xFF999999)
-                        budget.isOverBudget -> Color(0xFFF44336)
-                        budget.progressPercentage > 0.8 -> Color(0xFFF44336)
-                        else -> Color(0xFF2196F3)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "${(budget.progressPercentage * 100).toInt()}%",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when {
+                            !budget.isActive -> Color(0xFF999999)
+                            isExceeded -> Color(0xFFF44336)
+                            budget.progressPercentage > 0.8 -> Color(0xFFFF9800)
+                            else -> Color(0xFF2196F3)
+                        }
+                    )
+                    if (isExceeded) {
+                        Text(
+                            "${languageViewModel.getTranslation("exceeded")} ${formatCurrency(budget.spent - budget.amount)}",
+                            fontSize = 11.sp,
+                            color = Color(0xFFF44336),
+                            fontWeight = FontWeight.Medium
+                        )
                     }
-                )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -623,8 +1052,8 @@ private fun SimpleBudgetCard(
             // Progress bar
             val progressColor = when {
                 !budget.isActive -> Color(0xFF999999)
-                budget.isOverBudget -> Color(0xFFF44336)
-                budget.progressPercentage > 0.8 -> Color(0xFFF44336)
+                isExceeded -> Color(0xFFF44336)
+                budget.progressPercentage > 0.8 -> Color(0xFFFF9800)
                 else -> Color(0xFF2196F3)
             }
 

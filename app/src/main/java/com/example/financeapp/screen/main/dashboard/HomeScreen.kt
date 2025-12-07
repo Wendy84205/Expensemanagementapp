@@ -598,8 +598,9 @@ private fun BudgetCard(
         }
     }
 
+    // SỬA: Dùng spentAmount thay vì spent
     val budgetAmount = (currentMonthBudget?.amount ?: 0.0).toFloat()
-    val spentAmount = (currentMonthBudget?.spent ?: 0.0).toFloat()
+    val spentAmount = (currentMonthBudget?.spentAmount ?: 0.0).toFloat()  // <-- SỬA Ở ĐÂY
     val spendingPercentage = remember(budgetAmount, spentAmount) {
         if (budgetAmount > 0) {
             (spentAmount / budgetAmount * 100).coerceAtMost(100f)
@@ -631,9 +632,12 @@ private fun BudgetCard(
                 if (budgetAmount > 0) {
                     Text(
                         text = "${spendingPercentage.toInt()}%",
-                        color = if (spendingPercentage > 80) Color(0xFFEF4444)
-                        else if (spendingPercentage > 60) Color(0xFFF59E0B)
-                        else Color(0xFF10B981),
+                        color = when {
+                            spendingPercentage >= 100 -> Color(0xFFEF4444)
+                            spendingPercentage > 80 -> Color(0xFFF59E0B)
+                            spendingPercentage > 60 -> Color(0xFFFF9800)
+                            else -> Color(0xFF10B981)
+                        },
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -757,34 +761,66 @@ private fun BudgetProgressBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .background(Color(0xFFE2E8F0), RoundedCornerShape(4.dp))
+                .height(12.dp)  // Tăng chiều cao cho dễ nhìn
+                .background(Color(0xFFE2E8F0), RoundedCornerShape(6.dp))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(percentage / 100f)
-                    .height(8.dp)
+                    .height(12.dp)
                     .background(
-                        color = if (percentage > 80) Color(0xFFEF4444)
-                        else if (percentage > 60) Color(0xFFF59E0B)
-                        else Color(0xFF10B981),
-                        shape = RoundedCornerShape(4.dp)
+                        // SỬA: Màu sắc theo tỷ lệ
+                        color = when {
+                            percentage >= 100 -> Color(0xFFEF4444)
+                            percentage > 80 -> Color(0xFFF59E0B)  // Cảnh báo vàng >80%
+                            percentage > 60 -> Color(0xFFFF9800)  // Cảnh báo cam >60%
+                            else -> Color(0xFF10B981)
+                        },
+                        shape = RoundedCornerShape(6.dp)
                     )
             )
         }
 
-        // Hiển thị số tiền còn lại
+        // Thêm indicator text cho ngưỡng cảnh báo
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "0%",
+                color = Color(0xFF94A3B8),
+                fontSize = 10.sp
+            )
+            Text(
+                text = "80%",
+                color = Color(0xFFF59E0B),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "100%",
+                color = Color(0xFFEF4444),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Hiển thị số tiền còn lại và cảnh báo
         val remaining = budget - spent
+        Spacer(modifier = Modifier.height(8.dp))
+
         if (remaining > 0) {
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "${rememberLanguageText("remaining")}: ${formatCurrency(remaining)}",
-                color = Color(0xFF10B981),
+                color = when {
+                    percentage > 80 -> Color(0xFFF59E0B)  // Vàng khi >80%
+                    else -> Color(0xFF10B981)
+                },
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             )
         } else if (remaining < 0) {
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "${rememberLanguageText("over_budget")}: ${formatCurrency(-remaining)}",
                 color = Color(0xFFEF4444),
@@ -792,9 +828,27 @@ private fun BudgetProgressBar(
                 fontWeight = FontWeight.Medium
             )
         }
+
+        // Thêm cảnh báo text khi gần vượt
+        if (percentage > 80 && percentage < 100) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = " ${rememberLanguageText("budget_warning_80")}",
+                color = Color(0xFFF59E0B),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        } else if (percentage >= 100) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = " ${rememberLanguageText("budget_exceeded")}",
+                color = Color(0xFFEF4444),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
-
 @Composable
 private fun PlaceholderChart(message: String) {
     Box(

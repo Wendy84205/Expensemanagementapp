@@ -393,9 +393,20 @@ class TransactionViewModel : ViewModel() {
                         return@launch
                     }
 
-                // Revert budget nếu là chi tiêu
+                // Sửa: Revert budget nếu là chi tiêu - sử dụng categoryId thay vì category
                 if (!transactionToDelete.isIncome) {
-                    budgetViewModel?.updateBudgetAfterTransaction(transactionToDelete.category, -transactionToDelete.amount)
+                    // Cách 1: Gọi hàm decreaseBudgetAfterDeletion mới
+                    budgetViewModel?.decreaseBudgetAfterDeletion(
+                        categoryId = transactionToDelete.categoryId ?: transactionToDelete.category,
+                        amount = transactionToDelete.amount
+                    )
+
+                    // Hoặc Cách 2: Gọi updateBudgetAfterTransaction với số tiền âm
+                    // budgetViewModel?.updateBudgetAfterTransaction(
+                    //     categoryId = transactionToDelete.categoryId ?: transactionToDelete.category,
+                    //     amount = -transactionToDelete.amount,
+                    //     triggerNotification = false
+                    // )
                 }
 
                 // Xóa từ Firestore

@@ -3,12 +3,19 @@ package com.example.financeapp.utils.notification
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.example.financeapp.MainActivity
+import android.util.Log
 
 /**
  * Helper class để quản lý thông báo notification trong ứng dụng
@@ -18,65 +25,172 @@ object NotificationHelper {
 
     // ==================== CONSTANTS ====================
 
-    /** ID của notification channel */
-    private const val CHANNEL_ID = "wendyai_notification_channel"
+    private const val TAG = "NotificationHelper"
 
-    /** Tên của notification channel */
-    private const val CHANNEL_NAME = "WendyAI Notification"
+    /** ID của notification channel cho thông báo chung */
+    private const val CHANNEL_ID_GENERAL = "wendyai_channel"
 
-    /** Mô tả của notification channel */
-    private const val CHANNEL_DESCRIPTION = "Thông báo từ ứng dụng quản lý tài chính"
+    /** ID của notification channel cho cảnh báo khẩn cấp */
+    private const val CHANNEL_ID_ALERTS = "wendyai_alerts_channel"
 
-    /** ID cho notification (sử dụng timestamp để đảm bảo unique) */
-    private var notificationId = System.currentTimeMillis().toInt()
+    /** ID của notification channel cho AI Butler */
+    private const val CHANNEL_ID_AI = "wendy_ai_channel"
 
-    // ==================== NOTIFICATION CHANNEL ====================
+    /** Tên các channels */
+    private const val CHANNEL_NAME_GENERAL = "Thông báo chung"
+    private const val CHANNEL_NAME_ALERTS = "Cảnh báo tài chính"
+    private const val CHANNEL_NAME_AI = "Wendy AI"
+
+    /** Mô tả channels */
+    private const val CHANNEL_DESC_GENERAL = "Thông báo từ ứng dụng quản lý tài chính"
+    private const val CHANNEL_DESC_ALERTS = "Cảnh báo vượt ngân sách và chi tiêu"
+    private const val CHANNEL_DESC_AI = "Thông báo thông minh từ AI"
+
+    // ==================== NOTIFICATION CHANNELS ====================
 
     /**
-     * Tạo notification channel (bắt buộc từ Android 8.0+)
-     * Phải gọi method này trước khi hiển thị bất kỳ notification nào
-     *
-     * @param context Context của ứng dụng
+     * Tạo tất cả notification channels
+     */
+    fun createAllChannels(context: Context) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // 1. Channel cho thông báo chung
+                createNotificationChannel(
+                    context = context,
+                    channelId = CHANNEL_ID_GENERAL,
+                    channelName = CHANNEL_NAME_GENERAL,
+                    channelDescription = CHANNEL_DESC_GENERAL,
+                    importance = NotificationManager.IMPORTANCE_DEFAULT,
+                    enableSound = true,
+                    soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    enableVibration = true,
+                    vibrationPattern = longArrayOf(100, 200, 100, 200),
+                    enableLights = true,
+                    lightColor = android.graphics.Color.GREEN
+                )
+
+                // 2. Channel cho cảnh báo khẩn cấp
+                createNotificationChannel(
+                    context = context,
+                    channelId = CHANNEL_ID_ALERTS,
+                    channelName = CHANNEL_NAME_ALERTS,
+                    channelDescription = CHANNEL_DESC_ALERTS,
+                    importance = NotificationManager.IMPORTANCE_HIGH,
+                    enableSound = true,
+                    soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                    enableVibration = true,
+                    vibrationPattern = longArrayOf(0, 500, 250, 500),
+                    enableLights = true,
+                    lightColor = android.graphics.Color.RED
+                )
+
+                // 3. Channel cho AI Butler
+                createNotificationChannel(
+                    context = context,
+                    channelId = CHANNEL_ID_AI,
+                    channelName = CHANNEL_NAME_AI,
+                    channelDescription = CHANNEL_DESC_AI,
+                    importance = NotificationManager.IMPORTANCE_HIGH,
+                    enableSound = true,
+                    soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    enableVibration = true,
+                    vibrationPattern = longArrayOf(0, 300, 200, 300),
+                    enableLights = true,
+                    lightColor = android.graphics.Color.BLUE
+                )
+
+                Log.d(TAG, "Đã tạo tất cả notification channels")
+            } else {
+                // Android < 8.0 không cần tạo channel
+                Log.d(TAG, "Android version < O, không cần tạo channel")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi tạo notification channels", e)
+        }
+    }
+
+    /**
+     * Tạo một notification channel (chỉ Android O+)
+     */
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
+    private fun createNotificationChannel(
+        context: Context,
+        channelId: String,
+        channelName: String,
+        channelDescription: String,
+        importance: Int,
+        enableSound: Boolean,
+        soundUri: Uri?,
+        enableVibration: Boolean,
+        vibrationPattern: LongArray?,
+        enableLights: Boolean,
+        lightColor: Int
+    ) {
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
+                    as NotificationManager
+
+            // Kiểm tra xem channel đã tồn tại chưa
+            val existingChannel = notificationManager.getNotificationChannel(channelId)
+            if (existingChannel == null) {
+                // Tạo channel mới
+                val channel = NotificationChannel(channelId, channelName, importance)
+                channel.description = channelDescription
+
+                // Cấu hình âm thanh
+                if (enableSound && soundUri != null) {
+                    // Tạo AudioAttributes
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+
+                    channel.setSound(soundUri, audioAttributes)
+                } else {
+                    channel.setSound(null, null)
+                }
+
+                // Cấu hình rung
+                channel.enableVibration(enableVibration)
+                if (enableVibration && vibrationPattern != null) {
+                    channel.vibrationPattern = vibrationPattern
+                }
+
+                // Cấu hình đèn LED
+                channel.enableLights(enableLights)
+                if (enableLights) {
+                    channel.lightColor = lightColor
+                }
+
+                // Lock screen visibility
+                channel.lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+
+                // Show badge
+                channel.setShowBadge(true)
+
+                notificationManager.createNotificationChannel(channel)
+                Log.d(TAG, "Đã tạo channel: $channelName")
+            } else {
+                Log.d(TAG, "Channel $channelName đã tồn tại")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi tạo channel $channelName", e)
+        }
+    }
+
+    /**
+     * Tạo notification channel (compatibility method)
      */
     fun createChannel(context: Context) {
-        // Chỉ cần tạo channel từ Android 8.0 (API level 26) trở lên
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
-                        as NotificationManager
-
-                // Kiểm tra xem channel đã tồn tại chưa
-                val existingChannel = notificationManager.getNotificationChannel(CHANNEL_ID)
-                if (existingChannel == null) {
-                    // Tạo channel mới
-                    val channel = NotificationChannel(
-                        CHANNEL_ID,
-                        CHANNEL_NAME,
-                        NotificationManager.IMPORTANCE_HIGH // Quan trọng, sẽ có âm thanh
-                    )
-                    channel.description = CHANNEL_DESCRIPTION
-
-                    // Thiết lập các tính năng cho channel
-                    channel.enableVibration(true) // Bật rung
-                    channel.enableLights(true) // Bật đèn LED
-
-                    notificationManager.createNotificationChannel(channel)
-                }
-            } catch (e: Exception) {
-                // Log error (trong thực tế nên dùng Timber hoặc Log)
-                e.printStackTrace()
-            }
-        }
+        createAllChannels(context)
     }
 
     // ==================== PERMISSION CHECKING ====================
 
     /**
-     * Kiểm tra xem ứng dụng có quyền hiển thị notification không
-     * Từ Android 13 (API level 33) trở lên cần runtime permission
-     *
-     * @param context Context của ứng dụng
-     * @return true nếu có quyền hiển thị notification
+     * Kiểm tra permission notification
      */
     fun hasNotificationPermission(context: Context): Boolean {
         // Android 13+ cần POST_NOTIFICATIONS permission
@@ -86,76 +200,97 @@ object NotificationHelper {
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         }
-
-        // Android 12 trở xuống không cần runtime permission cho notification
         return true
     }
 
-    /**
-     * Kiểm tra và yêu cầu permission nếu cần (method này nên được gọi từ Activity/Fragment)
-     *
-     * @param context Context của ứng dụng (nên là Activity)
-     * @param requestCode Mã yêu cầu permission
-     */
-    @androidx.annotation.RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    fun requestNotificationPermission(context: Context, requestCode: Int) {
-        // Kiểm tra xem có cần request permission không
-        if (!hasNotificationPermission(context)) {
-            // Nên gọi ActivityCompat.requestPermissions từ Activity
-            // Thực tế method này nên được triển khai trong Activity
-        }
-    }
-
-    // ==================== NOTIFICATION DISPLAY ====================
+    // ==================== NOTIFICATION METHODS ====================
 
     /**
-     * Hiển thị notification
-     *
-     * @param context Context của ứng dụng
-     * @param title Tiêu đề của notification
-     * @param message Nội dung của notification
-     * @param autoCancel Có tự động đóng khi user chạm vào không (mặc định: true)
-     * @return true nếu notification được hiển thị thành công
+     * Hiển thị notification với âm thanh và rung
      */
     fun showNotification(
         context: Context,
         title: String,
         message: String,
-        autoCancel: Boolean = true
+        channelId: String = CHANNEL_ID_GENERAL,
+        autoCancel: Boolean = true,
+        priority: Int = NotificationCompat.PRIORITY_DEFAULT,
+        enableSound: Boolean = true,
+        enableVibration: Boolean = true
     ): Boolean {
-        try {
+        return try {
             // 1. Kiểm tra permission
             if (!hasNotificationPermission(context)) {
+                Log.w(TAG, "Không có quyền notification")
                 return false
             }
 
-            // 2. Đảm bảo notification channel đã được tạo
-            createChannel(context)
+            // 2. Đảm bảo channels đã được tạo
+            createAllChannels(context)
 
-            // 3. Xây dựng notification
-            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            // 3. Tạo PendingIntent để mở app khi click notification
+            val intent = Intent(context, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+
+            val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PendingIntent.getActivity(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+            } else {
+                PendingIntent.getActivity(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            }
+
+            // 4. Xây dựng notification
+            val builder = NotificationCompat.Builder(context, channelId)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setAutoCancel(autoCancel)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setPriority(priority)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setContentIntent(pendingIntent) // Mở app khi click
+                .setWhen(System.currentTimeMillis()) // Thời gian hiện tại
 
-            // 4. Thêm small icon (bắt buộc từ Android 5.0+)
-            // Lưu ý: Trong thực tế cần thay ic_launcher_foreground bằng icon thật
+            // 5. Thêm small icon
             try {
-                val smallIcon = context.applicationInfo.icon
-                if (smallIcon != 0) {
-                    builder.setSmallIcon(smallIcon)
+                // Sử dụng icon từ resources
+                val iconResId = context.resources.getIdentifier(
+                    "ic_notification",
+                    "drawable",
+                    context.packageName
+                )
+                if (iconResId != 0) {
+                    builder.setSmallIcon(iconResId)
                 } else {
                     // Fallback icon
                     builder.setSmallIcon(android.R.drawable.ic_dialog_info)
                 }
             } catch (e: Exception) {
-                // Fallback nếu không lấy được icon
+                // Fallback icon
                 builder.setSmallIcon(android.R.drawable.ic_dialog_info)
             }
 
-            // 5. Thêm style cho notification dài
+            // 6. Cấu hình âm thanh và rung (chỉ Android < O mới cần set ở đây)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                if (enableSound) {
+                    val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                    builder.setSound(soundUri)
+                }
+
+                if (enableVibration) {
+                    val vibrationPattern = longArrayOf(0, 300, 200, 300)
+                    builder.setVibrate(vibrationPattern)
+                }
+            }
+
+            // 7. Thêm style cho notification dài
             if (message.length > 50) {
                 val bigTextStyle = NotificationCompat.BigTextStyle()
                     .bigText(message)
@@ -163,125 +298,102 @@ object NotificationHelper {
                 builder.setStyle(bigTextStyle)
             }
 
-            // 6. Hiển thị notification
+            // 8. Hiển thị notification
             val notificationManager = NotificationManagerCompat.from(context)
 
-            // Kiểm tra xem notification có được bật không
             if (!notificationManager.areNotificationsEnabled()) {
+                Log.w(TAG, "Notifications bị tắt trong hệ thống")
                 return false
             }
 
-            // Tăng notification ID để mỗi notification là unique
-            notificationId++
-            if (notificationId > 1000000) {
-                notificationId = 1
-            }
-
+            val notificationId = System.currentTimeMillis().toInt()
             notificationManager.notify(notificationId, builder.build())
-            return true
+
+            Log.d(TAG, "Đã hiển thị notification: $title")
+            true
 
         } catch (e: SecurityException) {
-            // Lỗi permission
-            e.printStackTrace()
-            return false
+            Log.e(TAG, "Lỗi permission khi hiển thị notification", e)
+            false
         } catch (e: Exception) {
-            // Lỗi khác
-            e.printStackTrace()
-            return false
+            Log.e(TAG, "Lỗi khi hiển thị notification", e)
+            false
         }
     }
 
     /**
-     * Hiển thị notification với nội dung chi tiết (dành cho AI assistant)
-     *
-     * @param context Context của ứng dụng
-     * @param title Tiêu đề
-     * @param message Nội dung chính
-     * @param details Chi tiết bổ sung (hiển thị trong expanded view)
-     * @return true nếu thành công
+     * Hiển thị notification cảnh báo vượt ngân sách (có âm thanh báo động)
      */
-    fun showDetailedNotification(
+    fun showBudgetAlertNotification(
         context: Context,
         title: String,
         message: String,
-        details: String
+        details: String = ""
     ): Boolean {
-        try {
-            if (!hasNotificationPermission(context)) {
-                return false
-            }
+        return try {
+            val fullMessage = if (details.isNotEmpty()) "$message\n$details" else message
 
-            createChannel(context)
-
-            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(message)
-                .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
-
-            // Thêm small icon
-            try {
-                val smallIcon = context.applicationInfo.icon
-                if (smallIcon != 0) {
-                    builder.setSmallIcon(smallIcon)
-                } else {
-                    builder.setSmallIcon(android.R.drawable.ic_dialog_info)
-                }
-            } catch (e: Exception) {
-                builder.setSmallIcon(android.R.drawable.ic_dialog_info)
-            }
-
-            // Sử dụng BigTextStyle cho nội dung chi tiết
-            val bigTextStyle = NotificationCompat.BigTextStyle()
-                .bigText("$message\n\n$details")
-                .setBigContentTitle(title)
-            builder.setStyle(bigTextStyle)
-
-            // Thêm action nếu cần
-            // builder.addAction(...)
-
-            val notificationManager = NotificationManagerCompat.from(context)
-            if (!notificationManager.areNotificationsEnabled()) {
-                return false
-            }
-
-            notificationId++
-            notificationManager.notify(notificationId, builder.build())
-            return true
+            showNotification(
+                context = context,
+                title = title,
+                message = fullMessage,
+                channelId = CHANNEL_ID_ALERTS,
+                priority = NotificationCompat.PRIORITY_HIGH,
+                enableSound = true,
+                enableVibration = true
+            )
 
         } catch (e: Exception) {
-            e.printStackTrace()
-            return false
+            Log.e(TAG, "Lỗi khi hiển thị budget alert", e)
+            false
         }
     }
 
     /**
-     * Xóa tất cả notification của ứng dụng
-     *
-     * @param context Context của ứng dụng
+     * Hiển thị notification từ AI Butler
      */
-    fun cancelAllNotifications(context: Context) {
-        try {
-            val notificationManager = NotificationManagerCompat.from(context)
-            notificationManager.cancelAll()
+    fun showAINotification(
+        context: Context,
+        title: String,
+        message: String
+    ): Boolean {
+        return try {
+            showNotification(
+                context = context,
+                title = title,
+                message = message,
+                channelId = CHANNEL_ID_AI,
+                priority = NotificationCompat.PRIORITY_DEFAULT,
+                enableSound = true,
+                enableVibration = true
+            )
+
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Lỗi khi hiển thị AI notification", e)
+            false
         }
     }
 
     /**
-     * Xóa notification theo ID
-     *
-     * @param context Context của ứng dụng
-     * @param notificationId ID của notification cần xóa
+     * Simple notification method (cho backward compatibility)
      */
-    fun cancelNotification(context: Context, notificationId: Int) {
-        try {
-            val notificationManager = NotificationManagerCompat.from(context)
-            notificationManager.cancel(notificationId)
+    fun showSimpleNotification(
+        context: Context,
+        title: String,
+        message: String
+    ): Boolean {
+        return try {
+            showNotification(
+                context = context,
+                title = title,
+                message = message,
+                channelId = CHANNEL_ID_GENERAL,
+                enableSound = true,
+                enableVibration = false // Không rung cho thông báo đơn giản
+            )
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Lỗi khi hiển thị simple notification", e)
+            false
         }
     }
 
@@ -289,34 +401,50 @@ object NotificationHelper {
 
     /**
      * Kiểm tra xem notifications có được bật trong hệ thống không
-     *
-     * @param context Context của ứng dụng
-     * @return true nếu notification được bật
      */
     fun areNotificationsEnabled(context: Context): Boolean {
         return try {
-            val notificationManager = NotificationManagerCompat.from(context)
-            notificationManager.areNotificationsEnabled()
+            NotificationManagerCompat.from(context).areNotificationsEnabled()
         } catch (e: Exception) {
             false
         }
     }
 
     /**
-     * Lấy danh sách notification channels
-     * (Chỉ dành cho debug/testing)
-     *
-     * @param context Context của ứng dụng
-     * @return Danh sách channel IDs
+     * Xóa tất cả notification
+     */
+    fun cancelAllNotifications(context: Context) {
+        try {
+            NotificationManagerCompat.from(context).cancelAll()
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi xóa notification", e)
+        }
+    }
+
+    /**
+     * Debug: In thông tin channels
      */
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
-    fun getNotificationChannels(context: Context): List<String> {
-        return try {
+    fun debugChannels(context: Context) {
+        try {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
                     as NotificationManager
-            notificationManager.notificationChannels.map { it.id }
+            val channels = notificationManager.notificationChannels
+
+            Log.d(TAG, "=== NOTIFICATION CHANNELS ===")
+            channels.forEach { channel ->
+                Log.d(TAG,
+                    "Channel: ${channel.id}\n" +
+                            "Name: ${channel.name}\n" +
+                            "Importance: ${channel.importance}\n" +
+                            "Sound: ${channel.sound}\n" +
+                            "Vibration: ${channel.vibrationPattern?.joinToString()}\n" +
+                            "Lights: ${channel.lightColor}"
+                )
+            }
+            Log.d(TAG, "=== END CHANNELS ===")
         } catch (e: Exception) {
-            emptyList()
+            Log.e(TAG, "Lỗi khi debug channels", e)
         }
     }
 }
