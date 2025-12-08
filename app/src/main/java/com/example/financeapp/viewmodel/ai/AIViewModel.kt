@@ -2641,7 +2641,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Cleanup khi ViewModel bị hủy
      */
-    public override fun onCleared() {
+    override fun onCleared() {
         super.onCleared()
         Log.d(TAG, "Đang dọn dẹp AIViewModel...")
 

@@ -1,6 +1,7 @@
 package com.example.financeapp.screen.main.dashboard
 
 import android.graphics.Paint
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,8 +10,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,8 +25,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.toColorInt
 import androidx.navigation.NavController
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.components.ui.BottomNavBar
@@ -41,7 +47,8 @@ fun HomeScreen(
     currentUser: com.example.financeapp.data.models.User?,
     transactions: List<Transaction>,
     onCalendarClick: () -> Unit,
-    budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel
+    budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel,
+    categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel
 ) {
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
@@ -122,7 +129,8 @@ fun HomeScreen(
                     BudgetCard(
                         navController = navController,
                         monthlySpent = monthlySpent,
-                        budgetViewModel = budgetViewModel
+                        budgetViewModel = budgetViewModel,
+                        categoryViewModel = categoryViewModel
                     )
                 }
             }
@@ -585,26 +593,15 @@ private fun SimpleColumnChart(data: List<Pair<String, Float>>) {
 private fun BudgetCard(
     navController: NavController,
     monthlySpent: Float,
-    budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel
+    budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel,
+    categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel // Thêm CategoryViewModel
 ) {
-    val currentMonth = remember { getCurrentMonthYear() }
     val budgets by budgetViewModel.budgets.collectAsState()
+    val categories by categoryViewModel.categories.collectAsState()
 
-    // Lấy ngân sách tháng hiện tại
-    val currentMonthBudget = remember(budgets) {
-        budgets.find { budget ->
-            val budgetMonth = formatLocalDateMonthYear(budget.startDate)
-            budgetMonth == currentMonth && budget.isActive
-        }
-    }
-
-    // SỬA: Dùng spentAmount thay vì spent
-    val budgetAmount = (currentMonthBudget?.amount ?: 0.0).toFloat()
-    val spentAmount = (currentMonthBudget?.spentAmount ?: 0.0).toFloat()  // <-- SỬA Ở ĐÂY
-    val spendingPercentage = remember(budgetAmount, spentAmount) {
-        if (budgetAmount > 0) {
-            (spentAmount / budgetAmount * 100).coerceAtMost(100f)
-        } else 0f
+    // Lấy tất cả budget đã tạo
+    val allBudgets = remember(budgets) {
+        budgets.sortedByDescending { it.startDate }
     }
 
     Card(
@@ -629,90 +626,41 @@ private fun BudgetCard(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-                if (budgetAmount > 0) {
+                if (allBudgets.isNotEmpty()) {
                     Text(
-                        text = "${spendingPercentage.toInt()}%",
-                        color = when {
-                            spendingPercentage >= 100 -> Color(0xFFEF4444)
-                            spendingPercentage > 80 -> Color(0xFFF59E0B)
-                            spendingPercentage > 60 -> Color(0xFFFF9800)
-                            else -> Color(0xFF10B981)
-                        },
+                        text = "${allBudgets.size} ngân sách",
+                        color = Color(0xFF3B82F6),
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
+
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (budgetAmount > 0) {
-                // Hiển thị progress bar nếu đã đặt ngân sách
-                BudgetProgressBar(
-                    spent = spentAmount,
-                    budget = budgetAmount,
-                    percentage = spendingPercentage
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Card để thêm/chỉnh sửa ngân sách
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        if (currentMonthBudget != null) {
-                            navController.navigate("edit_budget/${currentMonthBudget.id}")
-                        } else {
-                            navController.navigate("add_budget")
-                        }
-                    },
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
-            ) {
+            if (allBudgets.isEmpty()) {
+                // Hiển thị khi không có budget
+                NoBudgetPlaceholder(navController = navController)
+            } else {
+                // Hiển thị danh sách tất cả budget
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = rememberLanguageText("manage_budget"),
-                                color = Color(0xFF0F172A),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = if (budgetAmount > 0)
-                                    "${rememberLanguageText("tracking_budget")} ${formatCurrency(budgetAmount.toDouble())}"
-                                else rememberLanguageText("setup_budget_description"),
-                                color = Color(0xFF64748B),
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp
-                            )
-                        }
-
-                        Icon(
-                            Icons.Default.ArrowForward,
-                            contentDescription = rememberLanguageText("view_details"),
-                            tint = Color(0xFF3B82F6),
-                            modifier = Modifier.size(20.dp)
+                    // Hiển thị tất cả budgets
+                    allBudgets.forEach { budget ->
+                        // Tìm category tương ứng
+                        val category = categories.find { it.id == budget.categoryId }
+                        BudgetItemWithIcon(
+                            budget = budget,
+                            category = category,
+                            navController = navController
                         )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
 
+                    // Nút thêm budget mới
                     Button(
                         onClick = {
-                            if (currentMonthBudget != null) {
-                                navController.navigate("edit_budget/${currentMonthBudget.id}")
-                            } else {
-                                navController.navigate("add_budget")
-                            }
+                            navController.navigate("add_budget")
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
@@ -721,10 +669,7 @@ private fun BudgetCard(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = if (budgetAmount > 0)
-                                rememberLanguageText("view_details")
-                            else
-                                rememberLanguageText("setup_budget_button"),
+                            text = "Thêm ngân sách mới",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -736,115 +681,317 @@ private fun BudgetCard(
 }
 
 @Composable
-private fun BudgetProgressBar(
-    spent: Float,
-    budget: Float,
-    percentage: Float
+private fun BudgetItemWithIcon(
+    budget: com.example.financeapp.data.models.Budget,
+    category: com.example.financeapp.viewmodel.transaction.Category?,
+    navController: NavController
 ) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "${rememberLanguageText("spent")}: ${formatCurrency(spent)}",
-                color = Color(0xFF64748B),
-                fontSize = 12.sp
-            )
-            Text(
-                text = "${rememberLanguageText("budget")}: ${formatCurrency(budget)}",
-                color = Color(0xFF64748B),
-                fontSize = 12.sp
-            )
+    val budgetAmount = budget.amount.toFloat()
+    val spentAmount = budget.spentAmount.toFloat()
+    val spendingPercentage = remember(budgetAmount, spentAmount) {
+        if (budgetAmount > 0) {
+            (spentAmount / budgetAmount * 100).coerceAtMost(100f)
+        } else 0f
+    }
+
+    val isExceeded = spendingPercentage >= 100
+    val isWarning = spendingPercentage > 80 && spendingPercentage < 100
+    val remaining = budgetAmount - spentAmount // <-- Định nghĩa biến remaining ở đây
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                navController.navigate("edit_budget/${budget.id}")
+            },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                isExceeded -> Color(0xFFFFF8E1)
+                !budget.isActive -> Color(0xFFF8F8F8)
+                else -> Color(0xFFF8FAFC)
+            }
+        ),
+        border = when {
+            isExceeded -> BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.3f))
+            !budget.isActive -> BorderStroke(1.dp, Color(0xFFDDDDDD))
+            else -> null
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)  // Tăng chiều cao cho dễ nhìn
-                .background(Color(0xFFE2E8F0), RoundedCornerShape(6.dp))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(percentage / 100f)
-                    .height(12.dp)
-                    .background(
-                        // SỬA: Màu sắc theo tỷ lệ
+            // Header với icon và tên category
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon category
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            parseColor(category?.color ?: "#3B82F6").copy(alpha = 0.1f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        category?.icon ?: "💰",
+                        fontSize = 16.sp,
+                        color = parseColor(category?.color ?: "#3B82F6")
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Tên category
+                    Text(
+                        text = category?.name ?: "Ngân sách chung",
+                        color = Color(0xFF0F172A),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Thông tin thời gian và chu kỳ
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${budget.startDate.dayOfMonth}/${budget.startDate.monthValue} - ${budget.endDate.dayOfMonth}/${budget.endDate.monthValue}",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Loại chu kỳ
+                        val periodText = when (budget.periodType) {
+                            com.example.financeapp.data.models.BudgetPeriodType.WEEK -> "Tuần"
+                            com.example.financeapp.data.models.BudgetPeriodType.MONTH -> "Tháng"
+                            com.example.financeapp.data.models.BudgetPeriodType.QUARTER -> "Quý"
+                            com.example.financeapp.data.models.BudgetPeriodType.YEAR -> "Năm"
+                            else -> "Tháng"
+                        }
+
+                        Text(
+                            text = "/$periodText",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp
+                        )
+
+                        // Badge trạng thái
+                        if (!budget.isActive) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFDDDDDD), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Tạm dừng",
+                                    color = Color(0xFF666666),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Phần trăm
+                Text(
+                    text = "${spendingPercentage.toInt()}%",
+                    color = when {
+                        isExceeded -> Color(0xFFEF4444)
+                        isWarning -> Color(0xFFF59E0B)
+                        !budget.isActive -> Color(0xFF94A3B8)
+                        else -> Color(0xFF10B981)
+                    },
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Thông tin số tiền
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Đã chi: ${formatCurrency(spentAmount)}",
+                        color = Color(0xFF64748B),
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = "Ngân sách: ${formatCurrency(budgetAmount)}",
+                        color = Color(0xFF64748B),
+                        fontSize = 11.sp
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "Còn lại:",
+                        color = Color(0xFF64748B),
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = formatCurrency(remaining), // <-- Sử dụng biến remaining đã định nghĩa
                         color = when {
-                            percentage >= 100 -> Color(0xFFEF4444)
-                            percentage > 80 -> Color(0xFFF59E0B)  // Cảnh báo vàng >80%
-                            percentage > 60 -> Color(0xFFFF9800)  // Cảnh báo cam >60%
+                            isExceeded -> Color(0xFFEF4444)
+                            isWarning -> Color(0xFFF59E0B)
+                            !budget.isActive -> Color(0xFF94A3B8)
                             else -> Color(0xFF10B981)
                         },
-                        shape = RoundedCornerShape(6.dp)
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
-            )
-        }
+                }
+            }
 
-        // Thêm indicator text cho ngưỡng cảnh báo
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Progress bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .background(
+                        when {
+                            !budget.isActive -> Color(0xFFE2E8F0)
+                            else -> Color(0xFFE2E8F0)
+                        },
+                        RoundedCornerShape(3.dp)
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(spendingPercentage / 100f)
+                        .height(6.dp)
+                        .background(
+                            color = when {
+                                isExceeded -> Color(0xFFEF4444)
+                                isWarning -> Color(0xFFF59E0B)
+                                !budget.isActive -> Color(0xFF94A3B8)
+                                else -> Color(0xFF10B981)
+                            },
+                            shape = RoundedCornerShape(3.dp)
+                        )
+                )
+            }
+
+            // Hiển thị cảnh báo nếu cần
+            if (isExceeded) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Vượt ngân sách: ${formatCurrency(-remaining)}",
+                    color = Color(0xFFEF4444),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            } else if (isWarning) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Đã chi hơn 80% ngân sách",
+                    color = Color(0xFFF59E0B),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // Hiển thị ghi chú nếu có
+            if (!budget.note.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        Icons.Default.Notes,
+                        contentDescription = "Ghi chú",
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier
+                            .size(12.dp)
+                            .padding(top = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = budget.note ?: "",
+                        color = Color(0xFF64748B),
+                        fontSize = 11.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+// Hàm parse màu từ string (lấy từ BudgetScreen)
+private fun parseColor(colorString: String): Color {
+    return try {
+        val color = colorString.toColorInt()
+        Color(color)
+    } catch (e: Exception) {
+        Color(0xFF3B82F6)
+    }
+}
+
+@Composable
+private fun NoBudgetPlaceholder(navController: NavController) {
+    // Giữ nguyên như trước
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "💰",
+            fontSize = 36.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Chưa có ngân sách nào",
+            color = Color(0xFF0F172A),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Thiết lập ngân sách để quản lý chi tiêu hiệu quả hơn",
+            color = Color(0xFF64748B),
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Button(
+            onClick = {
+                navController.navigate("add_budget")
+            },
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF3B82F6)
+            ),
+            shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                text = "0%",
-                color = Color(0xFF94A3B8),
-                fontSize = 10.sp
-            )
-            Text(
-                text = "80%",
-                color = Color(0xFFF59E0B),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "100%",
-                color = Color(0xFFEF4444),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        // Hiển thị số tiền còn lại và cảnh báo
-        val remaining = budget - spent
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (remaining > 0) {
-            Text(
-                text = "${rememberLanguageText("remaining")}: ${formatCurrency(remaining)}",
-                color = when {
-                    percentage > 80 -> Color(0xFFF59E0B)  // Vàng khi >80%
-                    else -> Color(0xFF10B981)
-                },
-                fontSize = 12.sp,
+                text = "Thiết lập ngân sách",
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
-            )
-        } else if (remaining < 0) {
-            Text(
-                text = "${rememberLanguageText("over_budget")}: ${formatCurrency(-remaining)}",
-                color = Color(0xFFEF4444),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        // Thêm cảnh báo text khi gần vượt
-        if (percentage > 80 && percentage < 100) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = " ${rememberLanguageText("budget_warning_80")}",
-                color = Color(0xFFF59E0B),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        } else if (percentage >= 100) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = " ${rememberLanguageText("budget_exceeded")}",
-                color = Color(0xFFEF4444),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
             )
         }
     }

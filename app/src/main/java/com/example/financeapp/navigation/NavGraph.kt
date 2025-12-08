@@ -17,6 +17,8 @@ import com.example.financeapp.screen.main.budget.AddBudgetScreen
 import com.example.financeapp.screen.features.category.AddCategoryScreen
 import com.example.financeapp.screen.features.recurring.AddRecurringExpenseScreen
 import com.example.financeapp.screen.main.transaction.AddTransactionScreen
+import com.example.financeapp.screen.features.savings.SavingsGoalsScreen
+import com.example.financeapp.screen.features.savings.AddSavingsGoalScreen
 import com.example.financeapp.screen.auth.AuthScreen
 import com.example.financeapp.screen.main.budget.BudgetScreen
 import com.example.financeapp.screen.features.CalendarScreen
@@ -44,9 +46,10 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 
@@ -63,6 +66,7 @@ fun NavGraph(
     recurringExpenseViewModel: RecurringExpenseViewModel,
     budgetViewModel: BudgetViewModel
 ) {
+    var userId by remember { mutableStateOf<String?>(null) }
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
     val transactions by transactionViewModel.transactions.collectAsState()
     val recurringExpenses by recurringExpenseViewModel.recurringExpenses.collectAsState()
@@ -110,7 +114,8 @@ fun NavGraph(
                     // Xử lý calendar click
                     navController.navigate("calendar")
                 },
-                budgetViewModel = budgetViewModel
+                budgetViewModel = budgetViewModel,
+                categoryViewModel = categoryViewModel
             )
         }
 
@@ -383,6 +388,19 @@ fun NavGraph(
                 recurringExpenseViewModel = recurringExpenseViewModel,
                 categoryViewModel = categoryViewModel,
                 existingExpense = existingExpense
+            )
+        }
+        composable("savings_goals") {
+            SavingsGoalsScreen(
+                navController = navController,
+                userId = userId ?: ""
+            )
+        }
+
+        composable("add_savings_goal") {
+            AddSavingsGoalScreen(
+                navController = navController,
+                userId = userId ?: ""
             )
         }
     }

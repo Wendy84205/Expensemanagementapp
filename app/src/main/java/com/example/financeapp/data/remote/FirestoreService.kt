@@ -1,14 +1,18 @@
 package com.example.financeapp.data.remote
 
+import com.example.financeapp.data.models.SavingsGoal
 import com.example.financeapp.data.models.Transaction
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
+import java.util.*
 
 class FirestoreService {
     private val db: FirebaseFirestore = Firebase.firestore
 
+    // ========== TRANSACTIONS ==========
     suspend fun saveTransaction(transaction: Transaction) {
         try {
             val transactionMap = mapOf(
@@ -81,4 +85,232 @@ class FirestoreService {
             throw e
         }
     }
+
+    // ========== SAVINGS GOALS ==========
+
+    suspend fun getSavingsGoals(userId: String): List<SavingsGoal> {
+        return try {
+            val snapshot = db.collection("savings_goals")
+                .whereEqualTo("userId", userId)
+                .orderBy("deadline")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                try {
+                    val data = doc.data ?: emptyMap()
+                    SavingsGoal(
+                        id = data["id"] as? String ?: doc.id,
+                        name = data["name"] as? String ?: "",
+                        targetAmount = (data["targetAmount"] as? Long) ?: 0L,
+                        currentAmount = (data["currentAmount"] as? Long) ?: 0L,
+                        deadline = (data["deadline"] as? Long) ?: 0L,
+                        category = data["category"] as? String ?: "",
+                        userId = data["userId"] as? String ?: userId,
+                        color = (data["color"] as? Int) ?: 0,
+                        icon = (data["icon"] as? Int) ?: 0,
+                        description = data["description"] as? String ?: "",
+                        progress = (data["progress"] as? Float) ?: 0f,
+                        isCompleted = data["isCompleted"] as? Boolean ?: false
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun addSavingsGoal(goal: SavingsGoal): String {
+        try {
+            val goalMap = mutableMapOf<String, Any>(
+                "name" to goal.name,
+                "targetAmount" to goal.targetAmount,
+                "currentAmount" to goal.currentAmount,
+                "deadline" to goal.deadline,
+                "category" to goal.category,
+                "userId" to goal.userId,
+                "color" to goal.color,
+                "icon" to goal.icon,
+                "description" to goal.description,
+                "progress" to goal.calculateProgress(),
+                "isCompleted" to goal.isCompleted,
+                "createdAt" to System.currentTimeMillis(),
+                "updatedAt" to System.currentTimeMillis()
+            )
+
+            val docRef = if (goal.id.isNotEmpty()) {
+                db.collection("savings_goals").document(goal.id)
+            } else {
+                db.collection("savings_goals").document()
+            }
+
+            goalMap["id"] = docRef.id
+            docRef.set(goalMap).await()
+            return docRef.id
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun updateSavingsGoal(goal: SavingsGoal) {
+        try {
+            val goalMap = mapOf<String, Any>(
+                "name" to goal.name,
+                "targetAmount" to goal.targetAmount,
+                "currentAmount" to goal.currentAmount,
+                "deadline" to goal.deadline,
+                "category" to goal.category,
+                "userId" to goal.userId,
+                "color" to goal.color,
+                "icon" to goal.icon,
+                "description" to goal.description,
+                "progress" to goal.calculateProgress(),
+                "isCompleted" to goal.isCompleted,
+                "updatedAt" to System.currentTimeMillis()
+            )
+
+            db.collection("savings_goals")
+                .document(goal.id)
+                .update(goalMap)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun deleteSavingsGoal(goalId: String) {
+        try {
+            db.collection("savings_goals")
+                .document(goalId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun addToSavings(goalId: String, amount: Long) {
+        try {
+            // Lấy goal hiện tại
+            val doc = db.collection("savings_goals")
+                .document(goalId)
+                .get()
+                .await()
+
+            val data = doc.data ?: return
+
+            val currentAmount = (data["currentAmount"] as? Long) ?: 0L
+            val targetAmount = (data["targetAmount"] as? Long) ?: 0L
+            val newAmount = currentAmount + amount
+            val progress = if (targetAmount > 0) {
+                (newAmount.toFloat() / targetAmount.toFloat() * 100).coerceAtMost(100f)
+            } else 0f
+            val isCompleted = progress >= 100
+
+            val updates = mapOf<String, Any>(
+                "currentAmount" to newAmount,
+                "progress" to progress,
+                "isCompleted" to isCompleted,
+                "updatedAt" to System.currentTimeMillis()
+            )
+
+            db.collection("savings_goals")
+                .document(goalId)
+                .update(updates)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    // ========== MONTHLY SUMMARY ==========
+
+    suspend fun getMonthlySummary(userId: String, month: Int, year: Int): Pair<Long, Long> {
+        return try {
+            // Tính timestamp đầu và cuối tháng
+            val calendar = Calendar.getInstance()
+
+            // Đặt ngày đầu tháng
+            calendar.set(Calendar.YEAR, year)
+            calendar.set(Calendar.MONTH, month)
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+
+            val startOfMonth = calendar.timeInMillis
+
+            // Đến đầu tháng sau
+            calendar.add(Calendar.MONTH, 1)
+            val endOfMonth = calendar.timeInMillis
+
+            // Lấy tất cả giao dịch (trong thực tế nên lọc theo userId và date)
+            val transactions = getTransactions()
+
+            // Lọc giao dịch trong tháng và của user
+            val monthlyTransactions = transactions.filter { transaction ->
+                // Giả sử transaction.date là timestamp
+                val transactionDate = transaction.createdAt
+                transactionDate in startOfMonth until endOfMonth
+            }
+
+            // Tính tổng thu nhập
+            val totalIncome = monthlyTransactions
+                .filter { it.isIncome }
+                .sumOf { (it.amount ?: 0.0).toLong() }
+
+            // Tính tổng chi tiêu
+            val totalExpenses = monthlyTransactions
+                .filter { !it.isIncome }
+                .sumOf { (it.amount ?: 0.0).toLong() }
+
+            Pair(totalIncome, totalExpenses)
+        } catch (e: Exception) {
+            Pair(0L, 0L)
+        }
+    }
+
+    // Tự động cập nhật tiết kiệm dựa trên thu nhập còn lại
+    suspend fun autoUpdateSavingsFromRemainingIncome(userId: String) {
+        try {
+            val calendar = Calendar.getInstance()
+            val currentMonth = calendar.get(Calendar.MONTH)
+            val currentYear = calendar.get(Calendar.YEAR)
+
+            // Lấy tổng thu nhập và chi tiêu tháng này
+            val (monthlyIncome, monthlyExpenses) = getMonthlySummary(userId, currentMonth, currentYear)
+
+            // Tính số tiền còn lại
+            val remainingIncome = monthlyIncome - monthlyExpenses
+
+            if (remainingIncome > 0) {
+                // Lấy tất cả savings goals active
+                val savingsGoals = getSavingsGoals(userId)
+                    .filter { !it.isCompleted }
+
+                if (savingsGoals.isNotEmpty()) {
+                    // Phân bổ đều cho các goal
+                    val amountPerGoal = remainingIncome / savingsGoals.size
+
+                    savingsGoals.forEach { goal ->
+                        if (amountPerGoal > 0) {
+                            addToSavings(goal.id, amountPerGoal)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
+// Extension function để tính progress
+fun SavingsGoal.calculateProgress(): Float {
+    return if (targetAmount > 0) {
+        (currentAmount.toFloat() / targetAmount.toFloat() * 100).coerceAtMost(100f)
+    } else 0f
 }

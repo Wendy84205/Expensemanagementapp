@@ -37,8 +37,8 @@ class AIButlerWorker(
 ) : CoroutineWorker(context, params) {
 
     companion object {
-        private const val TAG = "AIButlerWorker"
-        private const val WORK_NAME = "ai_butler_periodic_work"
+        private const val TAG = "WendyAI"
+        private const val WORK_NAME = "wendyai_butler_periodic_work"
         private const val REPEAT_INTERVAL_HOURS = 6L // Kiểm tra mỗi 6 giờ
         private const val FLEX_INTERVAL_HOURS = 1L
         private const val END_OF_MONTH_DAYS = 3

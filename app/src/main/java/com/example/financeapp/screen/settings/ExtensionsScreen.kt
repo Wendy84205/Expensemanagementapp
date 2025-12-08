@@ -100,15 +100,14 @@ fun ExtensionsScreen(navController: NavController) {
 
                         Divider(color = Color(0xFFEEEEEE))
 
-                        // Tiết kiệm
                         ExtensionItem(
                             icon = Icons.Default.Savings,
                             title = languageViewModel.getTranslation("savings_goals"),
                             subtitle = languageViewModel.getTranslation("track_and_achieve_savings_targets"),
                             color = Color(0xFF9C27B0),
-                            onClick = { /* TODO: Navigate to savings */ },
-                            isComingSoon = true,
-                            languageViewModel = languageViewModel
+                            onClick = {
+                                navController.navigate("savings_goals")
+                            }
                         )
 
                         Divider(color = Color(0xFFEEEEEE))

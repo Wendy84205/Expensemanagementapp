@@ -17,6 +17,12 @@ class LanguageViewModel : ViewModel() {
     // Translations dictionary
     private val translations = mapOf(
         "vi" to mapOf(
+            "budgets" to "ngân sách",
+            "view_all_budgets" to "Xem tất cả ngân sách",
+            "add_new_budget" to "Thêm ngân sách mới",
+            "no_budget_setup" to "Chưa có ngân sách nào",
+            "setup_budget_description" to "Thiết lập ngân sách để quản lý chi tiêu hiệu quả hơn",
+            "this_month" to "Tháng này",
             // Basic app and navigation
             "language_settings" to "Cài đặt ngôn ngữ",
             "choose_language" to "Chọn ngôn ngữ",

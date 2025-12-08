@@ -17,7 +17,6 @@ import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.*
-
 /**
  * Application class chính của ứng dụng Finance App
  */
@@ -57,15 +56,8 @@ class FinanceApp : Application() {
         private set
 
     /** AI ViewModel - quản lý AI assistant */
-    private var _aiViewModel: AIViewModel? = null  // THAY ĐỔI: private var thay vì lateinit
-    val aiViewModel: AIViewModel
-        get() {
-            if (_aiViewModel == null) {
-                Log.d(TAG, "Lazy init AIViewModel...")
-                _aiViewModel = AIViewModel(this)
-            }
-            return _aiViewModel!!
-        }
+    lateinit var aiViewModel: AIViewModel
+        private set
 
     // ==================== SERVICES ====================
 
@@ -143,9 +135,15 @@ class FinanceApp : Application() {
                 _categoryViewModel = CategoryViewModel()
                 Log.d(TAG, "CategoryViewModel initialized")
             }
+            CoroutineScope(Dispatchers.Main).launch {
+                // Đợi một chút để các ViewModel khác load dữ liệu
+                delay(1500) // Đợi 1.5 giây
 
-            // XÓA: Không khởi tạo AIViewModel ở đây nữa
-            // Nó sẽ được khởi tạo lazy khi cần
+                // Khởi tạo AIViewModel
+                aiViewModel = AIViewModel(this@FinanceApp).apply {
+                    Log.d(TAG, "AIViewModel initialized")
+                }
+            }
 
             Log.i(TAG, "Tất cả ViewModels đã được khởi tạo")
 
@@ -228,7 +226,7 @@ class FinanceApp : Application() {
             • TransactionViewModel: ${if (::transactionViewModel.isInitialized) "✓" else "✗"}
             • BudgetViewModel: ${if (::budgetViewModel.isInitialized) "✓" else "✗"}
             • RecurringExpenseViewModel: ${if (::recurringExpenseViewModel.isInitialized) "✓" else "✗"}
-            • AIViewModel: ${if (_aiViewModel != null) "✓" else "✗"}
+            • AIViewModel: ${if (::aiViewModel.isInitialized) "✓" else "✗"}
             • Notification System: ✓
             • AI Butler Service: ${if (_aiButlerService != null) "✓" else "✗"}
             • Background Workers: ${if (AIButlerWorker.isScheduled(this)) "✓" else "✗"}
@@ -273,14 +271,6 @@ class FinanceApp : Application() {
     }
 
     /**
-     * Khởi động AIViewModel nếu chưa được khởi tạo
-     * (Dùng khi cần chủ động khởi tạo)
-     */
-    fun initializeAIViewModel(): AIViewModel {
-        return aiViewModel  // Lazy initialization
-    }
-
-    /**
      * Kiểm tra trạng thái background workers
      */
     fun getWorkerStatus(): String {
@@ -292,7 +282,6 @@ class FinanceApp : Application() {
             Worker Status:
             • AI Butler Worker: ${if (isWorkerScheduled) "Đã lên lịch" else "Chưa lên lịch"}
             • AI Butler Service: ${if (serviceRunning) "Đang chạy" else "Đã dừng"}
-            • AI ViewModel: ${if (_aiViewModel != null) "Đã khởi tạo" else "Chưa khởi tạo"}
             """.trimIndent()
 
         } catch (e: Exception) {
@@ -313,7 +302,7 @@ class FinanceApp : Application() {
             • TransactionViewModel: ${::transactionViewModel.isInitialized}
             • BudgetViewModel: ${::budgetViewModel.isInitialized}
             • RecurringExpenseViewModel: ${::recurringExpenseViewModel.isInitialized}
-            • AIViewModel: ${_aiViewModel != null}
+            • AIViewModel: ${::aiViewModel.isInitialized}
             
             SERVICES:
             • AI Butler Service: ${_aiButlerService != null}
@@ -344,12 +333,14 @@ class FinanceApp : Application() {
         }
     }
 
-    /**
-     * Dọn dẹp tất cả resources
-     */
-    fun cleanupAllResources() {
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Log.d(TAG, "onTrimMemory called with level: $level")
+    }
+
+    override fun onTerminate() {
         try {
-            Log.i(TAG, "Dọn dẹp tất cả resources...")
+            Log.i(TAG, "Ứng dụng đang terminate, dọn dẹp resources...")
 
             // Dừng AI Butler Service
             _aiButlerService?.stop()
@@ -359,30 +350,6 @@ class FinanceApp : Application() {
             AIButlerWorker.cancel(this)
             Log.d(TAG, "Background workers đã hủy")
 
-            // Clear AIViewModel
-            _aiViewModel?.onCleared()
-            _aiViewModel = null
-            Log.d(TAG, "AIViewModel đã được giải phóng")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi dọn dẹp resources", e)
-        }
-    }
-
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        Log.d(TAG, "onTrimMemory called with level: $level")
-
-        // Cleanup khi memory thấp
-        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
-            Log.d(TAG, "Memory low, cleaning up non-essential resources")
-        }
-    }
-
-    override fun onTerminate() {
-        try {
-            Log.i(TAG, "Ứng dụng đang terminate, dọn dẹp resources...")
-            cleanupAllResources()
         } catch (e: Exception) {
             Log.e(TAG, "Lỗi khi terminate ứng dụng", e)
         } finally {

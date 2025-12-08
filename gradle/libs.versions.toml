@@ -21,6 +21,9 @@ foundationVersion = "1.9.5"
 litertSupportApi = "1.4.1"
 workRuntimeKtx = "2.11.0"
 ui = "1.9.5"
+composeTesting = "1.0.0-alpha09"
+androidxUiText = "1.10.0"
+androidxFoundation = "1.10.0"
 
 [libraries]
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -44,6 +47,9 @@ androidx-compose-foundation = { group = "androidx.compose.foundation", name = "f
 litert-support-api = { group = "com.google.ai.edge.litert", name = "litert-support-api", version.ref = "litertSupportApi" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
+androidx-compose-testing = { group = "androidx.xr.compose", name = "compose-testing", version.ref = "composeTesting" }
+androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "androidxUiText" }
+foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "androidxFoundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

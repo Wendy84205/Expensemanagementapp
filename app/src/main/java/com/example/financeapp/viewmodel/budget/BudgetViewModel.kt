@@ -341,32 +341,22 @@ class BudgetViewModel : ViewModel() {
     }
     /**
      * Giảm ngân sách sau khi xóa giao dịch
-     * @param categoryId ID danh mục (hoặc tên danh mục cũ)
+     * @param categoryId ID danh mục
      * @param amount Số tiền giao dịch đã xóa
      */
     fun decreaseBudgetAfterDeletion(categoryId: String, amount: Double) {
         viewModelScope.launch {
             try {
                 val budgets = _budgets.value.toMutableList()
-
-                // Tìm budget theo categoryId hoặc category name
-                val index = budgets.indexOfFirst { budget ->
-                    val matchesById = budget.categoryId == categoryId
-                    val matchesByName = try {
-                        // Nếu categoryId thực ra là category name (do dữ liệu cũ)
-                        budget.categoryId.contains(categoryId) || categoryId.contains(budget.categoryId)
-                    } catch (e: Exception) {
-                        false
-                    }
-
-                    budget.isActive &&
-                            LocalDate.now().isAfter(budget.startDate.minusDays(1)) &&
-                            LocalDate.now().isBefore(budget.endDate.plusDays(1)) &&
-                            (matchesById || matchesByName)
+                val index = budgets.indexOfFirst {
+                    it.categoryId == categoryId &&
+                            it.isActive &&
+                            LocalDate.now().isAfter(it.startDate.minusDays(1)) &&
+                            LocalDate.now().isBefore(it.endDate.plusDays(1))
                 }
 
                 if (index == -1) {
-                    Log.w(TAG, "Không tìm thấy ngân sách active cho category: $categoryId")
+                    Log.w(TAG, "Không tìm thấy ngân sách active cho categoryId: $categoryId")
                     return@launch
                 }
 

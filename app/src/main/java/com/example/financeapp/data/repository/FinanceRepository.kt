@@ -9,6 +9,7 @@ import com.example.financeapp.data.local.database.entities.CategoryEntity
 import com.example.financeapp.data.local.database.entities.TransactionEntity
 import com.example.financeapp.data.local.database.entities.UserProfileEntity
 import com.example.financeapp.data.models.*
+import com.example.financeapp.data.remote.FirestoreService
 import com.example.financeapp.viewmodel.transaction.Category
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -23,7 +24,8 @@ import javax.inject.Singleton
 
 @Singleton
 class FinanceRepository @Inject constructor(
-    private val application: Application
+    private val application: Application,
+    private val firestoreService: FirestoreService
 ) {
     private val db: FirebaseFirestore = Firebase.firestore
     private val auth = FirebaseAuth.getInstance()
@@ -481,5 +483,60 @@ class FinanceRepository @Inject constructor(
         budgetDao.deleteAllByUser(userId)
         categoryDao.deleteAllByUser(userId)
         userProfileDao.deleteProfile(userId)
+    }
+    suspend fun getSavingsGoals(userId: String): List<SavingsGoal> {
+        return try {
+            firestoreService.getSavingsGoals(userId)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun addSavingsGoal(goal: SavingsGoal): String {
+        return try {
+            firestoreService.addSavingsGoal(goal)
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun updateSavingsGoal(goal: SavingsGoal) {
+        try {
+            firestoreService.updateSavingsGoal(goal)
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun deleteSavingsGoal(goalId: String) {
+        try {
+            firestoreService.deleteSavingsGoal(goalId)
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun addToSavings(goalId: String, amount: Long) {
+        try {
+            firestoreService.addToSavings(goalId, amount)
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+    suspend fun getMonthlySummary(userId: String, month: Int, year: Int): Pair<Long, Long> {
+        return try {
+            firestoreService.getMonthlySummary(userId, month, year)
+        } catch (e: Exception) {
+            Pair(0L, 0L)
+        }
+    }
+
+    suspend fun autoUpdateSavingsFromRemainingIncome(userId: String) {
+        try {
+            firestoreService.autoUpdateSavingsFromRemainingIncome(userId)
+        } catch (e: Exception) {
+            // Log error
+            Log.e("FinanceRepository", "Error auto updating savings: ${e.message}")
+        }
     }
 }

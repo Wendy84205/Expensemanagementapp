@@ -34,6 +34,23 @@ import com.example.financeapp.screen.features.formatCurrency
 import com.example.financeapp.viewmodel.transaction.Category
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.xr.compose.testing.toDp
+import kotlinx.coroutines.delay
+import kotlin.math.atan2
+import kotlin.math.min
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.toArgb
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -829,7 +846,6 @@ private fun ComparisonDataRow(label: String, amount: Double, textPrimary: Color)
         )
     }
 }
-
 @Composable
 private fun CategoryAnalysisSection(
     dataType: String,
@@ -843,103 +859,651 @@ private fun CategoryAnalysisSection(
 ) {
     val languageViewModel = LocalLanguageViewModel.current
 
-    // Lấy top 5 danh mục với tên thay vì ID
-    val topCategories = getTopCategoriesWithAmount(dataType, transactions, categories)
+    // Lấy dữ liệu phân loại danh mục
+    val categoryData = getCategoryDataWithAmount(dataType, transactions, categories)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(
-                elevation = 2.dp,
+                elevation = 4.dp,
                 shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            Text(
-                languageViewModel.getTranslation("category_analysis"),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary
-            )
+            // Header với icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column {
+                    Text(
+                        languageViewModel.getTranslation("category_analysis"),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textPrimary
+                    )
+                    if (categoryData.isNotEmpty()) {
+                        Text(
+                            "${categoryData.size} danh mục",
+                            fontSize = 12.sp,
+                            color = textSecondary,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (topCategories.isEmpty()) {
+            if (categoryData.isEmpty()) {
                 NoDataPlaceholder(textSecondary = textSecondary)
             } else {
-                CategoryAnalysisContent(topCategories, textPrimary, textSecondary)
+                CategoryAnalysisWithPieChart(
+                    categoryData = categoryData,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    primaryColor = primaryColor
+                )
+            }
+        }
+    }
+}
+@Composable
+private fun getCategoryDataWithAmount(
+    dataType: String,
+    transactions: List<Transaction>,
+    categories: List<Category>
+): List<CategoryAmount> {
+    val languageViewModel = LocalLanguageViewModel.current
+
+    val filteredTransactions = when (dataType) {
+        "income" -> transactions.filter { it.isIncome }
+        "expense" -> transactions.filter { !it.isIncome }
+        "difference" -> {
+            // For difference, we want to show both income and expense categories
+            // but separated by type
+            val incomeTransactions = transactions.filter { it.isIncome }
+            val expenseTransactions = transactions.filter { !it.isIncome }
+
+            // We'll show expense categories by default for difference view
+            return getCategoryDataForTransactions(expenseTransactions, categories, languageViewModel)
+        }
+        else -> transactions.filter { !it.isIncome } // Mặc định là expense
+    }
+
+    return getCategoryDataForTransactions(filteredTransactions, categories, languageViewModel)
+}
+
+@Composable
+private fun getCategoryDataForTransactions(
+    transactions: List<Transaction>,
+    categories: List<Category>,
+    languageViewModel: LanguageViewModel
+): List<CategoryAmount> {
+    // Nhóm theo category và tính tổng
+    val categoryMap = mutableMapOf<String, Double>()
+
+    transactions.forEach { transaction ->
+        val amount = transaction.amount.toDouble()
+        val categoryId = transaction.category
+
+        // Tìm tên danh mục
+        val categoryName = categories
+            .find { it.id == categoryId }
+            ?.name ?: languageViewModel.getTranslation("unknown_category")
+
+        categoryMap[categoryName] = categoryMap.getOrDefault(categoryName, 0.0) + amount
+    }
+
+    // Chuyển đổi thành list và sắp xếp
+    return categoryMap.map { (name, amount) ->
+        CategoryAmount(name = name, amount = amount)
+    }
+        .filter { it.amount > 0 } // Chỉ hiển thị danh mục có số tiền
+        .sortedByDescending { it.amount }
+        .take(8) // Giới hạn 8 danh mục để hiển thị đẹp
+}
+
+@Composable
+private fun CategoryAnalysisWithPieChart(
+    categoryData: List<CategoryAmount>,
+    textPrimary: Color,
+    textSecondary: Color,
+    primaryColor: Color
+) {
+    var selectedCategoryIndex by remember { mutableStateOf(-1) }
+    val pieChartColors = remember { getPieChartColors() }
+    val totalAmount = categoryData.sumOf { it.amount }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp), // Tăng chiều cao lên
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Cột bên trái: Danh sách danh mục cải tiến
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Header cho danh sách
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Danh mục",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = textSecondary
+                )
+                Text(
+                    text = "Số tiền",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = textSecondary
+                )
+            }
+
+            // Danh sách với divider
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                categoryData.forEachIndexed { index, category ->
+                    EnhancedCategoryListItem(
+                        category = category,
+                        index = index,
+                        isSelected = selectedCategoryIndex == index,
+                        totalAmount = totalAmount,
+                        color = pieChartColors[index % pieChartColors.size],
+                        onCategorySelected = { idx ->
+                            selectedCategoryIndex = if (selectedCategoryIndex == idx) -1 else idx
+                        },
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        primaryColor = primaryColor
+                    )
+
+                    // Divider (trừ item cuối)
+                    if (index < categoryData.size - 1) {
+                        Divider(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            thickness = 0.5.dp,
+                            color = textSecondary.copy(alpha = 0.1f)
+                        )
+                    }
+                }
+            }
+
+            // Footer với tổng
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = primaryColor.copy(alpha = 0.05f)
+                ),
+                elevation = CardDefaults.cardElevation(0.dp),
+                border = BorderStroke(1.dp, primaryColor.copy(alpha = 0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Tổng cộng",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textPrimary
+                    )
+                    Text(
+                        text = formatCurrency(totalAmount),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryColor
+                    )
+                }
+            }
+        }
+
+        // Cột bên phải: Pie Chart
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .aspectRatio(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            EnhancedInteractivePieChart(
+                categoryData = categoryData,
+                selectedIndex = selectedCategoryIndex,
+                onSliceSelected = { index ->
+                    selectedCategoryIndex = if (selectedCategoryIndex == index) -1 else index
+                },
+                pieChartColors = pieChartColors,
+                primaryColor = primaryColor,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun EnhancedCategoryListItem(
+    category: CategoryAmount,
+    index: Int,
+    isSelected: Boolean,
+    totalAmount: Double,
+    color: Color,
+    onCategorySelected: (Int) -> Unit,
+    textPrimary: Color,
+    textSecondary: Color,
+    primaryColor: Color
+) {
+    val percentage = if (totalAmount > 0) {
+        (category.amount / totalAmount * 100)
+    } else {
+        0.0
+    }
+
+    // Animation cho selection
+    val animatedBackground by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = tween(durationMillis = 200)
+    )
+
+    val backgroundColor = if (isSelected) {
+        color.copy(alpha = 0.1f * animatedBackground)
+    } else {
+        Color.Transparent
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCategorySelected(index) },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = backgroundColor
+        ),
+        elevation = CardDefaults.cardElevation(0.dp),
+        border = if (isSelected) BorderStroke(
+            1.dp,
+            color.copy(alpha = 0.5f * animatedBackground)
+        ) else null
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Số thứ tự và màu
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(color, RoundedCornerShape(6.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${index + 1}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            // Tên danh mục và phần trăm
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = category.name,
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // Progress indicator nhỏ
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Progress bar nhỏ
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(3.dp)
+                            .background(color.copy(alpha = 0.2f), RoundedCornerShape(1.5.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(percentage.toFloat() / 100f)
+                                .height(3.dp)
+                                .background(color, RoundedCornerShape(1.5.dp))
+                        )
+                    }
+
+                    Text(
+                        text = "${"%.1f".format(percentage)}%",
+                        fontSize = 10.sp,
+                        color = textSecondary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // Số tiền
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = formatCurrencyCompact(category.amount),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) primaryColor else textPrimary
+                )
+                Text(
+                    text = "(${"%.1f".format(percentage)}%)",
+                    fontSize = 10.sp,
+                    color = textSecondary
+                )
             }
         }
     }
 }
 
 @Composable
-private fun CategoryAnalysisContent(
-    categories: List<CategoryAmount>,
+private fun EnhancedInteractivePieChart(
+    categoryData: List<CategoryAmount>,
+    selectedIndex: Int,
+    onSliceSelected: (Int) -> Unit,
+    pieChartColors: List<Color>,
+    primaryColor: Color,
     textPrimary: Color,
     textSecondary: Color
 ) {
-    val languageViewModel = LocalLanguageViewModel.current
+    val totalAmount = categoryData.sumOf { it.amount }
 
-    // Hiển thị tiêu đề
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            languageViewModel.getTranslation("category"),
-            fontSize = 14.sp,
-            color = textSecondary,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            languageViewModel.getTranslation("amount"),
-            fontSize = 14.sp,
-            color = textSecondary,
-            fontWeight = FontWeight.Medium
-        )
+    // Animation cho pie chart (chỉ chạy 1 lần khi load)
+    var animatedProgress by remember { mutableStateOf(0f) }
+    LaunchedEffect(Unit) {
+        // Chỉ animation lần đầu khi load
+        animatedProgress = 0f
+        for (i in 0..100) {
+            animatedProgress = i / 100f
+            delay(5) // Faster animation
+        }
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    // Animation cho selection highlight
+    val selectionAnimation by animateFloatAsState(
+        targetValue = if (selectedIndex >= 0) 1f else 0f,
+        animationSpec = tween(durationMillis = 300)
+    )
 
-    // Hiển thị từng danh mục
-    categories.forEach { category ->
-        CategoryAnalysisRow(category, textPrimary)
-        Spacer(modifier = Modifier.height(12.dp))
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { offset ->
+                        // Tính toán slice được click
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val angle = calculateAngle(center, offset)
+
+                        // Tìm slice tương ứng với góc này
+                        var accumulatedAngle = 0f
+                        categoryData.forEachIndexed { index, data ->
+                            val sliceAngle = (data.amount / totalAmount * 360).toFloat()
+                            if (angle >= accumulatedAngle && angle <= accumulatedAngle + sliceAngle) {
+                                onSliceSelected(index)
+                                return@detectTapGestures
+                            }
+                            accumulatedAngle += sliceAngle
+                        }
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        val chartSize = min(constraints.maxWidth, constraints.maxHeight)
+        val density = LocalDensity.current
+
+        Canvas(
+            modifier = Modifier
+                .size(chartSize.dp)
+        ) {
+            val size = size
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val outerRadius = size.minDimension / 2f
+            val innerRadius = outerRadius * 0.4f // Lỗ nhỏ hơn cho rõ hơn
+            var startAngle = -90f
+
+            // Vẽ background circle nhẹ
+            drawCircle(
+                color = primaryColor.copy(alpha = 0.05f),
+                radius = outerRadius,
+                center = center
+            )
+
+            // Vẽ các slice - KHÔNG dùng animatedProgress ở đây nữa
+            categoryData.forEachIndexed { index, data ->
+                val sliceAngle = (data.amount / totalAmount * 360).toFloat()
+                val isSelected = selectedIndex == index
+
+                // Màu với độ trong suốt tùy theo selection
+                val sliceColor = if (isSelected) {
+                    // Màu đậm hơn khi selected
+                    pieChartColors[index % pieChartColors.size].copy(alpha = 0.9f)
+                } else {
+                    // Màu nhạt hơn cho các slice không được chọn
+                    pieChartColors[index % pieChartColors.size].copy(alpha = 0.6f)
+                }
+
+                // Độ dày stroke - dày hơn khi selected
+                val strokeWidth = if (isSelected) {
+                    // Animate stroke width khi selected
+                    (outerRadius - innerRadius) + with(density) {
+                        6.dp.toPx() * selectionAnimation
+                    }
+                } else {
+                    outerRadius - innerRadius
+                }
+
+                // Vẽ slice
+                drawArc(
+                    color = sliceColor,
+                    startAngle = startAngle,
+                    sweepAngle = sliceAngle,
+                    useCenter = false,
+                    topLeft = Offset(center.x - outerRadius, center.y - outerRadius),
+                    size = Size(outerRadius * 2, outerRadius * 2),
+                    style = Stroke(width = strokeWidth)
+                )
+
+                // Highlight effect cho slice được chọn
+                if (isSelected) {
+                    drawArc(
+                        color = Color.White.copy(alpha = 0.3f * selectionAnimation),
+                        startAngle = startAngle,
+                        sweepAngle = sliceAngle,
+                        useCenter = false,
+                        topLeft = Offset(
+                            center.x - outerRadius - 4.dp.toPx() * selectionAnimation,
+                            center.y - outerRadius - 4.dp.toPx() * selectionAnimation
+                        ),
+                        size = Size(
+                            (outerRadius + 4.dp.toPx() * selectionAnimation) * 2,
+                            (outerRadius + 4.dp.toPx() * selectionAnimation) * 2
+                        ),
+                        style = Stroke(width = strokeWidth + 2.dp.toPx() * selectionAnimation)
+                    )
+                }
+
+                // Vẽ đường phân cách giữa các slice
+                if (sliceAngle > 0 && index < categoryData.size - 1) {
+                    val separatorAngle = startAngle + sliceAngle
+                    val rad = Math.toRadians(separatorAngle.toDouble())
+                    val x1 = center.x + outerRadius * kotlin.math.cos(rad).toFloat()
+                    val y1 = center.y + outerRadius * kotlin.math.sin(rad).toFloat()
+                    val x2 = center.x + innerRadius * kotlin.math.cos(rad).toFloat()
+                    val y2 = center.y + innerRadius * kotlin.math.sin(rad).toFloat()
+
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(x1, y1),
+                        end = Offset(x2, y2),
+                        strokeWidth = 1.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+
+                startAngle += sliceAngle
+            }
+
+            // Vẽ nhãn ở giữa - HIỂN THỊ NGAY LẬP TỨC
+            drawContext.canvas.nativeCanvas.apply {
+                val paint = Paint().apply {
+                    textAlign = Paint.Align.CENTER
+                    typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                }
+
+                if (selectedIndex >= 0 && selectedIndex < categoryData.size) {
+                    val selectedCategory = categoryData[selectedIndex]
+                    val percentage = (selectedCategory.amount / totalAmount * 100)
+
+                    // Hiển thị phần trăm
+                    paint.apply {
+                        color = primaryColor.toArgb()
+                        textSize = 18f * density.density
+                        typeface = Typeface.create("sans-serif", Typeface.BOLD)
+                    }
+                    drawText(
+                        "${"%.1f".format(percentage)}%",
+                        center.x,
+                        center.y - 25f,
+                        paint
+                    )
+
+                    // Hiển thị số tiền
+                    paint.apply {
+                        color = textSecondary.toArgb()
+                        textSize = 14f * density.density
+                        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+                    }
+                    drawText(
+                        formatCurrencyCompact(selectedCategory.amount),
+                        center.x,
+                        center.y,
+                        paint
+                    )
+
+                    // Hiển thị tên category
+                    paint.apply {
+                        color = textPrimary.toArgb()
+                        textSize = 12f * density.density
+                    }
+                    drawText(
+                        selectedCategory.name,
+                        center.x,
+                        center.y + 20f,
+                        paint
+                    )
+                } else {
+                    // Hiển thị tổng khi không có selection
+                    paint.apply {
+                        color = primaryColor.toArgb()
+                        textSize = 16f * density.density
+                        typeface = Typeface.create("sans-serif", Typeface.BOLD)
+                    }
+                    drawText(
+                        "Tổng",
+                        center.x,
+                        center.y - 15f,
+                        paint
+                    )
+
+                    paint.apply {
+                        color = textPrimary.toArgb()
+                        textSize = 14f * density.density
+                    }
+                    drawText(
+                        formatCurrencyCompact(totalAmount),
+                        center.x,
+                        center.y + 15f,
+                        paint
+                    )
+                }
+            }
+        }
     }
 }
 
-@Composable
-private fun CategoryAnalysisRow(category: CategoryAmount, textPrimary: Color) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            category.name,
-            fontSize = 16.sp,
-            color = textPrimary,
-            maxLines = 1,
-            modifier = Modifier.weight(1f)
-        )
+// Hàm tính toán góc từ tâm đến điểm click
+private fun calculateAngle(center: Offset, point: Offset): Float {
+    val dx = point.x - center.x
+    val dy = point.y - center.y
+    var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 
-        Text(
-            formatCurrency(category.amount),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            color = textPrimary
-        )
-    }
+    // Chuyển đổi để 0° ở trên cùng
+    angle = (angle + 90) % 360
+    if (angle < 0) angle += 360
+
+    return angle
+}
+
+// Màu sắc cho Pie Chart - thêm nhiều màu hơn
+private fun getPieChartColors(): List<Color> {
+    return listOf(
+        Color(0xFF4A6FA5), // Blue
+        Color(0xFF2ECC71), // Green
+        Color(0xFFE74C3C), // Red
+        Color(0xFFF39C12), // Orange
+        Color(0xFF9B59B6), // Purple
+        Color(0xFF1ABC9C), // Teal
+        Color(0xFF3498DB), // Light Blue
+        Color(0xFFE67E22), // Dark Orange
+        Color(0xFF16A085), // Dark Teal
+        Color(0xFF27AE60), // Dark Green
+        Color(0xFF8E44AD), // Dark Purple
+        Color(0xFF2980B9), // Medium Blue
+        Color(0xFFD35400), // Darker Orange
+        Color(0xFFC0392B), // Dark Red
+    )
 }
 
 // ==================== HÀM TIỆN ÍCH ====================
