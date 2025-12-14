@@ -1,5 +1,6 @@
 package com.example.financeapp.viewmodel.features
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -32,6 +33,8 @@ class RecurringExpenseViewModel : ViewModel() {
     companion object {
         private const val TAG = "RecurringExpenseViewModel"
         private const val COLLECTION_NAME = "recurring_expenses"
+        private const val PREF_NAME = "recurring_expense_prefs"
+        private const val KEY_LAST_PROCESSED_DATE = "last_processed_date"
     }
 
     // ==================== DEPENDENCIES ====================
@@ -73,6 +76,15 @@ class RecurringExpenseViewModel : ViewModel() {
     }
 
     /**
+     * Lấy ID user hiện tại (tương tự BudgetViewModel)
+     */
+    private fun getCurrentUserId(): String {
+        return auth.currentUser?.uid ?: "anonymous".also {
+            Log.w(TAG, "User chưa đăng nhập, sử dụng anonymous")
+        }
+    }
+
+    /**
      * Load danh sách danh mục con có sẵn
      */
     private fun loadAvailableSubCategories() {
@@ -94,7 +106,7 @@ class RecurringExpenseViewModel : ViewModel() {
     }
 
     /**
-     * Thiết lập real-time listener cho Firestore
+     * Thiết lập real-time listener cho Firestore với user filtering
      */
     private fun setupRealtimeListener() {
         if (isListenerSetup) {
@@ -102,11 +114,12 @@ class RecurringExpenseViewModel : ViewModel() {
             return
         }
 
-        val currentUser = auth.currentUser
-        if (currentUser == null) {
+        val userId = getCurrentUserId()
+        if (userId == "anonymous") {
             _isLoading.value = false
             isListenerSetup = true
             Log.w(TAG, "User chưa đăng nhập, không thể setup listener")
+            _uiMessage.value = "Vui lòng đăng nhập để xem chi tiêu định kỳ"
             return
         }
 
@@ -116,7 +129,7 @@ class RecurringExpenseViewModel : ViewModel() {
 
         try {
             expensesListener = db.collection(COLLECTION_NAME)
-                .whereEqualTo("userId", currentUser.uid)
+                .whereEqualTo("userId", userId) // Filter theo userId
                 .addSnapshotListener { snapshot, error ->
                     _isLoading.value = false
                     isListenerSetup = true
@@ -134,9 +147,9 @@ class RecurringExpenseViewModel : ViewModel() {
                                 val expense = document.toObject(RecurringExpense::class.java)
                                 expense?.let {
                                     if (isValidExpenseCategory(expense)) {
-                                        expenses.add(expense)
+                                        expenses.add(it)
                                     } else {
-                                        Log.w(TAG, "Recurring expense có category không hợp lệ: ${expense.category}")
+                                        Log.w(TAG, "Recurring expense có category không hợp lệ: ${it.category}")
                                     }
                                 }
                             } catch (e: Exception) {
@@ -144,7 +157,7 @@ class RecurringExpenseViewModel : ViewModel() {
                             }
                         }
                         _recurringExpenses.value = expenses
-                        Log.d(TAG, "Real-time update: ${expenses.size} recurring expenses")
+                        Log.d(TAG, "Real-time update: ${expenses.size} recurring expenses cho user: $userId")
                     }
 
                     if (snapshot == null) {
@@ -152,7 +165,7 @@ class RecurringExpenseViewModel : ViewModel() {
                     }
                 }
 
-            Log.d(TAG, "Đã thiết lập real-time listener thành công")
+            Log.d(TAG, "Đã thiết lập real-time listener thành công cho user: $userId")
         } catch (e: Exception) {
             _isLoading.value = false
             isListenerSetup = true
@@ -213,8 +226,8 @@ class RecurringExpenseViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                val currentUser = auth.currentUser
-                if (currentUser == null) {
+                val userId = getCurrentUserId()
+                if (userId == "anonymous") {
                     _uiMessage.value = "Vui lòng đăng nhập"
                     Log.w(TAG, "User chưa đăng nhập khi thêm recurring expense")
                     return@launch
@@ -244,8 +257,13 @@ class RecurringExpenseViewModel : ViewModel() {
                 val categoryIcon = categoryInfo?.first ?: "💰"
                 val categoryColor = categoryInfo?.second ?: "#0F4C75"
 
-                // Tính ngày xảy ra tiếp theo
-                val nextOccurrence = calculateNextOccurrence(startDate, frequency)
+                // Tính ngày xảy ra tiếp theo (nếu startDate là hôm nay hoặc trước đó, tính ngay lập tức)
+                val today = getTodayDate()
+                val nextOccurrence = if (isDateBeforeOrEqual(startDate, today)) {
+                    calculateNextOccurrence(today, frequency)
+                } else {
+                    startDate // Chưa đến ngày bắt đầu
+                }
 
                 // Tạo object RecurringExpense
                 val expense = RecurringExpense.Companion.fromEnum(
@@ -261,7 +279,7 @@ class RecurringExpenseViewModel : ViewModel() {
                     startDate = startDate,
                     endDate = endDate,
                     nextOccurrence = nextOccurrence,
-                    userId = currentUser.uid
+                    userId = userId // Thêm userId
                 )
 
                 // Lưu vào Firestore
@@ -271,7 +289,7 @@ class RecurringExpenseViewModel : ViewModel() {
                     .await()
 
                 _uiMessage.value = "Đã thêm: $title"
-                Log.d(TAG, "✅ Đã thêm recurring expense: ${expense.title}")
+                Log.d(TAG, "✅ Đã thêm recurring expense: ${expense.title} cho user: $userId")
 
             } catch (e: Exception) {
                 _uiMessage.value = "Lỗi thêm: ${e.message}"
@@ -331,13 +349,21 @@ class RecurringExpenseViewModel : ViewModel() {
     fun updateRecurringExpense(expense: RecurringExpense) {
         viewModelScope.launch {
             try {
+                val userId = getCurrentUserId()
+                // Đảm bảo expense có userId của user hiện tại
+                val updatedExpense = if (expense.userId.isBlank()) {
+                    expense.copy(userId = userId)
+                } else {
+                    expense
+                }
+
                 db.collection(COLLECTION_NAME)
-                    .document(expense.id)
-                    .set(expense)
+                    .document(updatedExpense.id)
+                    .set(updatedExpense)
                     .await()
 
-                _uiMessage.value = "Đã cập nhật: ${expense.title}"
-                Log.d(TAG, "✅ Đã cập nhật recurring expense: ${expense.title}")
+                _uiMessage.value = "Đã cập nhật: ${updatedExpense.title}"
+                Log.d(TAG, "✅ Đã cập nhật recurring expense: ${updatedExpense.title} cho user: $userId")
             } catch (e: Exception) {
                 _uiMessage.value = "Lỗi cập nhật: ${e.message}"
                 Log.e(TAG, "Lỗi cập nhật recurring expense: ${e.message}")
@@ -352,6 +378,7 @@ class RecurringExpenseViewModel : ViewModel() {
     fun deleteRecurringExpense(expenseId: String) {
         viewModelScope.launch {
             try {
+                val userId = getCurrentUserId()
                 val expense = _recurringExpenses.value.find { it.id == expenseId }
                 val expenseName = expense?.title ?: "Chi tiêu định kỳ"
 
@@ -361,7 +388,7 @@ class RecurringExpenseViewModel : ViewModel() {
                     .await()
 
                 _uiMessage.value = "Đã xóa: $expenseName"
-                Log.d(TAG, "✅ Đã xóa recurring expense: $expenseId")
+                Log.d(TAG, "✅ Đã xóa recurring expense: $expenseId của user: $userId")
             } catch (e: Exception) {
                 _uiMessage.value = "Lỗi xóa: ${e.message}"
                 Log.e(TAG, "Lỗi xóa recurring expense: ${e.message}")
@@ -405,6 +432,21 @@ class RecurringExpenseViewModel : ViewModel() {
     }
 
     /**
+     * Lấy danh sách chi tiêu định kỳ theo user ID
+     */
+    fun getRecurringExpensesForUser(userId: String): List<RecurringExpense> {
+        return _recurringExpenses.value.filter { it.userId == userId }
+    }
+
+    /**
+     * Lấy danh sách chi tiêu định kỳ cho user hiện tại
+     */
+    fun getCurrentUserRecurringExpenses(): List<RecurringExpense> {
+        val userId = getCurrentUserId()
+        return _recurringExpenses.value.filter { it.userId == userId }
+    }
+
+    /**
      * Lấy danh sách danh mục con cho chi tiêu
      */
     fun getExpenseSubCategoriesForSelection(): List<FinanceCategory> {
@@ -429,12 +471,14 @@ class RecurringExpenseViewModel : ViewModel() {
     }
 
     /**
-     * Lấy tổng chi tiêu định kỳ hàng tháng theo category
+     * Lấy tổng chi tiêu định kỳ hàng tháng theo category cho user hiện tại
      */
     fun getMonthlyRecurringTotalByCategory(categoryId: String): Double {
+        val userId = getCurrentUserId()
         return _recurringExpenses.value
             .filter {
-                it.isActive &&
+                it.userId == userId &&
+                        it.isActive &&
                         it.getFrequencyEnum() == RecurringFrequency.MONTHLY &&
                         it.category == categoryId
             }
@@ -442,67 +486,115 @@ class RecurringExpenseViewModel : ViewModel() {
     }
 
     /**
-     * Lấy danh sách chi tiêu đang active
+     * Lấy danh sách chi tiêu đang active cho user hiện tại
      */
     fun getActiveExpenses(): List<RecurringExpense> {
-        return _recurringExpenses.value.filter { it.isActive }
+        val userId = getCurrentUserId()
+        return _recurringExpenses.value.filter { it.userId == userId && it.isActive }
     }
 
     /**
-     * Lấy danh sách chi tiêu không active
+     * Lấy danh sách chi tiêu không active cho user hiện tại
      */
     fun getInactiveExpenses(): List<RecurringExpense> {
-        return _recurringExpenses.value.filter { !it.isActive }
+        val userId = getCurrentUserId()
+        return _recurringExpenses.value.filter { it.userId == userId && !it.isActive }
     }
 
     /**
-     * Lấy tổng chi tiêu định kỳ hàng tháng
+     * Lấy tổng chi tiêu định kỳ hàng tháng cho user hiện tại
      */
     fun getMonthlyRecurringTotal(): Double {
+        val userId = getCurrentUserId()
         return _recurringExpenses.value
-            .filter { it.isActive && it.getFrequencyEnum() == RecurringFrequency.MONTHLY }
+            .filter {
+                it.userId == userId &&
+                        it.isActive &&
+                        it.getFrequencyEnum() == RecurringFrequency.MONTHLY
+            }
             .sumOf { it.amount }
     }
 
-    // ==================== PROCESSING METHODS ====================
+    // ==================== PROCESSING METHODS (CẢI THIỆN) ====================
 
     /**
-     * Xử lý các chi tiêu định kỳ đến hạn
+     * Xử lý các chi tiêu định kỳ đến hạn cho user hiện tại (Phiên bản cải tiến)
      * @param onTransactionCreated Callback khi tạo transaction mới
+     * @param context Context để lưu SharedPreferences
      */
     fun processDueRecurringExpenses(
+        context: Context,
         onTransactionCreated: (RecurringExpense) -> Unit
     ) {
         viewModelScope.launch {
             try {
+                val userId = getCurrentUserId()
+                if (userId == "anonymous") {
+                    Log.w(TAG, "User chưa đăng nhập, không xử lý recurring expenses")
+                    return@launch
+                }
+
                 val today = getTodayDate()
+                Log.d(TAG, "Bắt đầu xử lý recurring expenses vào ngày: $today")
+
+                // Kiểm tra xem đã xử lý hôm nay chưa
+                val lastProcessedDate = getLastProcessedDate(context)
+                if (lastProcessedDate == today) {
+                    Log.d(TAG, "Đã xử lý recurring expenses hôm nay rồi: $today")
+                    return@launch
+                }
+
+                // Lấy danh sách expense cần xử lý
                 val dueExpenses = _recurringExpenses.value.filter { expense ->
-                    expense.isActive &&
-                            expense.nextOccurrence == today &&
-                            (expense.endDate == null || expense.endDate >= today)
+                    isExpenseDueToday(expense, today) &&
+                            expense.userId == userId &&
+                            expense.isActive
                 }
 
-                Log.d(TAG, "Tìm thấy ${dueExpenses.size} chi tiêu cần xử lý")
+                Log.d(TAG, "Tìm thấy ${dueExpenses.size} chi tiêu cần xử lý cho user: $userId")
 
+                if (dueExpenses.isEmpty()) {
+                    Log.d(TAG, "Không có chi tiêu định kỳ nào cần xử lý hôm nay")
+                    // Vẫn lưu ngày xử lý để không kiểm tra lại
+                    saveLastProcessedDate(context, today)
+                    return@launch
+                }
+
+                var processedCount = 0
                 dueExpenses.forEach { expense ->
-                    // 1. Gọi callback để tạo transaction
-                    onTransactionCreated(expense)
+                    try {
+                        Log.d(TAG, "Bắt đầu xử lý expense: ${expense.title}, next: ${expense.nextOccurrence}")
 
-                    // 2. Cập nhật next occurrence
-                    val nextDate = calculateNextOccurrence(expense.nextOccurrence, expense.getFrequencyEnum())
-                    val updatedExpense = expense.copy(
-                        nextOccurrence = nextDate,
-                        totalGenerated = expense.totalGenerated + 1,
-                        lastGenerated = today
-                    )
+                        // 1. Gọi callback để tạo transaction
+                        onTransactionCreated(expense)
 
-                    updateRecurringExpense(updatedExpense)
-                    Log.d(TAG, "✅ Đã xử lý: ${expense.title} - ${formatCurrency(expense.amount)}")
+                        // 2. Cập nhật next occurrence
+                        val nextDate = calculateNextOccurrence(today, expense.getFrequencyEnum())
+                        val updatedExpense = expense.copy(
+                            nextOccurrence = nextDate,
+                            totalGenerated = expense.totalGenerated + 1,
+                            lastGenerated = today
+                        )
+
+                        // 3. Cập nhật vào Firestore
+                        updateRecurringExpense(updatedExpense)
+
+                        processedCount++
+                        Log.d(TAG, "✅ Đã xử lý: ${expense.title} - ${formatCurrency(expense.amount)} -> Next: $nextDate")
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Lỗi khi xử lý expense ${expense.title}: ${e.message}")
+                    }
                 }
 
-                if (dueExpenses.isNotEmpty()) {
-                    _uiMessage.value = "Đã xử lý ${dueExpenses.size} chi tiêu định kỳ"
+                // Lưu ngày đã xử lý
+                saveLastProcessedDate(context, today)
+
+                if (processedCount > 0) {
+                    _uiMessage.value = "Đã xử lý $processedCount chi tiêu định kỳ"
+                    Log.d(TAG, "✅ Đã xử lý thành công $processedCount/$dueExpenses.size chi tiêu định kỳ")
                 }
+
             } catch (e: Exception) {
                 _uiMessage.value = "Lỗi xử lý chi tiêu định kỳ: ${e.message}"
                 Log.e(TAG, "Lỗi xử lý chi tiêu định kỳ: ${e.message}")
@@ -510,15 +602,161 @@ class RecurringExpenseViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Kiểm tra xem expense có đến hạn hôm nay không
+     */
+    private fun isExpenseDueToday(expense: RecurringExpense, today: String): Boolean {
+        return try {
+            // 1. Kiểm tra đã đến ngày bắt đầu chưa
+            if (isDateAfter(expense.startDate, today)) {
+                return false // Chưa đến ngày bắt đầu
+            }
+
+            // 2. Kiểm tra đã quá end date chưa (nếu có)
+            if (expense.endDate != null && expense.endDate.isNotEmpty()) {
+                if (isDateAfter(today, expense.endDate)) {
+                    return false // Đã quá ngày kết thúc
+                }
+            }
+
+            // 3. So sánh nextOccurrence với ngày hôm nay
+            val isDue = expense.nextOccurrence == today
+
+            // 4. Nếu nextOccurrence đã qua ngày hôm nay (do bỏ lỡ), cũng tính là đến hạn
+            val isMissed = isDateAfter(today, expense.nextOccurrence)
+
+            isDue || isMissed
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi kiểm tra ngày: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Kiểm tra nếu date1 là sau date2
+     */
+    private fun isDateAfter(date1: String, date2: String): Boolean {
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val d1 = sdf.parse(date1)
+            val d2 = sdf.parse(date2)
+            d1 != null && d2 != null && d1.after(d2)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Kiểm tra nếu date1 là trước hoặc bằng date2
+     */
+    private fun isDateBeforeOrEqual(date1: String, date2: String): Boolean {
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val d1 = sdf.parse(date1)
+            val d2 = sdf.parse(date2)
+            d1 != null && d2 != null && (d1.before(d2) || d1 == d2)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ==================== AUTO-PROCESSING MECHANISM ====================
+
+    /**
+     * Thiết lập cơ chế tự động xử lý khi app mở
+     * Gọi method này khi app khởi động (trong MainActivity hoặc SplashScreen)
+     */
+    fun setupAutoProcessing(
+        context: Context,
+        onTransactionCreated: (RecurringExpense) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Thiết lập auto-processing recurring expenses")
+
+                // Đợi một chút để đảm bảo dữ liệu đã load
+                kotlinx.coroutines.delay(2000)
+
+                // Kiểm tra và xử lý các expense đến hạn
+                processDueRecurringExpenses(context, onTransactionCreated)
+
+                // Kiểm tra và reset các expense bị bỏ lỡ
+                checkAndResetMissedExpenses()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Lỗi thiết lập auto processing: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Kiểm tra và reset các expense bị bỏ lỡ (nextOccurrence đã qua)
+     */
+    private fun checkAndResetMissedExpenses() {
+        viewModelScope.launch {
+            try {
+                val userId = getCurrentUserId()
+                if (userId == "anonymous") return@launch
+
+                val today = getTodayDate()
+
+                _recurringExpenses.value.forEach { expense ->
+                    if (expense.userId == userId && expense.isActive) {
+                        // Nếu nextOccurrence đã qua mà chưa xử lý
+                        if (isDateAfter(today, expense.nextOccurrence)) {
+                            // Tính lại next occurrence từ ngày hôm nay
+                            val newNextDate = calculateNextOccurrence(today, expense.getFrequencyEnum())
+                            val updatedExpense = expense.copy(
+                                nextOccurrence = newNextDate
+                            )
+                            updateRecurringExpense(updatedExpense)
+                            Log.d(TAG, "Reset next occurrence cho ${expense.title}: ${expense.nextOccurrence} -> $newNextDate")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Lỗi checkAndResetMissedExpenses: ${e.message}")
+            }
+        }
+    }
+
+    // ==================== SHARED PREFERENCES ====================
+
+    /**
+     * Lưu ngày đã xử lý
+     */
+    private fun saveLastProcessedDate(context: Context, date: String) {
+        try {
+            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_LAST_PROCESSED_DATE, date).apply()
+            Log.d(TAG, "Đã lưu ngày xử lý: $date")
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lưu ngày xử lý: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy ngày đã xử lý lần cuối
+     */
+    private fun getLastProcessedDate(context: Context): String? {
+        return try {
+            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            prefs.getString(KEY_LAST_PROCESSED_DATE, null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy ngày xử lý: ${e.message}")
+            null
+        }
+    }
+
     // ==================== UTILITY METHODS ====================
 
     /**
-     * Tính ngày xảy ra tiếp theo
+     * Tính ngày xảy ra tiếp theo từ ngày hiện tại
      */
-    private fun calculateNextOccurrence(currentDate: String, frequency: RecurringFrequency): String {
+    private fun calculateNextOccurrence(fromDate: String, frequency: RecurringFrequency): String {
         return try {
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val date = sdf.parse(currentDate) ?: return currentDate
+            val date = sdf.parse(fromDate) ?: return fromDate
 
             val calendar = Calendar.getInstance()
             calendar.time = date
@@ -534,7 +772,7 @@ class RecurringExpenseViewModel : ViewModel() {
             sdf.format(calendar.time)
         } catch (e: Exception) {
             Log.e(TAG, "Lỗi tính next occurrence: ${e.message}")
-            currentDate
+            fromDate
         }
     }
 

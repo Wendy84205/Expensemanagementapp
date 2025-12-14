@@ -40,12 +40,45 @@ class FinanceRepository @Inject constructor(
     private val userProfileDao = database.userProfileDao()
 
     // ==================== USER MANAGEMENT ====================
-    private fun getCurrentUserId(): String {
+    // 🔹 SỬA: Lấy userId từ auth
+    suspend fun getCurrentUserId(): String {
+        return auth.currentUser?.uid ?: "anonymous"
+    }
+
+    // 🔹 THÊM: Hàm không suspend để dùng trong Flow
+    fun getCurrentUserIdSync(): String {
         return auth.currentUser?.uid ?: "anonymous"
     }
 
     private fun isUserLoggedIn(): Boolean {
         return auth.currentUser != null
+    }
+
+    // 🔹 HÀM MỚI: Tạo hoặc cập nhật user trong Firestore
+    suspend fun createOrUpdateUserInFirestore(
+        userId: String,
+        name: String?,
+        email: String?,
+        profileImage: String?,
+        providerId: String,
+        phoneNumber: String? = null
+    ): String {
+        return firestoreService.createOrUpdateUser(userId, name, email, profileImage, providerId, phoneNumber)
+    }
+
+    // 🔹 HÀM MỚI: Lấy user từ Firestore theo email
+    suspend fun getUserByEmail(email: String): User? {
+        return firestoreService.getUserByEmail(email)
+    }
+
+    // 🔹 HÀM MỚI: Kiểm tra user tồn tại theo email
+    suspend fun checkUserExistsByEmail(email: String): Boolean {
+        return firestoreService.checkUserExistsByEmail(email)
+    }
+
+    // 🔹 HÀM MỚI: Migrate dữ liệu cũ
+    suspend fun migrateUserData(oldUserId: String, newUserId: String) {
+        firestoreService.migrateUserData(oldUserId, newUserId)
     }
 
     // ==================== SYNC METHODS ====================
@@ -58,15 +91,14 @@ class FinanceRepository @Inject constructor(
         syncTransactions(userId)
         syncBudgets(userId)
         syncCategories(userId)
+        syncRecurringExpenses(userId)
         syncUserProfile(userId)
     }
 
-    // ==================== SYNC METHODS (continued) ====================
-
     private suspend fun syncBudgets(userId: String) {
         try {
-            // Lấy từ Firestore
-            val remoteBudgets = getRemoteBudgets(userId)
+            // SỬA: Sử dụng FirestoreService để lấy budgets
+            val remoteBudgets = firestoreService.getBudgets(userId)
 
             // Lưu vào Room
             remoteBudgets.forEach { budget ->
@@ -77,6 +109,23 @@ class FinanceRepository @Inject constructor(
             Log.d("FinanceRepository", "Đã đồng bộ ${remoteBudgets.size} budgets")
         } catch (e: Exception) {
             Log.e("FinanceRepository", "Lỗi đồng bộ budgets: ${e.message}")
+        }
+    }
+
+    private suspend fun syncRecurringExpenses(userId: String) {
+        try {
+            // SỬA: Sử dụng FirestoreService để lấy recurring expenses
+            val remoteExpenses = firestoreService.getRecurringExpenses(userId)
+
+            // TODO: Tạo entity và lưu vào Room nếu cần
+            // remoteExpenses.forEach { expense ->
+            //     val entity = RecurringExpenseEntity.fromRecurringExpense(expense, userId)
+            //     recurringExpenseDao.insert(entity)
+            // }
+
+            Log.d("FinanceRepository", "Đã đồng bộ ${remoteExpenses.size} recurring expenses")
+        } catch (e: Exception) {
+            Log.e("FinanceRepository", "Lỗi đồng bộ recurring expenses: ${e.message}")
         }
     }
 
@@ -96,8 +145,7 @@ class FinanceRepository @Inject constructor(
         }
     }
 
-// ==================== ADDITIONAL FIREBASE METHODS ====================
-
+    // ==================== ADDITIONAL FIREBASE METHODS ====================
     private suspend fun getRemoteBudgets(userId: String): List<Budget> {
         return try {
             val querySnapshot = db.collection("users").document(userId)
@@ -132,11 +180,11 @@ class FinanceRepository @Inject constructor(
             null
         }
     }
-    
+
     private suspend fun syncTransactions(userId: String) {
         try {
-            // Lấy từ Firestore
-            val remoteTransactions = getRemoteTransactions(userId)
+            // SỬA: Sử dụng FirestoreService để lấy transactions theo userId
+            val remoteTransactions = firestoreService.getTransactionsByUser(userId)
 
             // Lưu vào Room
             remoteTransactions.forEach { transaction ->
@@ -159,8 +207,8 @@ class FinanceRepository @Inject constructor(
                 categoryDao.insert(entity)
             }
 
-            // Lấy từ Firestore nếu có
-            val remoteCategories = getRemoteCategories(userId)
+            // SỬA: Sử dụng FirestoreService để lấy categories theo userId
+            val remoteCategories = firestoreService.getCategories(userId)
             remoteCategories.forEach { category ->
                 val entity = CategoryEntity.fromCategory(category, userId)
                 categoryDao.insert(entity)
@@ -183,7 +231,8 @@ class FinanceRepository @Inject constructor(
         // 2. Đồng bộ lên Firestore nếu có mạng
         if (isUserLoggedIn()) {
             try {
-                addTransactionToFirestore(transaction, userId)
+                // SỬA: Sử dụng FirestoreService với userId
+                firestoreService.saveTransaction(transaction, userId)
                 // Cập nhật trạng thái đã đồng bộ
                 transactionDao.update(entity.copy(isSynced = true))
             } catch (e: Exception) {
@@ -192,14 +241,20 @@ class FinanceRepository @Inject constructor(
         }
     }
 
+    // 🔹 SỬA: Dùng getCurrentUserIdSync() cho Flow
     fun getTransactions(): Flow<List<Transaction>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         return transactionDao.getTransactionsByUser(userId)
             .map { entities -> entities.map { it.toTransaction() } }
     }
 
+    // 🔹 HÀM MỚI: Lấy transactions từ Firestore (online)
+    suspend fun getTransactionsFromFirestore(userId: String): List<Transaction> {
+        return firestoreService.getTransactionsByUser(userId)
+    }
+
     fun getRecentTransactions(days: Int = 30): Flow<List<Transaction>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         val calendar = java.util.Calendar.getInstance()
         calendar.add(java.util.Calendar.DAY_OF_YEAR, -days)
         val startDate = formatDateForRoom(calendar.time)
@@ -211,7 +266,7 @@ class FinanceRepository @Inject constructor(
     }
 
     fun getTransactionsByCategory(categoryId: String): Flow<List<Transaction>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         return transactionDao.getTransactionsByCategory(userId, categoryId)
             .map { entities -> entities.map { it.toTransaction() } }
     }
@@ -226,6 +281,29 @@ class FinanceRepository @Inject constructor(
         return transactionDao.getTotalByType(userId, false, startDate, endDate) ?: 0.0
     }
 
+    // ==================== TRANSACTIONS (LOCAL + REMOTE) ====================
+    suspend fun deleteTransaction(transactionId: String) {
+        val userId = getCurrentUserId()
+
+        // 1. Xóa từ Firestore trước (online)
+        if (isUserLoggedIn()) {
+            try {
+                firestoreService.deleteTransaction(transactionId, userId)
+            } catch (e: Exception) {
+                Log.e("FinanceRepository", "Lỗi xóa transaction từ Firestore: ${e.message}")
+                // Vẫn tiếp tục xóa từ Room dù Firestore có lỗi
+            }
+        }
+
+        // 2. Xóa từ Room (offline)
+        try {
+            // Sử dụng @Query để xóa trực tiếp
+            transactionDao.deleteTransactionById(transactionId)
+        } catch (e: Exception) {
+            Log.e("FinanceRepository", "Lỗi xóa transaction từ Room: ${e.message}")
+        }
+    }
+
     // ==================== CATEGORIES ====================
     suspend fun addCategory(category: Category) {
         val userId = getCurrentUserId()
@@ -234,7 +312,8 @@ class FinanceRepository @Inject constructor(
 
         if (isUserLoggedIn()) {
             try {
-                addCategoryToFirestore(category, userId)
+                // SỬA: Sử dụng FirestoreService với userId
+                firestoreService.saveCategory(category, userId)
                 categoryDao.update(entity.copy(isSynced = true))
             } catch (e: Exception) {
                 // Saved offline
@@ -242,20 +321,26 @@ class FinanceRepository @Inject constructor(
         }
     }
 
+    // 🔹 SỬA: Dùng getCurrentUserIdSync() cho Flow
     fun getCategories(): Flow<List<Category>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         return categoryDao.getCategoriesByUser(userId)
             .map { entities -> entities.map { it.toCategory() } }
     }
 
+    // 🔹 HÀM MỚI: Lấy categories từ Firestore (online)
+    suspend fun getCategoriesFromFirestore(userId: String): List<Category> {
+        return firestoreService.getCategories(userId)
+    }
+
     fun getExpenseCategories(): Flow<List<Category>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         return categoryDao.getCategoriesByType(userId, "expense")
             .map { entities -> entities.map { it.toCategory() } }
     }
 
     fun getIncomeCategories(): Flow<List<Category>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         return categoryDao.getCategoriesByType(userId, "income")
             .map { entities -> entities.map { it.toCategory() } }
     }
@@ -272,7 +357,8 @@ class FinanceRepository @Inject constructor(
 
         if (isUserLoggedIn()) {
             try {
-                addBudgetToFirestore(budget, userId)
+                // SỬA: Sử dụng FirestoreService với userId
+                firestoreService.saveBudget(budget, userId)
                 budgetDao.update(entity.copy(isSynced = true))
             } catch (e: Exception) {
                 // Saved offline
@@ -280,16 +366,53 @@ class FinanceRepository @Inject constructor(
         }
     }
 
+    // 🔹 SỬA: Dùng getCurrentUserIdSync() cho Flow
     fun getBudgets(): Flow<List<Budget>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         return budgetDao.getBudgetsByUser(userId)
             .map { entities -> entities.map { it.toBudget() } }
     }
 
+    // 🔹 HÀM MỚI: Lấy budgets từ Firestore (online)
+    suspend fun getBudgetsFromFirestore(userId: String): List<Budget> {
+        return firestoreService.getBudgets(userId)
+    }
+
     fun getActiveBudgets(): Flow<List<Budget>> {
-        val userId = getCurrentUserId()
+        val userId = getCurrentUserIdSync()
         return budgetDao.getActiveBudgets(userId)
             .map { entities -> entities.map { it.toBudget() } }
+    }
+
+    // ==================== RECURRING EXPENSES ====================
+    suspend fun addRecurringExpense(recurringExpense: RecurringExpense) {
+        val userId = getCurrentUserId()
+        // TODO: Tạo entity cho recurring expense nếu cần
+
+        if (isUserLoggedIn()) {
+            try {
+                // SỬA: Sử dụng FirestoreService với userId
+                firestoreService.saveRecurringExpense(recurringExpense, userId)
+            } catch (e: Exception) {
+                // Saved offline
+            }
+        }
+    }
+
+    suspend fun getRecurringExpensesFromFirestore(userId: String): List<RecurringExpense> {
+        return firestoreService.getRecurringExpenses(userId)
+    }
+
+    suspend fun deleteRecurringExpense(expenseId: String) {
+        val userId = getCurrentUserId()
+
+        if (isUserLoggedIn()) {
+            try {
+                firestoreService.deleteRecurringExpense(expenseId, userId)
+            } catch (e: Exception) {
+                Log.e("FinanceRepository", "Lỗi xóa recurring expense từ Firestore")
+            }
+        }
     }
 
     // ==================== USER PROFILE ====================
@@ -457,7 +580,8 @@ class FinanceRepository @Inject constructor(
 
             // Lấy từ Room (ưu tiên)
             val transactions = if (isUserLoggedIn()) {
-                transactionDao.getTransactionsByUser(getCurrentUserId())
+                val userId = getCurrentUserId()
+                transactionDao.getTransactionsByUser(userId)
                     .map { it.map { entity -> entity.toTransaction() } }
             } else {
                 // Fallback to legacy if not logged in
@@ -484,6 +608,8 @@ class FinanceRepository @Inject constructor(
         categoryDao.deleteAllByUser(userId)
         userProfileDao.deleteProfile(userId)
     }
+
+    // ==================== SAVINGS GOALS ====================
     suspend fun getSavingsGoals(userId: String): List<SavingsGoal> {
         return try {
             firestoreService.getSavingsGoals(userId)
@@ -523,6 +649,8 @@ class FinanceRepository @Inject constructor(
             throw e
         }
     }
+
+    // ==================== MONTHLY SUMMARY ====================
     suspend fun getMonthlySummary(userId: String, month: Int, year: Int): Pair<Long, Long> {
         return try {
             firestoreService.getMonthlySummary(userId, month, year)
@@ -535,7 +663,6 @@ class FinanceRepository @Inject constructor(
         try {
             firestoreService.autoUpdateSavingsFromRemainingIncome(userId)
         } catch (e: Exception) {
-            // Log error
             Log.e("FinanceRepository", "Error auto updating savings: ${e.message}")
         }
     }

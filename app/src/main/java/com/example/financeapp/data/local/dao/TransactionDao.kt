@@ -13,7 +13,10 @@ interface TransactionDao {
     suspend fun update(transaction: TransactionEntity)
 
     @Delete
-    suspend fun delete(transaction: TransactionEntity)
+    suspend fun delete(transaction: TransactionEntity) // SỬA: TransactionEntity thay vì String
+
+    @Query("DELETE FROM transactions WHERE id = :transactionId")
+    suspend fun deleteById(transactionId: String) // THÊM hàm này để xóa theo ID
 
     @Query("SELECT * FROM transactions WHERE userId = :userId ORDER BY date DESC")
     fun getTransactionsByUser(userId: String): Flow<List<TransactionEntity>>
@@ -35,4 +38,7 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE userId = :userId")
     suspend fun deleteAllByUser(userId: String)
+
+    @Query("DELETE FROM transactions WHERE id = :transactionId")
+    suspend fun deleteTransactionById(transactionId: String)
 }

@@ -5,17 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financeapp.data.models.Budget
 import com.example.financeapp.data.models.BudgetPeriodType
+import com.example.financeapp.data.remote.FirestoreService
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import kotlin.math.abs
 
@@ -27,7 +25,6 @@ class BudgetViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "BudgetViewModel"
-        private const val COLLECTION_NAME = "budgets"
     }
 
     // ==================== STATE FLOWS ====================
@@ -44,17 +41,24 @@ class BudgetViewModel : ViewModel() {
     private val _budgetExceededEvent = MutableStateFlow<Pair<Budget, Double>?>(null)
     val budgetExceededEvent: StateFlow<Pair<Budget, Double>?> = _budgetExceededEvent
 
+    /** Flow trạng thái loading */
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     // ==================== DEPENDENCIES ====================
 
-    private val db = Firebase.firestore
+    private val firestoreService = FirestoreService()
     private val auth = Firebase.auth
+    private var budgetsListener: ListenerRegistration? = null
+    private var isListenerSetup = false
 
     // ==================== INITIALIZATION ====================
 
     init {
         Log.d(TAG, "BudgetViewModel khởi tạo")
-        loadBudgetsFromFirebase()
-        startRealTimeUpdates()
+
+        // Load dữ liệu ban đầu
+        loadBudgetsFromFirestore()
 
         // Kiểm tra và reset ngân sách hết hạn khi khởi động
         viewModelScope.launch {
@@ -70,94 +74,88 @@ class BudgetViewModel : ViewModel() {
      * Lấy ID user hiện tại
      */
     private fun getCurrentUserId(): String {
-        return auth.currentUser?.uid ?: "default_user".also {
-            Log.w(TAG, "User chưa đăng nhập, sử dụng default_user")
+        return auth.currentUser?.uid ?: "anonymous".also {
+            Log.w(TAG, "User chưa đăng nhập, sử dụng anonymous")
+        }
+    }
+
+    // ==================== REAL-TIME UPDATES ====================
+
+    /**
+     * Bắt đầu real-time updates từ Firestore
+     */
+    fun startRealTimeUpdates() {
+        if (isListenerSetup && budgetsListener != null) {
+            Log.d(TAG, "Real-time updates đã được thiết lập")
+            return
+        }
+
+        val userId = getCurrentUserId()
+        if (userId == "anonymous") {
+            Log.w(TAG, "User chưa đăng nhập, không thể setup real-time updates")
+            return
+        }
+
+        try {
+            // Hiển thị loading state
+            _isLoading.value = true
+
+            // Thiết lập real-time listener
+            budgetsListener = firestoreService.setupBudgetsListener(
+                userId = userId,
+                onBudgetsUpdated = { budgetsList ->
+                    _budgets.value = budgetsList
+                    updateExceededBudgetsList()
+                    _isLoading.value = false
+                    Log.d(TAG, "Real-time update: ${budgetsList.size} budgets")
+                },
+                onError = { error ->
+                    _isLoading.value = false
+                    Log.e(TAG, "Firestore real-time error: ${error.message}")
+                }
+            )
+
+            isListenerSetup = true
+            Log.d(TAG, "✅ Đã thiết lập real-time updates cho budgets")
+        } catch (e: Exception) {
+            _isLoading.value = false
+            Log.e(TAG, "Lỗi thiết lập real-time updates: ${e.message}")
         }
     }
 
     /**
-     * Lấy collection ngân sách của user hiện tại
+     * Dừng real-time updates
      */
-    private fun getBudgetsCollection() =
-        db.collection("users").document(getCurrentUserId()).collection(COLLECTION_NAME)
+    fun stopRealTimeUpdates() {
+        budgetsListener?.remove()
+        budgetsListener = null
+        isListenerSetup = false
+        Log.d(TAG, "🛑 Đã dừng real-time updates")
+    }
 
     // ==================== DATA LOADING ====================
 
     /**
-     * Tải danh sách ngân sách từ Firebase
+     * Tải danh sách ngân sách từ Firestore (one-time load)
      */
-    private fun loadBudgetsFromFirebase() {
+    private fun loadBudgetsFromFirestore() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Đang tải ngân sách từ Firebase...")
-                val querySnapshot = getBudgetsCollection().get().await()
-                val budgetsList = querySnapshot.documents.mapNotNull { documentToBudget(it) }
+                _isLoading.value = true
+                Log.d(TAG, "Đang tải ngân sách từ Firestore...")
+                val userId = getCurrentUserId()
+                val budgetsList = firestoreService.getBudgets(userId)
                 _budgets.value = budgetsList
                 updateExceededBudgetsList()
-                Log.d(TAG, "Đã tải ${budgetsList.size} ngân sách từ Firebase")
+                _isLoading.value = false
+                Log.d(TAG, "Đã tải ${budgetsList.size} ngân sách cho user: $userId")
             } catch (e: Exception) {
+                _isLoading.value = false
                 Log.e(TAG, "Lỗi tải ngân sách: ${e.message}")
                 e.printStackTrace()
             }
         }
     }
-
-    /**
-     * Chuyển đổi DocumentSnapshot sang Budget object
-     */
-    private fun documentToBudget(document: DocumentSnapshot): Budget? {
-        return try {
-            val data = document.data ?: run {
-                Log.w(TAG, "Document ${document.id} không có data")
-                return null
-            }
-
-            val periodType = when (data["periodType"] as? String) {
-                "WEEK" -> BudgetPeriodType.WEEK
-                "MONTH" -> BudgetPeriodType.MONTH
-                "QUARTER" -> BudgetPeriodType.QUARTER
-                "YEAR" -> BudgetPeriodType.YEAR
-                else -> {
-                    Log.w(TAG, "Unknown periodType: ${data["periodType"]}, sử dụng MONTH")
-                    BudgetPeriodType.MONTH
-                }
-            }
-
-            Budget(
-                id = document.id,
-                categoryId = data["categoryId"] as? String ?: "",
-                amount = (data["amount"] as? Double) ?: 0.0,
-                periodType = periodType,
-                startDate = LocalDate.parse(
-                    data["startDate"] as? String ?: LocalDate.now().toString()
-                ),
-                endDate = LocalDate.parse(data["endDate"] as? String ?: LocalDate.now().toString()),
-                note = data["note"] as? String,
-                spentAmount = (data["spentAmount"] as? Double) ?: 0.0,
-                isActive = data["isActive"] as? Boolean ?: true,
-                spent = (data["spent"] as? Double) ?: 0.0
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi converting document to Budget: ${e.message}")
-            null
-        }
-    }
-
-    /**
-     * Chuyển đổi Budget object sang Map cho Firestore
-     */
-    private fun budgetToMap(budget: Budget): Map<String, Any> = mapOf(
-        "id" to budget.id,
-        "categoryId" to budget.categoryId,
-        "amount" to budget.amount,
-        "periodType" to budget.periodType.name,
-        "startDate" to budget.startDate.toString(),
-        "endDate" to budget.endDate.toString(),
-        "note" to (budget.note ?: ""),
-        "spentAmount" to budget.spentAmount,
-        "isActive" to budget.isActive,
-        "spent" to budget.spent
-    )
 
     // ==================== CRUD OPERATIONS ====================
 
@@ -168,10 +166,20 @@ class BudgetViewModel : ViewModel() {
     fun addBudget(budget: Budget) {
         viewModelScope.launch {
             try {
-                getBudgetsCollection().document(budget.id).set(budgetToMap(budget)).await()
-                _budgets.value = _budgets.value + budget
+                val userId = getCurrentUserId()
+                // Tạo budget với ID mới nếu cần
+                val budgetWithId = budget.copy(
+                    id = if (budget.id.isBlank()) System.currentTimeMillis().toString() else budget.id
+                )
+
+                firestoreService.saveBudget(budgetWithId, userId)
+
+                // Real-time listener sẽ tự động cập nhật
+                // Hoặc cập nhật local để UI phản ứng ngay lập tức
+                _budgets.value = _budgets.value + budgetWithId
                 updateExceededBudgetsList()
-                Log.d(TAG, "Đã thêm ngân sách mới: ${budget.categoryId}")
+
+                Log.d(TAG, "✅ Đã thêm ngân sách: ${budgetWithId.categoryId}")
             } catch (e: Exception) {
                 Log.e(TAG, "Lỗi thêm ngân sách: ${e.message}")
             }
@@ -185,10 +193,16 @@ class BudgetViewModel : ViewModel() {
     fun updateFullBudget(updatedBudget: Budget) {
         viewModelScope.launch {
             try {
-                getBudgetsCollection().document(updatedBudget.id).set(budgetToMap(updatedBudget)).await()
-                _budgets.value = _budgets.value.map { if (it.id == updatedBudget.id) updatedBudget else it }
+                val userId = getCurrentUserId()
+                firestoreService.saveBudget(updatedBudget, userId)
+
+                // Real-time listener sẽ tự động cập nhật
+                // Hoặc cập nhật local để UI phản ứng ngay lập tức
+                _budgets.value = _budgets.value.map {
+                    if (it.id == updatedBudget.id) updatedBudget else it
+                }
                 updateExceededBudgetsList()
-                Log.d(TAG, "Đã cập nhật ngân sách: ${updatedBudget.categoryId}")
+                Log.d(TAG, "🔄 Đã cập nhật ngân sách: ${updatedBudget.categoryId}")
             } catch (e: Exception) {
                 Log.e(TAG, "Lỗi cập nhật ngân sách: ${e.message}")
             }
@@ -202,10 +216,14 @@ class BudgetViewModel : ViewModel() {
     fun deleteBudget(budgetId: String) {
         viewModelScope.launch {
             try {
-                getBudgetsCollection().document(budgetId).delete().await()
+                val userId = getCurrentUserId()
+                firestoreService.deleteBudget(budgetId, userId)
+
+                // Real-time listener sẽ tự động cập nhật
+                // Hoặc cập nhật local để UI phản ứng ngay lập tức
                 _budgets.value = _budgets.value.filter { it.id != budgetId }
                 updateExceededBudgetsList()
-                Log.d(TAG, "Đã xóa ngân sách: $budgetId")
+                Log.d(TAG, "🗑️ Đã xóa ngân sách: $budgetId")
             } catch (e: Exception) {
                 Log.e(TAG, "Lỗi xóa ngân sách: ${e.message}")
             }
@@ -225,6 +243,7 @@ class BudgetViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
+                val userId = getCurrentUserId()
                 val budgets = _budgets.value.toMutableList()
                 val index = budgets.indexOfFirst {
                     it.categoryId == categoryId &&
@@ -251,20 +270,15 @@ class BudgetViewModel : ViewModel() {
                     _budgetExceededEvent.value = updated to exceededAmount
                 }
 
-                // Tạo list mới để trigger UI recompose
+                // Cập nhật local list để UI phản ứng ngay
                 val newList = budgets.toMutableList().apply { set(index, updated) }.toList()
                 _budgets.value = newList
                 updateExceededBudgetsList()
 
-                // Đồng bộ lên Firestore
-                getBudgetsCollection().document(updated.id).update(
-                    mapOf(
-                        "spent" to updated.spent,
-                        "spentAmount" to updated.spentAmount
-                    )
-                ).await()
+                // Đồng bộ lên Firestore (real-time listener sẽ cập nhật lại)
+                firestoreService.saveBudget(updated, userId)
 
-                Log.d(TAG, "Đã cập nhật ngân sách ${updated.categoryId}: spent=${updated.spentAmount}, vượt quá: $isExceeded")
+                Log.d(TAG, "📊 Đã cập nhật ngân sách ${updated.categoryId}: spent=${updated.spentAmount}, vượt quá: $isExceeded")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Lỗi khi cập nhật ngân sách: ${e.message}")
@@ -301,15 +315,15 @@ class BudgetViewModel : ViewModel() {
                             spentAmount = 0.0
                         )
 
-                        // Lưu ngân sách mới lên Firebase
-                        getBudgetsCollection().document(renewedBudget.id)
-                            .set(budgetToMap(renewedBudget)).await()
+                        // Lưu ngân sách mới lên Firestore
+                        val userId = getCurrentUserId()
+                        firestoreService.saveBudget(renewedBudget, userId)
 
                         // Cập nhật local list
                         budgets[i] = renewedBudget
                         hasChanges = true
 
-                        Log.d(TAG, "Đã reset ngân sách ${budget.categoryId} cho chu kỳ mới")
+                        Log.d(TAG, "🔄 Đã reset ngân sách ${budget.categoryId} cho chu kỳ mới")
                     }
                 }
 
@@ -330,7 +344,7 @@ class BudgetViewModel : ViewModel() {
     private fun updateExceededBudgetsList() {
         val exceeded = _budgets.value.filter { checkBudgetExceeded(it).first }
         _exceededBudgets.value = exceeded
-        Log.d(TAG, "Cập nhật danh sách vượt quá: ${exceeded.size} ngân sách")
+        Log.d(TAG, "📈 Cập nhật danh sách vượt quá: ${exceeded.size} ngân sách")
     }
 
     /**
@@ -339,6 +353,7 @@ class BudgetViewModel : ViewModel() {
     fun clearBudgetExceededEvent() {
         _budgetExceededEvent.value = null
     }
+
     /**
      * Giảm ngân sách sau khi xóa giao dịch
      * @param categoryId ID danh mục
@@ -347,6 +362,7 @@ class BudgetViewModel : ViewModel() {
     fun decreaseBudgetAfterDeletion(categoryId: String, amount: Double) {
         viewModelScope.launch {
             try {
+                val userId = getCurrentUserId()
                 val budgets = _budgets.value.toMutableList()
                 val index = budgets.indexOfFirst {
                     it.categoryId == categoryId &&
@@ -367,20 +383,15 @@ class BudgetViewModel : ViewModel() {
                 val safeNewSpent = newSpent.coerceAtLeast(0.0)
                 val updated = budget.copy(spent = safeNewSpent, spentAmount = safeNewSpent)
 
-                // Tạo list mới để trigger UI recompose
+                // Cập nhật local list để UI phản ứng ngay
                 val newList = budgets.toMutableList().apply { set(index, updated) }.toList()
                 _budgets.value = newList
                 updateExceededBudgetsList()
 
                 // Đồng bộ lên Firestore
-                getBudgetsCollection().document(updated.id).update(
-                    mapOf(
-                        "spent" to updated.spent,
-                        "spentAmount" to updated.spentAmount
-                    )
-                ).await()
+                firestoreService.saveBudget(updated, userId)
 
-                Log.d(TAG, "Đã giảm ngân sách ${updated.categoryId}: spent=${updated.spentAmount} (giảm ${abs(amount)})")
+                Log.d(TAG, "📉 Đã giảm ngân sách ${updated.categoryId}: spent=${updated.spentAmount} (giảm ${abs(amount)})")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Lỗi khi giảm ngân sách: ${e.message}")
@@ -388,32 +399,6 @@ class BudgetViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Cập nhật lại toàn bộ ngân sách (khi import/cập nhật hàng loạt)
-     */
-    fun recalculateAllBudgets() {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Đang tính toán lại toàn bộ ngân sách...")
-
-                // Cập nhật từ dữ liệu giao dịch thực tế
-                // (Cần tích hợp với TransactionViewModel)
-                val budgets = _budgets.value.toMutableList()
-                var hasChanges = false
-
-                // Ở đây bạn có thể tính toán lại từ transaction data
-                // Tạm thời chỉ log để debug
-                budgets.forEach { budget ->
-                    Log.d(TAG, "Budget ${budget.categoryId}: amount=${budget.amount}, spent=${budget.spent}")
-                }
-
-                Log.d(TAG, "Đã tính toán lại ${budgets.size} ngân sách")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Lỗi khi tính toán lại ngân sách: ${e.message}")
-            }
-        }
-    }
     // ==================== UTILITY METHODS ====================
 
     /**
@@ -471,20 +456,12 @@ class BudgetViewModel : ViewModel() {
     }
 
     /**
-     * Bắt đầu real-time updates từ Firestore
+     * Refresh dữ liệu ngân sách
      */
-    fun startRealTimeUpdates() {
-        getBudgetsCollection().addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Log.e(TAG, "Listen failed: $error")
-                return@addSnapshotListener
-            }
-            snapshot?.let {
-                _budgets.value = it.documents.mapNotNull { doc -> documentToBudget(doc) }
-                updateExceededBudgetsList()
-                Log.d(TAG, "Real-time update: ${_budgets.value.size} budgets")
-            }
-        }
+    fun refreshBudgets() {
+        stopRealTimeUpdates()
+        loadBudgetsFromFirestore()
+        startRealTimeUpdates()
     }
 
     // ==================== BUDGET STATUS METHODS ====================
@@ -554,5 +531,37 @@ class BudgetViewModel : ViewModel() {
                     LocalDate.now().isAfter(it.startDate.minusDays(1)) &&
                     LocalDate.now().isBefore(it.endDate.plusDays(1)) }
             .sumOf { it.spent }
+    }
+
+    /**
+     * Lấy ngân sách active (chưa hết hạn)
+     */
+    fun getActiveBudgets(): List<Budget> {
+        return _budgets.value.filter {
+            it.isActive &&
+                    LocalDate.now().isAfter(it.startDate.minusDays(1)) &&
+                    LocalDate.now().isBefore(it.endDate.plusDays(1))
+        }
+    }
+
+    /**
+     * Lấy ngân sách đã hết hạn
+     */
+    fun getExpiredBudgets(): List<Budget> {
+        return _budgets.value.filter {
+            it.isActive &&
+                    LocalDate.now().isAfter(it.endDate)
+        }
+    }
+
+    // ==================== CLEANUP ====================
+
+    /**
+     * Cleanup khi ViewModel bị hủy
+     */
+    override fun onCleared() {
+        super.onCleared()
+        stopRealTimeUpdates()
+        Log.d(TAG, "BudgetViewModel đã được giải phóng")
     }
 }

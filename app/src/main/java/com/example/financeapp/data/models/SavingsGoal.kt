@@ -1,13 +1,13 @@
 package com.example.financeapp.data.models
 
-import java.util.*
+import java.util.Calendar
 
 data class SavingsGoal(
     val id: String = "",
     val name: String = "",
     val targetAmount: Long = 0,
-    val currentAmount: Long = 0, // Số tiền đã tiết kiệm được
-    val deadline: Long = 0, // Timestamp
+    val currentAmount: Long = 0,
+    val deadline: Long = 0,
     val category: String = "",
     val userId: String = "",
     val color: Int = 0,
@@ -15,11 +15,22 @@ data class SavingsGoal(
     val description: String = "",
     val progress: Float = 0f,
     val isCompleted: Boolean = false,
-    val monthlyContribution: Long = 0, // Số tiền muốn góp hàng tháng
+    val monthlyContribution: Long = 0,
     val startDate: Long = System.currentTimeMillis(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+
+    // Thêm trường mới cho tính toán tự động
+    val autoCalculate: Boolean = false,
+    val allocationPercentage: Int = 0,
+    val lastAutoCalculation: Long = 0L
 ) {
-    constructor() : this("", "", 0, 0, 0, "", "", 0, 0, "", 0f, false, 0, System.currentTimeMillis(), true)
+    constructor() : this(
+        "", "", 0, 0, 0, "", "", 0, 0, "", 0f, false, 0,
+        System.currentTimeMillis(), true, System.currentTimeMillis(),
+        System.currentTimeMillis(), false, 0, 0L
+    )
 
     // Tính số tháng còn lại đến deadline
     fun getRemainingMonths(): Int {

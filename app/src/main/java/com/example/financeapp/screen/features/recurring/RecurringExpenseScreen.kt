@@ -661,24 +661,7 @@ private fun EmptyExpenseState(
             fontSize = 14.sp,
             textAlign = TextAlign.Center
         )
-
         Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = onAddClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = primaryColor
-            ),
-            modifier = Modifier
-                .height(48.dp)
-                .fillMaxWidth(0.7f),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text(
-                languageViewModel.getTranslation("add_recurring_expense").uppercase(),
-                fontWeight = FontWeight.Medium
-            )
-        }
     }
 }
 

@@ -477,6 +477,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 recurringExpenseViewModel.processDueRecurringExpenses(
+                    context = this@MainActivity, // THÊM CONTEXT Ở ĐÂY
                     onTransactionCreated = { expense ->
                         createTransactionFromRecurring(expense)
                     }

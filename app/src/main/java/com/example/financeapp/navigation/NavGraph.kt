@@ -392,15 +392,22 @@ fun NavGraph(
         }
         composable("savings_goals") {
             SavingsGoalsScreen(
+                navController = navController
+            )
+        }
+
+        composable("add_savings_goal/{goalId}") { backStackEntry ->
+            val goalId = backStackEntry.arguments?.getString("goalId") ?: ""
+            AddSavingsGoalScreen(
                 navController = navController,
-                userId = userId ?: ""
+                goalId = goalId
             )
         }
 
         composable("add_savings_goal") {
             AddSavingsGoalScreen(
                 navController = navController,
-                userId = userId ?: ""
+                goalId = ""
             )
         }
     }

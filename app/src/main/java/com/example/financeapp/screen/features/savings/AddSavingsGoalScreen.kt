@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.data.models.SavingsGoal
+import com.example.financeapp.screen.features.formatCurrency
 import com.example.financeapp.viewmodel.savings.SavingsViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -44,7 +45,7 @@ import java.util.*
 @Composable
 fun AddSavingsGoalScreen(
     navController: NavController,
-    userId: String
+    goalId: String = "" // Thêm parameter này để nhận goalId
 ) {
     val viewModel: SavingsViewModel = viewModel()
     val auth = Firebase.auth
@@ -55,6 +56,7 @@ fun AddSavingsGoalScreen(
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
 
+    // State cho form
     var name by remember { mutableStateOf("") }
     var targetAmount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -62,6 +64,10 @@ fun AddSavingsGoalScreen(
     var selectedColor by remember { mutableStateOf(0) }
     var selectedIcon by remember { mutableStateOf(0) }
     var showSuccess by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showAddMoneyDialog by remember { mutableStateOf(false) }
+    var addMoneyAmount by remember { mutableStateOf("") }
+    var addMoneyError by remember { mutableStateOf<String?>(null) }
 
     // Validation states
     var nameError by remember { mutableStateOf<String?>(null) }
@@ -69,6 +75,14 @@ fun AddSavingsGoalScreen(
 
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val addSuccess by viewModel.addSuccess.collectAsState()
+    val updateSuccess by viewModel.updateSuccess.collectAsState()
+    val deleteSuccess by viewModel.deleteSuccess.collectAsState()
+
+    // Thêm state để theo dõi chế độ và current goal
+    val isEditMode = remember { mutableStateOf(goalId.isNotEmpty()) }
+    val currentGoal = remember { mutableStateOf<SavingsGoal?>(null) }
+    val savingsGoals by viewModel.savingsGoals.collectAsState()
 
     val colors = listOf(
         Color(0xFF3B82F6), // Blue
@@ -85,6 +99,52 @@ fun AddSavingsGoalScreen(
         "💰", "🏠", "🚗", "✈️", "💻", "📱", "🎓", "🏥",
         "🎁", "💍", "📚", "🎮", "🎸", "🏀", "🍽️", "🛍️"
     )
+
+    // Load dữ liệu nếu là chế độ chỉnh sửa
+    LaunchedEffect(goalId) {
+        if (goalId.isNotEmpty()) {
+            val goal = viewModel.getGoalById(goalId)
+            goal?.let {
+                currentGoal.value = it
+                name = it.name
+                targetAmount = it.targetAmount.toString()
+                description = it.description
+                selectedColor = it.color
+                selectedIcon = it.icon
+                deadline = if (it.deadline > 0) it.deadline else null
+            }
+        }
+    }
+
+    // Xử lý thành công
+    LaunchedEffect(addSuccess) {
+        if (addSuccess) {
+            showSuccess = true
+            viewModel.resetAddSuccess()
+        }
+    }
+
+    LaunchedEffect(updateSuccess) {
+        if (updateSuccess) {
+            showSuccess = true
+            viewModel.resetUpdateSuccess()
+        }
+    }
+
+    LaunchedEffect(deleteSuccess) {
+        if (deleteSuccess) {
+            viewModel.resetDeleteSuccess()
+            navController.popBackStack()
+        }
+    }
+
+    // Auto focus vào tên khi mới vào màn hình
+    LaunchedEffect(Unit) {
+        if (!isEditMode.value) {
+            delay(100)
+            focusRequester.requestFocus()
+        }
+    }
 
     // Kiểm tra đăng nhập
     if (currentUser == null) {
@@ -103,7 +163,7 @@ fun AddSavingsGoalScreen(
                     modifier = Modifier.size(60.dp)
                 )
                 Text(
-                    "Vui lòng đăng nhập để thêm mục tiêu",
+                    "Vui lòng đăng nhập để ${if (isEditMode.value) "chỉnh sửa" else "thêm"} mục tiêu",
                     fontSize = 16.sp,
                     color = Color(0xFF64748B)
                 )
@@ -162,7 +222,7 @@ fun AddSavingsGoalScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
-                        "Thành công!",
+                        if (isEditMode.value) "Cập nhật thành công!" else "Thành công!",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1E293B)
@@ -171,7 +231,7 @@ fun AddSavingsGoalScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        "Mục tiêu đã được tạo",
+                        if (isEditMode.value) "Mục tiêu đã được cập nhật" else "Mục tiêu đã được tạo",
                         fontSize = 16.sp,
                         color = Color(0xFF64748B),
                         textAlign = TextAlign.Center
@@ -188,6 +248,170 @@ fun AddSavingsGoalScreen(
             }
         }
         return
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(
+                    text = "Xác nhận xóa",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+            },
+            text = {
+                Text(
+                    text = "Bạn có chắc chắn muốn xóa mục tiêu '${name}'?\nHành động này không thể hoàn tác.",
+                    fontSize = 14.sp,
+                    color = Color(0xFF64748B),
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        coroutineScope.launch {
+                            viewModel.deleteSavingsGoal(goalId)
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Color(0xFFEF4444)
+                    )
+                ) {
+                    Text("Xóa", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false }
+                ) {
+                    Text("Hủy")
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Add money dialog
+    if (showAddMoneyDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddMoneyDialog = false
+                addMoneyAmount = ""
+                addMoneyError = null
+            },
+            title = {
+                Text(
+                    text = "Thêm tiền vào mục tiêu",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Mục tiêu: ${name}",
+                        fontSize = 14.sp,
+                        color = Color(0xFF64748B)
+                    )
+
+                    OutlinedTextField(
+                        value = addMoneyAmount,
+                        onValueChange = {
+                            addMoneyAmount = it.replace(Regex("[^\\d]"), "")
+                            addMoneyError = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text("Nhập số tiền", color = Color(0xFF94A3B8))
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color(0xFF1E293B),
+                            unfocusedTextColor = Color(0xFF1E293B),
+                            focusedBorderColor = if (addMoneyError != null) Color(0xFFEF4444) else Color(0xFF3B82F6),
+                            unfocusedBorderColor = if (addMoneyError != null) Color(0xFFEF4444) else Color(0xFFE2E8F0),
+                            cursorColor = Color(0xFF3B82F6)
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(Icons.Default.AttachMoney, contentDescription = null, tint = Color(0xFF64748B))
+                        },
+                        isError = addMoneyError != null,
+                        supportingText = {
+                            if (addMoneyError != null) {
+                                Text(
+                                    text = addMoneyError ?: "",
+                                    color = Color(0xFFDC2626),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    )
+
+                    if (currentGoal.value != null) {
+                        val current = currentGoal.value!!.currentAmount
+                        val target = currentGoal.value!!.targetAmount
+                        val remaining = target - current
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Hiện tại: ${formatCurrency(current.toDouble())}",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = "Cần thêm: ${formatCurrency(remaining.toDouble())}",
+                                fontSize = 13.sp,
+                                color = Color(0xFF3B82F6),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val amount = addMoneyAmount.toLongOrNull()
+                        if (amount == null || amount <= 0) {
+                            addMoneyError = "Vui lòng nhập số tiền hợp lệ"
+                        } else {
+                            coroutineScope.launch {
+                                viewModel.addToSavingsGoal(goalId, amount)
+                                showAddMoneyDialog = false
+                                addMoneyAmount = ""
+                                // Reload goal data
+                                viewModel.loadSavingsGoals()
+                            }
+                        }
+                    },
+                    enabled = addMoneyAmount.isNotEmpty() && addMoneyAmount.toLongOrNull() ?: 0 > 0
+                ) {
+                    Text("Thêm tiền", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAddMoneyDialog = false
+                        addMoneyAmount = ""
+                        addMoneyError = null
+                    }
+                ) {
+                    Text("Hủy")
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
     // Hàm validation
@@ -240,12 +464,65 @@ fun AddSavingsGoalScreen(
         }
     }
 
+    // Hàm xử lý lưu
+    fun handleSave() {
+        if (validateForm()) {
+            if (isEditMode.value && goalId.isNotEmpty()) {
+                // Chế độ chỉnh sửa
+                val updatedFields = mutableMapOf<String, Any>()
+
+                updatedFields["name"] = name
+                updatedFields["targetAmount"] = targetAmount.toLong()
+                updatedFields["description"] = description
+                updatedFields["color"] = selectedColor
+                updatedFields["icon"] = selectedIcon
+                updatedFields["deadline"] = deadline ?: 0L
+
+                coroutineScope.launch {
+                    viewModel.updateGoalFields(goalId, updatedFields)
+                }
+            } else {
+                // Chế độ tạo mới
+                val goal = SavingsGoal(
+                    id = UUID.randomUUID().toString(),
+                    name = name,
+                    targetAmount = targetAmount.toLong(),
+                    currentAmount = 0L,
+                    deadline = deadline ?: 0L,
+                    category = "Personal",
+                    userId = currentUser!!.uid,
+                    color = selectedColor,
+                    icon = selectedIcon,
+                    description = description,
+                    progress = 0f,
+                    isCompleted = false,
+                    monthlyContribution = 0L,
+                    startDate = System.currentTimeMillis(),
+                    isActive = true
+                )
+
+                coroutineScope.launch {
+                    viewModel.addSavingsGoal(goal)
+                }
+            }
+        }
+    }
+
+    // Hàm format tiền tệ
+    fun formatCurrency(amount: Double): String {
+        return try {
+            java.text.NumberFormat.getNumberInstance(Locale.getDefault()).format(amount)
+        } catch (e: Exception) {
+            amount.toString()
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Tạo mục tiêu mới",
+                        if (isEditMode.value) "Chỉnh sửa mục tiêu" else "Tạo mục tiêu mới",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1E293B)
@@ -265,6 +542,36 @@ fun AddSavingsGoalScreen(
                         )
                     }
                 },
+                actions = {
+                    if (isEditMode.value) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Nút thêm tiền
+                            IconButton(
+                                onClick = { showAddMoneyDialog = true }
+                            ) {
+                                Icon(
+                                    Icons.Default.AddCircle,
+                                    contentDescription = "Thêm tiền",
+                                    tint = Color(0xFF10B981)
+                                )
+                            }
+
+                            // Nút xóa
+                            IconButton(
+                                onClick = { showDeleteDialog = true }
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Xóa",
+                                    tint = Color(0xFFEF4444)
+                                )
+                            }
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.White,
                     titleContentColor = Color(0xFF1E293B)
@@ -279,6 +586,107 @@ fun AddSavingsGoalScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Hiển thị thông tin tiến độ nếu đang chỉnh sửa
+            if (isEditMode.value && currentGoal.value != null) {
+                val goal = currentGoal.value!!
+                val progress = goal.calculateProgress()
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Tiến độ hiện tại",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF1E293B)
+                            )
+                            Text(
+                                text = "${progress.toInt()}%",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = when {
+                                    progress >= 100 -> Color(0xFF10B981)
+                                    progress > 70 -> Color(0xFF3B82F6)
+                                    else -> Color(0xFFF59E0B)
+                                }
+                            )
+                        }
+
+                        LinearProgressIndicator(
+                            progress = progress / 100,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp),
+                            color = when {
+                                progress >= 100 -> Color(0xFF10B981)
+                                progress > 70 -> Color(0xFF3B82F6)
+                                progress > 50 -> Color(0xFFF59E0B)
+                                else -> Color(0xFFEF4444)
+                            },
+                            trackColor = Color(0xFFE2E8F0)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = formatCurrency(goal.currentAmount.toDouble()),
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = formatCurrency(goal.targetAmount.toDouble()),
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+
+                        // Nút thêm tiền nhanh
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val quickAmounts = listOf(50000L, 100000L, 200000L, 500000L)
+                            quickAmounts.forEach { amount ->
+                                OutlinedButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            viewModel.addToSavingsGoal(goalId, amount)
+                                            // Reload data
+                                            viewModel.loadSavingsGoals()
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color(0xFF3B82F6)
+                                    )
+                                ) {
+                                    Text("+${formatCurrency(amount.toDouble())}")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Error message từ viewModel
             AnimatedVisibility(
                 visible = error != null,
@@ -697,68 +1105,81 @@ fun AddSavingsGoalScreen(
                     }
                 }
 
-                // Nút tạo mục tiêu
-                Button(
-                    onClick = {
-                        if (validateForm()) {
-                            val goal = SavingsGoal(
-                                id = UUID.randomUUID().toString(),
-                                name = name,
-                                targetAmount = targetAmount.toLong(),
-                                currentAmount = 0L,
-                                deadline = deadline ?: 0L,
-                                category = "Personal",
-                                userId = currentUser!!.uid,
-                                color = selectedColor,
-                                icon = selectedIcon,
-                                description = description,
-                                progress = 0f,
-                                isCompleted = false,
-                                monthlyContribution = 0L,
-                                startDate = System.currentTimeMillis(),
-                                isActive = true
-                            )
-
-                            coroutineScope.launch {
-                                viewModel.addSavingsGoal(goal)
-                                if (viewModel.error.value == null) {
-                                    showSuccess = true
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3B82F6),
-                        disabledContainerColor = Color(0xFF94A3B8)
-                    ),
-                    enabled = name.isNotEmpty() && targetAmount.isNotEmpty() && !isLoading
+                // Button hành động
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = null,
-                                tint = Color.White
-                            )
-                            Text(
-                                "Tạo mục tiêu",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
+                    // Nút lưu/cập nhật
+                    Button(
+                        onClick = { handleSave() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3B82F6),
+                            disabledContainerColor = Color(0xFF94A3B8)
+                        ),
+                        enabled = name.isNotEmpty() && targetAmount.isNotEmpty() && !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
                                 color = Color.White
                             )
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    if (isEditMode.value) Icons.Default.Save else Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = Color.White
+                                )
+                                Text(
+                                    if (isEditMode.value) "Cập nhật mục tiêu" else "Tạo mục tiêu",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // Nút thêm tiền (chỉ hiển thị khi chỉnh sửa)
+                    if (isEditMode.value) {
+                        OutlinedButton(
+                            onClick = { showAddMoneyDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF10B981),
+                                containerColor = Color.White
+                            ),
+                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                                width = 2.dp
+                            )
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.AddCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981)
+                                )
+                                Text(
+                                    "Thêm tiền vào mục tiêu",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF10B981)
+                                )
+                            }
                         }
                     }
                 }

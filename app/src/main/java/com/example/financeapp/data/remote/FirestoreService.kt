@@ -1,9 +1,15 @@
 package com.example.financeapp.data.remote
 
+import android.content.ContentValues.TAG
+import android.util.Log
 import com.example.financeapp.data.models.SavingsGoal
 import com.example.financeapp.data.models.Transaction
-import com.google.firebase.firestore.FieldValue
+import com.example.financeapp.data.models.User
+import com.example.financeapp.data.models.Budget
+import com.example.financeapp.data.models.RecurringExpense
+import com.example.financeapp.data.models.RecurringFrequency
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
@@ -13,10 +19,11 @@ class FirestoreService {
     private val db: FirebaseFirestore = Firebase.firestore
 
     // ========== TRANSACTIONS ==========
-    suspend fun saveTransaction(transaction: Transaction) {
+    suspend fun saveTransaction(transaction: Transaction, userId: String) {
         try {
             val transactionMap = mapOf(
                 "id" to transaction.id,
+                "userId" to userId,
                 "date" to transaction.date,
                 "dayOfWeek" to transaction.dayOfWeek,
                 "category" to transaction.category,
@@ -43,9 +50,10 @@ class FirestoreService {
         }
     }
 
-    suspend fun getTransactions(): List<Transaction> {
+    suspend fun getTransactionsByUser(userId: String): List<Transaction> {
         return try {
             val snapshot = db.collection("transactions")
+                .whereEqualTo("userId", userId)
                 .get()
                 .await()
 
@@ -75,7 +83,7 @@ class FirestoreService {
         }
     }
 
-    suspend fun deleteTransaction(transactionId: String) {
+    suspend fun deleteTransaction(transactionId: String, userId: String) {
         try {
             db.collection("transactions")
                 .document(transactionId)
@@ -86,13 +94,245 @@ class FirestoreService {
         }
     }
 
-    // ========== SAVINGS GOALS ==========
+    // ========== BUDGETS ==========
+    suspend fun saveBudget(budget: Budget, userId: String) {
+        try {
+            val budgetMap = mapOf(
+                "id" to budget.id,
+                "userId" to userId,
+                "categoryId" to budget.categoryId,
+                "amount" to budget.amount,
+                "periodType" to budget.periodType.name,
+                "startDate" to budget.startDate.toString(),
+                "endDate" to budget.endDate.toString(),
+                "note" to (budget.note ?: ""),
+                "spentAmount" to budget.spentAmount,
+                "isActive" to budget.isActive,
+                "spent" to budget.spent,
+                "createdAt" to System.currentTimeMillis()
+            )
 
+            db.collection("budgets")
+                .document(budget.id)
+                .set(budgetMap)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun getBudgets(userId: String): List<Budget> {
+        return try {
+            val snapshot = db.collection("budgets")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            snapshot.documents.map { doc ->
+                val data = doc.data ?: emptyMap()
+
+                // Parse period type
+                val periodTypeStr = data["periodType"] as? String ?: "MONTH"
+                val periodType = try {
+                    com.example.financeapp.data.models.BudgetPeriodType.valueOf(periodTypeStr)
+                } catch (e: Exception) {
+                    com.example.financeapp.data.models.BudgetPeriodType.MONTH
+                }
+
+                // Parse dates
+                val startDateStr = data["startDate"] as? String ?: ""
+                val endDateStr = data["endDate"] as? String ?: ""
+
+                Budget(
+                    id = data["id"] as? String ?: doc.id,
+                    categoryId = data["categoryId"] as? String ?: "",
+                    amount = (data["amount"] as? Double) ?: 0.0,
+                    periodType = periodType,
+                    startDate = if (startDateStr.isNotEmpty())
+                        java.time.LocalDate.parse(startDateStr)
+                    else java.time.LocalDate.now(),
+                    endDate = if (endDateStr.isNotEmpty())
+                        java.time.LocalDate.parse(endDateStr)
+                    else java.time.LocalDate.now().plusMonths(1),
+                    note = data["note"] as? String,
+                    spentAmount = (data["spentAmount"] as? Double) ?: 0.0,
+                    isActive = data["isActive"] as? Boolean ?: true,
+                    spent = (data["spent"] as? Double) ?: 0.0
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    fun setupBudgetsListener(
+        userId: String,
+        onBudgetsUpdated: (List<Budget>) -> Unit,
+        onError: (Exception) -> Unit
+    ): ListenerRegistration {
+        return db.collection("budgets")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onError(error)
+                    return@addSnapshotListener
+                }
+
+                snapshot?.let { querySnapshot ->
+                    val budgetsList = mutableListOf<Budget>()
+                    for (document in querySnapshot.documents) {
+                        try {
+                            val budget = document.toObject(Budget::class.java)
+                            budget?.let { budgetsList.add(it) }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Lỗi parse budget document: ${e.message}")
+                        }
+                    }
+                    onBudgetsUpdated(budgetsList)
+                }
+            }
+    }
+
+    suspend fun deleteBudget(budgetId: String, userId: String) {
+        try {
+            db.collection("budgets")
+                .document(budgetId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    // ========== CATEGORIES ==========
+    suspend fun saveCategory(category: com.example.financeapp.viewmodel.transaction.Category, userId: String) {
+        try {
+            val categoryMap = mapOf(
+                "id" to category.id,
+                "userId" to userId,
+                "name" to category.name,
+                "type" to category.type,
+                "isMainCategory" to category.isMainCategory,
+                "parentCategoryId" to (category.parentCategoryId ?: ""),
+                "icon" to category.icon,
+                "color" to category.color,
+                "createdAt" to System.currentTimeMillis()
+            )
+
+            db.collection("categories")
+                .document(category.id)
+                .set(categoryMap)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun getCategories(userId: String): List<com.example.financeapp.viewmodel.transaction.Category> {
+        return try {
+            val snapshot = db.collection("categories")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            snapshot.documents.map { doc ->
+                val data = doc.data ?: emptyMap()
+                com.example.financeapp.viewmodel.transaction.Category(
+                    id = data["id"] as? String ?: doc.id,
+                    name = data["name"] as? String ?: "",
+                    type = data["type"] as? String ?: "expense",
+                    isMainCategory = data["isMainCategory"] as? Boolean ?: false,
+                    parentCategoryId = data["parentCategoryId"] as? String,
+                    icon = data["icon"] as? String ?: "🍹",
+                    color = data["color"] as? String ?: "#FF69B4"
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // ========== RECURRING EXPENSES ==========
+    suspend fun saveRecurringExpense(recurringExpense: RecurringExpense, userId: String) {
+        try {
+            val recurringMap = mapOf(
+                "id" to recurringExpense.id,
+                "userId" to userId,
+                "title" to recurringExpense.title,
+                "amount" to recurringExpense.amount,
+                "category" to recurringExpense.category,
+                "categoryIcon" to recurringExpense.categoryIcon,
+                "categoryColor" to recurringExpense.categoryColor,
+                "wallet" to recurringExpense.wallet,
+                "description" to (recurringExpense.description ?: ""),
+                "frequency" to recurringExpense.frequency,
+                "startDate" to recurringExpense.startDate,
+                "endDate" to (recurringExpense.endDate ?: ""),
+                "nextOccurrence" to recurringExpense.nextOccurrence,
+                "isActive" to recurringExpense.isActive,
+                "createdAt" to recurringExpense.createdAt,
+                "totalGenerated" to recurringExpense.totalGenerated,
+                "lastGenerated" to (recurringExpense.lastGenerated ?: "")
+            )
+
+            db.collection("recurring_expenses")
+                .document(recurringExpense.id)
+                .set(recurringMap)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun getRecurringExpenses(userId: String): List<RecurringExpense> {
+        return try {
+            val snapshot = db.collection("recurring_expenses")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            snapshot.documents.map { doc ->
+                val data = doc.data ?: emptyMap()
+                RecurringExpense(
+                    id = data["id"] as? String ?: doc.id,
+                    title = data["title"] as? String ?: "",
+                    amount = (data["amount"] as? Double) ?: 0.0,
+                    category = data["category"] as? String ?: "",
+                    categoryIcon = data["categoryIcon"] as? String ?: "",
+                    categoryColor = data["categoryColor"] as? String ?: "",
+                    wallet = data["wallet"] as? String ?: "",
+                    description = data["description"] as? String,
+                    frequency = data["frequency"] as? String ?: "",
+                    startDate = data["startDate"] as? String ?: "",
+                    endDate = data["endDate"] as? String,
+                    nextOccurrence = data["nextOccurrence"] as? String ?: "",
+                    isActive = data["isActive"] as? Boolean ?: true,
+                    createdAt = (data["createdAt"] as? Long) ?: System.currentTimeMillis(),
+                    userId = data["userId"] as? String ?: userId,
+                    totalGenerated = (data["totalGenerated"] as? Int) ?: 0,
+                    lastGenerated = data["lastGenerated"] as? String
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun deleteRecurringExpense(expenseId: String, userId: String) {
+        try {
+            db.collection("recurring_expenses")
+                .document(expenseId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    // ========== SAVINGS GOALS ==========
     suspend fun getSavingsGoals(userId: String): List<SavingsGoal> {
         return try {
             val snapshot = db.collection("savings_goals")
                 .whereEqualTo("userId", userId)
-                .orderBy("deadline")
                 .get()
                 .await()
 
@@ -111,12 +351,15 @@ class FirestoreService {
                         icon = (data["icon"] as? Int) ?: 0,
                         description = data["description"] as? String ?: "",
                         progress = (data["progress"] as? Float) ?: 0f,
-                        isCompleted = data["isCompleted"] as? Boolean ?: false
+                        isCompleted = data["isCompleted"] as? Boolean ?: false,
+                        monthlyContribution = (data["monthlyContribution"] as? Long) ?: 0L,
+                        startDate = (data["startDate"] as? Long) ?: System.currentTimeMillis(),
+                        isActive = data["isActive"] as? Boolean ?: true
                     )
                 } catch (e: Exception) {
                     null
                 }
-            }
+            }.sortedBy { it.deadline }
         } catch (e: Exception) {
             emptyList()
         }
@@ -136,6 +379,9 @@ class FirestoreService {
                 "description" to goal.description,
                 "progress" to goal.calculateProgress(),
                 "isCompleted" to goal.isCompleted,
+                "monthlyContribution" to (goal.monthlyContribution ?: 0L),
+                "startDate" to (goal.startDate ?: System.currentTimeMillis()),
+                "isActive" to (goal.isActive ?: true),
                 "createdAt" to System.currentTimeMillis(),
                 "updatedAt" to System.currentTimeMillis()
             )
@@ -168,6 +414,9 @@ class FirestoreService {
                 "description" to goal.description,
                 "progress" to goal.calculateProgress(),
                 "isCompleted" to goal.isCompleted,
+                "monthlyContribution" to (goal.monthlyContribution ?: 0L),
+                "startDate" to (goal.startDate ?: System.currentTimeMillis()),
+                "isActive" to (goal.isActive ?: true),
                 "updatedAt" to System.currentTimeMillis()
             )
 
@@ -193,7 +442,6 @@ class FirestoreService {
 
     suspend fun addToSavings(goalId: String, amount: Long) {
         try {
-            // Lấy goal hiện tại
             val doc = db.collection("savings_goals")
                 .document(goalId)
                 .get()
@@ -226,13 +474,9 @@ class FirestoreService {
     }
 
     // ========== MONTHLY SUMMARY ==========
-
     suspend fun getMonthlySummary(userId: String, month: Int, year: Int): Pair<Long, Long> {
         return try {
-            // Tính timestamp đầu và cuối tháng
             val calendar = Calendar.getInstance()
-
-            // Đặt ngày đầu tháng
             calendar.set(Calendar.YEAR, year)
             calendar.set(Calendar.MONTH, month)
             calendar.set(Calendar.DAY_OF_MONTH, 1)
@@ -242,27 +486,19 @@ class FirestoreService {
             calendar.set(Calendar.MILLISECOND, 0)
 
             val startOfMonth = calendar.timeInMillis
-
-            // Đến đầu tháng sau
             calendar.add(Calendar.MONTH, 1)
             val endOfMonth = calendar.timeInMillis
 
-            // Lấy tất cả giao dịch (trong thực tế nên lọc theo userId và date)
-            val transactions = getTransactions()
-
-            // Lọc giao dịch trong tháng và của user
+            val transactions = getTransactionsByUser(userId)
             val monthlyTransactions = transactions.filter { transaction ->
-                // Giả sử transaction.date là timestamp
                 val transactionDate = transaction.createdAt
                 transactionDate in startOfMonth until endOfMonth
             }
 
-            // Tính tổng thu nhập
             val totalIncome = monthlyTransactions
                 .filter { it.isIncome }
                 .sumOf { (it.amount ?: 0.0).toLong() }
 
-            // Tính tổng chi tiêu
             val totalExpenses = monthlyTransactions
                 .filter { !it.isIncome }
                 .sumOf { (it.amount ?: 0.0).toLong() }
@@ -280,21 +516,15 @@ class FirestoreService {
             val currentMonth = calendar.get(Calendar.MONTH)
             val currentYear = calendar.get(Calendar.YEAR)
 
-            // Lấy tổng thu nhập và chi tiêu tháng này
             val (monthlyIncome, monthlyExpenses) = getMonthlySummary(userId, currentMonth, currentYear)
-
-            // Tính số tiền còn lại
             val remainingIncome = monthlyIncome - monthlyExpenses
 
             if (remainingIncome > 0) {
-                // Lấy tất cả savings goals active
                 val savingsGoals = getSavingsGoals(userId)
                     .filter { !it.isCompleted }
 
                 if (savingsGoals.isNotEmpty()) {
-                    // Phân bổ đều cho các goal
                     val amountPerGoal = remainingIncome / savingsGoals.size
-
                     savingsGoals.forEach { goal ->
                         if (amountPerGoal > 0) {
                             addToSavings(goal.id, amountPerGoal)
@@ -304,6 +534,199 @@ class FirestoreService {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // ========== USER FUNCTIONS ==========
+    suspend fun saveUser(user: User) {
+        try {
+            val userMap = mapOf(
+                "id" to user.id,
+                "name" to user.name,
+                "email" to user.email,
+                "profileImage" to (user.profileImage ?: ""),
+                "createdAt" to System.currentTimeMillis(),
+                "updatedAt" to System.currentTimeMillis()
+            )
+
+            db.collection("users")
+                .document(user.id)
+                .set(userMap)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun createOrUpdateUser(
+        userId: String,
+        name: String?,
+        email: String?,
+        profileImage: String?,
+        providerId: String,
+        phoneNumber: String? = null
+    ): String {
+        return try {
+            val userEmail = email ?: ""
+            var finalUserId = userId
+
+            // Kiểm tra user đã tồn tại theo email
+            val existingUser = getUserByEmail(userEmail)
+
+            val userMap = if (existingUser != null) {
+                finalUserId = existingUser.id
+                // User đã tồn tại - cập nhật
+                mapOf(
+                    "name" to (name ?: existingUser.name),
+                    "email" to userEmail,
+                    "profileImage" to (profileImage ?: existingUser.profileImage ?: ""),
+                    "phoneNumber" to (phoneNumber ?: ""),
+                    "providerId" to providerId,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            } else {
+                // User mới - tạo
+                mapOf(
+                    "id" to userId,
+                    "name" to (name ?: ""),
+                    "email" to userEmail,
+                    "profileImage" to (profileImage ?: ""),
+                    "phoneNumber" to (phoneNumber ?: ""),
+                    "providerId" to providerId,
+                    "createdAt" to System.currentTimeMillis(),
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            }
+
+            db.collection("users")
+                .document(finalUserId)
+                .set(userMap)
+                .await()
+
+            finalUserId
+        } catch (e: Exception) {
+            userId
+        }
+    }
+
+    suspend fun getUserByEmail(email: String): User? {
+        return try {
+            val snapshot = db.collection("users")
+                .whereEqualTo("email", email)
+                .limit(1)
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) return null
+
+            val doc = snapshot.documents.first()
+            val data = doc.data ?: return null
+
+            User(
+                id = data["id"] as? String ?: doc.id,
+                name = data["name"] as? String ?: "",
+                email = data["email"] as? String ?: "",
+                profileImage = (data["profileImage"] as? String)?.takeIf { it.isNotBlank() }
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun checkUserExistsByEmail(email: String): Boolean {
+        return try {
+            val snapshot = db.collection("users")
+                .whereEqualTo("email", email)
+                .limit(1)
+                .get()
+                .await()
+            !snapshot.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun migrateUserData(oldUserId: String, newUserId: String) {
+        try {
+            // Cập nhật userId trong transactions
+            val transactions = db.collection("transactions")
+                .whereEqualTo("userId", oldUserId)
+                .get()
+                .await()
+
+            for (doc in transactions.documents) {
+                doc.reference.update("userId", newUserId).await()
+            }
+
+            // Cập nhật userId trong savings_goals
+            val savingsGoals = db.collection("savings_goals")
+                .whereEqualTo("userId", oldUserId)
+                .get()
+                .await()
+
+            for (doc in savingsGoals.documents) {
+                doc.reference.update("userId", newUserId).await()
+            }
+
+        } catch (e: Exception) {
+            // Không crash nếu migration thất bại
+        }
+    }
+
+    suspend fun getUser(userId: String): User? {
+        return try {
+            val doc = db.collection("users")
+                .document(userId)
+                .get()
+                .await()
+
+            if (doc.exists()) {
+                val data = doc.data ?: return null
+                User(
+                    id = data["id"] as? String ?: userId,
+                    name = data["name"] as? String ?: "",
+                    email = data["email"] as? String ?: "",
+                    profileImage = (data["profileImage"] as? String)?.takeIf { it.isNotBlank() }
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun updateUser(userId: String, updates: Map<String, Any>) {
+        try {
+            db.collection("users")
+                .document(userId)
+                .update(updates + mapOf("updatedAt" to System.currentTimeMillis()))
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun deleteUser(userId: String) {
+        try {
+            db.collection("users")
+                .document(userId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun checkUserExists(userId: String): Boolean {
+        return try {
+            val doc = db.collection("users")
+                .document(userId)
+                .get()
+                .await()
+            doc.exists()
+        } catch (e: Exception) {
+            false
         }
     }
 }

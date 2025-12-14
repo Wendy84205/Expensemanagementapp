@@ -36,13 +36,13 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SavingsGoalsScreen(
-    navController: NavController,
-    userId: String
+    navController: NavController
 ) {
     val viewModel: SavingsViewModel = viewModel()
     val savingsGoals by viewModel.savingsGoals.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val addSuccess by viewModel.addSuccess.collectAsState()
 
     val auth = Firebase.auth
     val currentUser by remember(auth) {
@@ -51,15 +51,16 @@ fun SavingsGoalsScreen(
 
     // Load data khi vào màn hình
     LaunchedEffect(Unit) {
+        println("DEBUG: LaunchedEffect chạy - load data")
         viewModel.loadSavingsGoals()
     }
 
-    // Refresh khi quay lại màn hình
-    LaunchedEffect(navController) {
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            if (destination.route == "savings_goals") {
-                viewModel.loadSavingsGoals()
-            }
+    // Khi quay lại từ màn hình thêm/sửa mục tiêu
+    LaunchedEffect(addSuccess) {
+        if (addSuccess) {
+            println("DEBUG: Thành công, reload data")
+            viewModel.loadSavingsGoals()
+            viewModel.resetAddSuccess()
         }
     }
 
@@ -88,23 +89,6 @@ fun SavingsGoalsScreen(
                         )
                     }
                 },
-                actions = {
-                    if (currentUser != null) {
-                        IconButton(
-                            onClick = { navController.navigate("add_savings_goal") },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(Color(0xFF3B82F6), CircleShape)
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = "Thêm mục tiêu",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.White,
                     titleContentColor = Color(0xFF1E293B)
@@ -120,29 +104,21 @@ fun SavingsGoalsScreen(
                 FloatingActionButton(
                     onClick = { navController.navigate("add_savings_goal") },
                     containerColor = Color(0xFF3B82F6),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.shadow(
-                        elevation = 8.dp,
-                        shape = RoundedCornerShape(16.dp),
-                        clip = true
-                    )
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = CircleShape,
+                            clip = true
+                        )
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "Thêm mục tiêu",
-                            tint = Color.White
-                        )
-                        Text(
-                            "Thêm mục tiêu",
-                            color = Color.White,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Thêm mục tiêu",
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
+                    )
                 }
             }
         },
@@ -163,67 +139,13 @@ fun SavingsGoalsScreen(
             } else {
                 when {
                     isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                CircularProgressIndicator(
-                                    color = Color(0xFF3B82F6),
-                                    strokeWidth = 3.dp
-                                )
-                                Text(
-                                    "Đang tải mục tiêu...",
-                                    color = Color(0xFF64748B),
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
+                        LoadingView()
                     }
                     error != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(20.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                        .background(Color(0xFFFEE2E2), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.ErrorOutline,
-                                        contentDescription = null,
-                                        tint = Color(0xFFDC2626),
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                }
-                                Text(
-                                    text = error!!,
-                                    color = Color(0xFFDC2626),
-                                    fontSize = 16.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 32.dp)
-                                )
-                                Button(
-                                    onClick = { viewModel.loadSavingsGoals() },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF3B82F6)
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.width(150.dp)
-                                ) {
-                                    Text("Thử lại")
-                                }
-                            }
-                        }
+                        ErrorView(
+                            error = error!!,
+                            onRetry = { viewModel.loadSavingsGoals() }
+                        )
                     }
                     savingsGoals.isEmpty() -> {
                         EmptySavingsGoals(
@@ -231,34 +153,119 @@ fun SavingsGoalsScreen(
                         )
                     }
                     else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Header với tổng số mục tiêu
-                            item {
-                                SavingsGoalsHeader(
-                                    totalGoals = savingsGoals.size,
-                                    totalSaved = savingsGoals.sumOf { it.currentAmount },
-                                    totalTarget = savingsGoals.sumOf { it.targetAmount }
-                                )
-                            }
-
-                            // Danh sách mục tiêu
-                            items(savingsGoals) { goal ->
-                                SavingsGoalCard(
-                                    goal = goal,
-                                    viewModel = viewModel,
-                                    onClick = {
-                                        navController.navigate("savings_goal_detail/${goal.id}")
-                                    }
-                                )
-                            }
-                        }
+                        SavingsGoalsList(
+                            savingsGoals = savingsGoals,
+                            navController = navController,
+                            viewModel = viewModel
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LoadingView() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CircularProgressIndicator(
+                color = Color(0xFF3B82F6),
+                strokeWidth = 3.dp
+            )
+            Text(
+                "Đang tải mục tiêu...",
+                color = Color(0xFF64748B),
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun ErrorView(
+    error: String,
+    onRetry: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(Color(0xFFFEE2E2), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            Text(
+                text = error,
+                color = Color(0xFFDC2626),
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF3B82F6)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.width(150.dp)
+            ) {
+                Text("Thử lại")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavingsGoalsList(
+    savingsGoals: List<SavingsGoal>,
+    navController: NavController,
+    viewModel: SavingsViewModel
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 80.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            SavingsGoalsHeader(
+                totalGoals = savingsGoals.size,
+                totalSaved = savingsGoals.sumOf { it.currentAmount },
+                totalTarget = savingsGoals.sumOf { it.targetAmount }
+            )
+        }
+
+        items(savingsGoals) { goal ->
+            SavingsGoalCard(
+                goal = goal,
+                onClick = {
+                    navController.navigate("add_savings_goal/${goal.id}")
+                }
+            )
         }
     }
 }
@@ -521,11 +528,12 @@ private fun EmptySavingsGoals(onAddClick: () -> Unit) {
 @Composable
 private fun SavingsGoalCard(
     goal: SavingsGoal,
-    viewModel: SavingsViewModel,
     onClick: () -> Unit
 ) {
     val progress = goal.calculateProgress()
     val remainingDays = calculateRemainingDays(goal.deadline)
+
+    // Tính toán tiền cần góp hàng tháng
     val monthlyContribution = if (goal.deadline > 0 && remainingDays > 0) {
         val remainingMonths = (remainingDays / 30).coerceAtLeast(1)
         val remainingAmount = goal.targetAmount - goal.currentAmount
@@ -538,6 +546,7 @@ private fun SavingsGoalCard(
         0L
     }
 
+    // Chọn màu cho card
     val colors = listOf(
         Color(0xFF3B82F6), // Blue
         Color(0xFF10B981), // Green
@@ -546,9 +555,9 @@ private fun SavingsGoalCard(
         Color(0xFF8B5CF6), // Purple
         Color(0xFFEC4899)  // Pink
     )
-
     val color = colors.getOrElse(goal.color) { colors[0] }
 
+    // Format deadline
     val deadlineText = if (goal.deadline > 0) {
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(goal.deadline))
     } else "Không có hạn"
@@ -674,12 +683,12 @@ private fun SavingsGoalCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Stats row
+            // Stats row - CHỈ HIỂN THỊ THÔNG TIN CƠ BẢN
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Remaining amount
+                // Remaining amount (tiền còn lại cần tiết kiệm)
                 GoalStatItem(
                     icon = Icons.Default.AccountBalanceWallet,
                     title = "Còn cần",
@@ -687,7 +696,7 @@ private fun SavingsGoalCard(
                     color = Color(0xFFEF4444)
                 )
 
-                // Monthly contribution
+                // Monthly contribution (góp hàng tháng)
                 if (monthlyContribution > 0 && remainingDays > 30) {
                     GoalStatItem(
                         icon = Icons.Default.CalendarToday,
@@ -695,9 +704,17 @@ private fun SavingsGoalCard(
                         value = formatCurrency(monthlyContribution.toDouble()),
                         color = Color(0xFF3B82F6)
                     )
+                } else {
+                    // Nếu không tính được góp hàng tháng, hiển thị category
+                    GoalStatItem(
+                        icon = Icons.Default.Category,
+                        title = "Danh mục",
+                        value = goal.category,
+                        color = Color(0xFF8B5CF6)
+                    )
                 }
 
-                // Deadline
+                // Deadline (hạn chót)
                 GoalStatItem(
                     icon = Icons.Default.Schedule,
                     title = if (remainingDays > 0) "Còn $remainingDays ngày" else "Hạn",

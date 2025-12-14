@@ -1137,24 +1137,7 @@ private fun EmptyBudgetState(
             fontSize = 14.sp,
             textAlign = TextAlign.Center
         )
-
         Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = onAddClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF2196F3)
-            ),
-            modifier = Modifier
-                .height(48.dp)
-                .fillMaxWidth(0.7f),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text(
-                languageViewModel.getTranslation("add_budget").uppercase(),
-                fontWeight = FontWeight.Medium
-            )
-        }
     }
 }
 

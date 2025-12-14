@@ -7,6 +7,7 @@ import com.example.financeapp.data.remote.FirestoreService
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.viewmodel.ai.AICommandResult
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,6 +69,7 @@ class TransactionViewModel : ViewModel() {
     // ==================== DEPENDENCIES ====================
 
     private val firestoreService = FirestoreService()
+    private val firebaseAuth = FirebaseAuth.getInstance()
     private val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
     // ==================== INITIALIZATION ====================
@@ -104,6 +106,13 @@ class TransactionViewModel : ViewModel() {
         return "%,.0fđ".format(amount)
     }
 
+    /**
+     * Lấy userId hiện tại
+     */
+    private fun getCurrentUserId(): String {
+        return firebaseAuth.currentUser?.uid ?: "anonymous"
+    }
+
     // ==================== DATA LOADING ====================
 
     /**
@@ -115,7 +124,8 @@ class TransactionViewModel : ViewModel() {
             _errorMessage.value = null
 
             try {
-                val firestoreTransactions = firestoreService.getTransactions()
+                val userId = getCurrentUserId()
+                val firestoreTransactions = firestoreService.getTransactionsByUser(userId)
 
                 // Sắp xếp theo ngày mới nhất
                 val sortedTransactions = firestoreTransactions.sortedByDescending {
@@ -125,7 +135,7 @@ class TransactionViewModel : ViewModel() {
                 _transactions.value = sortedTransactions
                 updateAnalyticsData()
 
-                Log.d(TAG, "Đã tải ${sortedTransactions.size} giao dịch từ Firestore")
+                Log.d(TAG, "Đã tải ${sortedTransactions.size} giao dịch từ Firestore cho user: $userId")
 
             } catch (e: Exception) {
                 _errorMessage.value = "Không thể tải danh sách giao dịch: ${e.message}"
@@ -177,8 +187,9 @@ class TransactionViewModel : ViewModel() {
                     title = finalTitle
                 )
 
-                // Lưu vào Firestore
-                firestoreService.saveTransaction(newTransaction)
+                // Lưu vào Firestore với userId
+                val userId = getCurrentUserId()
+                firestoreService.saveTransaction(newTransaction, userId)
 
                 // Cập nhật ngân sách nếu là chi tiêu
                 if (!newTransaction.isIncome) {
@@ -236,8 +247,9 @@ class TransactionViewModel : ViewModel() {
             _aiCommandResult.value = null
 
             try {
-                // Lưu vào Firestore
-                firestoreService.saveTransaction(transaction)
+                // Lưu vào Firestore với userId
+                val userId = getCurrentUserId()
+                firestoreService.saveTransaction(transaction, userId)
 
                 // Cập nhật ngân sách nếu là chi tiêu
                 if (!transaction.isIncome) {
@@ -287,8 +299,9 @@ class TransactionViewModel : ViewModel() {
             _autoTransactionMessage.value = null
 
             try {
-                // Lưu vào Firestore
-                firestoreService.saveTransaction(transaction)
+                // Lưu vào Firestore với userId
+                val userId = getCurrentUserId()
+                firestoreService.saveTransaction(transaction, userId)
 
                 // Cập nhật ngân sách nếu là chi tiêu
                 if (!transaction.isIncome) {
@@ -346,8 +359,9 @@ class TransactionViewModel : ViewModel() {
                     budgetViewModel?.updateBudgetAfterTransaction(updatedTransaction.category, updatedTransaction.amount)
                 }
 
-                // Lưu vào Firestore
-                firestoreService.saveTransaction(updatedTransaction)
+                // Lưu vào Firestore với userId
+                val userId = getCurrentUserId()
+                firestoreService.saveTransaction(updatedTransaction, userId)
 
                 // Cập nhật local state
                 _transactions.value = _transactions.value.map {
@@ -395,22 +409,15 @@ class TransactionViewModel : ViewModel() {
 
                 // Sửa: Revert budget nếu là chi tiêu - sử dụng categoryId thay vì category
                 if (!transactionToDelete.isIncome) {
-                    // Cách 1: Gọi hàm decreaseBudgetAfterDeletion mới
                     budgetViewModel?.decreaseBudgetAfterDeletion(
                         categoryId = transactionToDelete.categoryId ?: transactionToDelete.category,
                         amount = transactionToDelete.amount
                     )
-
-                    // Hoặc Cách 2: Gọi updateBudgetAfterTransaction với số tiền âm
-                    // budgetViewModel?.updateBudgetAfterTransaction(
-                    //     categoryId = transactionToDelete.categoryId ?: transactionToDelete.category,
-                    //     amount = -transactionToDelete.amount,
-                    //     triggerNotification = false
-                    // )
                 }
 
-                // Xóa từ Firestore
-                firestoreService.deleteTransaction(transactionId)
+                // Xóa từ Firestore với userId
+                val userId = getCurrentUserId()
+                firestoreService.deleteTransaction(transactionId, userId)
 
                 // Cập nhật local state
                 _transactions.value = _transactions.value.filter { it.id != transactionId }
@@ -633,12 +640,22 @@ class TransactionViewModel : ViewModel() {
             val toDelete = _transactions.value.filter {
                 it.wallet.equals(walletName, true)
             }
+
+            // Xóa từ Firestore
+            val userId = getCurrentUserId()
+            toDelete.forEach {
+                try {
+                    firestoreService.deleteTransaction(it.id, userId)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Lỗi xóa transaction ${it.id}: ${e.message}")
+                }
+            }
+
+            // Cập nhật local state
             _transactions.value = _transactions.value.filter {
                 !it.wallet.equals(walletName, true)
             }
-            toDelete.forEach {
-                firestoreService.deleteTransaction(it.id)
-            }
+
             updateAnalyticsData()
             Log.d(TAG, "Đã xóa ${toDelete.size} giao dịch của ví: $walletName")
         }
