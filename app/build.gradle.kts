@@ -145,4 +145,26 @@ dependencies {
 
     // SQLite debug helper
     debugImplementation("com.github.ajalt:timberkt:1.5.1")
+
+    val cameraxVersion = "1.3.0"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // ML Kit for OCR
+    implementation("com.google.mlkit:text-recognition:16.0.0")
+
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Hilt for DI
+    implementation("com.google.dagger:hilt-android:2.48")
+    ksp("com.google.dagger:hilt-compiler:2.48")
+
+    // Accompanist for permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
+    // Accompanist for permissions
+    implementation ("com.google.accompanist:accompanist-permissions:0.32.0")
 }

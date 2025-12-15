@@ -23,6 +23,7 @@ import com.example.financeapp.screen.auth.AuthScreen
 import com.example.financeapp.screen.main.budget.BudgetScreen
 import com.example.financeapp.screen.features.CalendarScreen
 import com.example.financeapp.screen.features.category.CategoryScreen
+import com.example.financeapp.screen.features.invoice.InvoiceScannerScreen
 import com.example.financeapp.screen.settings.ExtensionsScreen
 import com.example.financeapp.screen.main.dashboard.HomeScreen
 import com.example.financeapp.screen.settings.LanguageSettingsScreen
@@ -54,6 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 
 
+
 @Composable
 fun NavGraph(
     navController: NavHostController,
@@ -62,7 +64,7 @@ fun NavGraph(
     aiViewModel: AIViewModel,
     activity: Activity,
     languageViewModel: LanguageViewModel,
-    categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel,
+    categoryViewModel: CategoryViewModel,
     recurringExpenseViewModel: RecurringExpenseViewModel,
     budgetViewModel: BudgetViewModel
 ) {
@@ -409,6 +411,11 @@ fun NavGraph(
                 navController = navController,
                 goalId = ""
             )
+        }
+        composable(
+            route = "invoice_scanner"
+        ) {
+            InvoiceScannerScreen(navController = navController)
         }
     }
 }

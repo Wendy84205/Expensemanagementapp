@@ -110,6 +110,39 @@ fun AddTransactionScreen(
 
     val isSaveEnabled = amount.isNotBlank() && categoryId.isNotBlank()
 
+    // ============== XỬ LÝ GIAO DỊCH ĐÃ QUÉT ==============
+    // Lấy giao dịch đã quét từ màn hình trước
+    val scannedTransaction by navController
+        .previousBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow<Transaction?>("scanned_transaction", null)
+        ?.collectAsState()
+        ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(scannedTransaction) {
+        scannedTransaction?.let { transaction ->
+            // Tự động điền form với dữ liệu đã quét
+            // Cập nhật các state với dữ liệu từ transaction đã quét
+            amount = transaction.amount.toString()
+            categoryId = transaction.category
+            isIncome = transaction.isIncome
+            description = transaction.description ?: ""
+            transactionDate = transaction.date
+            transactionDayOfWeek = transaction.dayOfWeek
+
+            // Tìm danh mục khớp
+            val matchedCategory = categories.find { it.name == transaction.category }
+            matchedCategory?.let { cat ->
+                // Có thể lưu thêm thông tin về category nếu cần
+            }
+
+            // Xóa dữ liệu đã lưu để tránh điền lại nhiều lần
+            navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.remove<Transaction>("scanned_transaction")
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

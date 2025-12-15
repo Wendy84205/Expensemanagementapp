@@ -1,7 +1,6 @@
 package com.example.financeapp.screen.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -14,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -117,9 +115,9 @@ fun ExtensionsScreen(navController: NavController) {
                             title = languageViewModel.getTranslation("receipt_scan"),
                             subtitle = languageViewModel.getTranslation("scan_receipts_auto_input_expenses"),
                             color = Color(0xFF00BCD4),
-                            onClick = { /* TODO: Navigate to receipt scan */ },
-                            isComingSoon = true,
-                            languageViewModel = languageViewModel
+                            onClick = {
+                                navController.navigate("invoice_scanner")
+                            }
                         )
                     }
                 }
