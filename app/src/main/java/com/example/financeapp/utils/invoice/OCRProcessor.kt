@@ -4,14 +4,12 @@ package com.example.financeapp.utils.invoice
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.tasks.await
 import java.io.File
-import java.io.FileOutputStream
 
 class OCRProcessor {
 
@@ -23,13 +21,11 @@ class OCRProcessor {
             val result: Text = textRecognizer.process(inputImage).await()
 
             if (result.text.isNotEmpty()) {
-                Log.d("OCRProcessor", "OCR Result: ${result.text}")
                 result.text
             } else {
                 throw Exception("Không tìm thấy văn bản trong ảnh")
             }
         } catch (e: Exception) {
-            Log.e("OCRProcessor", "OCR Error: ${e.message}")
             throw e
         }
     }
@@ -46,7 +42,6 @@ class OCRProcessor {
                 throw Exception("Không thể đọc ảnh từ URI")
             }
         } catch (e: Exception) {
-            Log.e("OCRProcessor", "Error processing URI: ${e.message}")
             throw e
         }
     }
@@ -60,7 +55,6 @@ class OCRProcessor {
                 throw Exception("Không thể đọc ảnh từ file")
             }
         } catch (e: Exception) {
-            Log.e("OCRProcessor", "Error processing file: ${e.message}")
             throw e
         }
     }

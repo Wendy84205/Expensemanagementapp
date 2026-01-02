@@ -2,7 +2,6 @@ package com.example.financeapp
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import androidx.lifecycle.ViewModelProvider
@@ -17,6 +16,7 @@ import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.*
+
 /**
  * Application class chính của ứng dụng Finance App
  */
@@ -76,32 +76,18 @@ class FinanceApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        Log.i(TAG, "WendyAI đang khởi tạo...")
-
         try {
-            // THÊM: Khởi tạo WorkManager trước
             val config = Configuration.Builder()
                 .setMinimumLoggingLevel(android.util.Log.DEBUG)
                 .build()
             WorkManager.initialize(this, config)
 
-            // 1. Khởi tạo ViewModels
             initializeViewModels()
-
-            // 2. Khởi tạo notification system
             initializeNotificationSystem()
-
-            // 3. Khởi động services
             initializeServices()
-
-            // 4. Lên lịch background workers
             scheduleBackgroundWorkers()
 
-            // 5. Log khởi tạo thành công
-            logInitializationSuccess()
-
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khởi tạo ứng dụng", e)
         }
     }
 
@@ -110,45 +96,24 @@ class FinanceApp : Application() {
      */
     private fun initializeViewModels() {
         try {
-            Log.d(TAG, "Khởi tạo ViewModels...")
-
-            // Tạo ViewModel factory
             val factory = ViewModelProvider.AndroidViewModelFactory.getInstance(this)
 
-            // Khởi tạo TransactionViewModel
-            transactionViewModel = factory.create(TransactionViewModel::class.java).apply {
-                Log.d(TAG, "TransactionViewModel initialized")
-            }
+            transactionViewModel = factory.create(TransactionViewModel::class.java)
 
-            // Khởi tạo BudgetViewModel
-            budgetViewModel = factory.create(BudgetViewModel::class.java).apply {
-                Log.d(TAG, "BudgetViewModel initialized")
-            }
+            budgetViewModel = factory.create(BudgetViewModel::class.java)
 
-            // Khởi tạo RecurringExpenseViewModel
-            recurringExpenseViewModel = factory.create(RecurringExpenseViewModel::class.java).apply {
-                Log.d(TAG, "RecurringExpenseViewModel initialized")
-            }
+            recurringExpenseViewModel = factory.create(RecurringExpenseViewModel::class.java)
 
-            // Khởi tạo CategoryViewModel (nếu chưa có)
             if (_categoryViewModel == null) {
                 _categoryViewModel = CategoryViewModel()
-                Log.d(TAG, "CategoryViewModel initialized")
             }
+
             CoroutineScope(Dispatchers.Main).launch {
-                // Đợi một chút để các ViewModel khác load dữ liệu
-                delay(1500) // Đợi 1.5 giây
-
-                // Khởi tạo AIViewModel
-                aiViewModel = AIViewModel(this@FinanceApp).apply {
-                    Log.d(TAG, "AIViewModel initialized")
-                }
+                delay(1500)
+                aiViewModel = AIViewModel(this@FinanceApp)
             }
-
-            Log.i(TAG, "Tất cả ViewModels đã được khởi tạo")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khởi tạo ViewModels", e)
         }
     }
 
@@ -157,15 +122,8 @@ class FinanceApp : Application() {
      */
     private fun initializeNotificationSystem() {
         try {
-            Log.d(TAG, "Khởi tạo notification system...")
-
-            // Tạo notification channel (bắt buộc từ Android 8.0+)
             NotificationHelper.createChannel(this)
-
-            Log.d(TAG, "Notification system initialized")
-
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khởi tạo notification system", e)
         }
     }
 
@@ -174,20 +132,8 @@ class FinanceApp : Application() {
      */
     private fun initializeServices() {
         try {
-            Log.d(TAG, "Khởi tạo services...")
-
-            // Khởi động AI Butler Service
-            val started = aiButlerService.start()
-            if (started) {
-                Log.i(TAG, "AI Butler Service đã khởi động thành công")
-            } else {
-                Log.w(TAG, "AI Butler Service không thể khởi động")
-            }
-
-            Log.d(TAG, "Services initialized")
-
+            aiButlerService.start()
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khởi tạo services", e)
         }
     }
 
@@ -196,42 +142,9 @@ class FinanceApp : Application() {
      */
     private fun scheduleBackgroundWorkers() {
         try {
-            Log.d(TAG, "Lên lịch background workers...")
-
-            // Lên lịch AI Butler Worker
-            val workerScheduled = AIButlerWorker.schedule(this)
-            if (workerScheduled) {
-                Log.i(TAG, "AI Butler Worker đã được lên lịch thành công")
-            } else {
-                Log.w(TAG, "Không thể lên lịch AI Butler Worker")
-            }
-
-            Log.d(TAG, "Background workers scheduled")
-
+            AIButlerWorker.schedule(this)
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi lên lịch background workers", e)
         }
-    }
-
-    /**
-     * Log thông tin khởi tạo thành công
-     */
-    private fun logInitializationSuccess() {
-        Log.i(TAG, """
-            ========================================
-            FINANCE APP KHỞI TẠO THÀNH CÔNG!
-            
-            Các thành phần đã khởi tạo:
-            • CategoryViewModel: ${if (_categoryViewModel != null) "✓" else "✗"}
-            • TransactionViewModel: ${if (::transactionViewModel.isInitialized) "✓" else "✗"}
-            • BudgetViewModel: ${if (::budgetViewModel.isInitialized) "✓" else "✗"}
-            • RecurringExpenseViewModel: ${if (::recurringExpenseViewModel.isInitialized) "✓" else "✗"}
-            • AIViewModel: ${if (::aiViewModel.isInitialized) "✓" else "✗"}
-            • Notification System: ✓
-            • AI Butler Service: ${if (_aiButlerService != null) "✓" else "✗"}
-            • Background Workers: ${if (AIButlerWorker.isScheduled(this)) "✓" else "✗"}
-            ========================================
-        """.trimIndent())
     }
 
     // ==================== PUBLIC API ====================
@@ -255,17 +168,10 @@ class FinanceApp : Application() {
      */
     fun restartAIButlerService(): Boolean {
         return try {
-            Log.i(TAG, "Khởi động lại AI Butler Service...")
-
-            // Dừng service nếu đang chạy
             _aiButlerService?.stop()
-
-            // Khởi tạo và khởi động lại
             _aiButlerService = AIButlerService(this)
             _aiButlerService?.start() ?: false
-
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi khởi động lại AI Butler Service", e)
             false
         }
     }
@@ -285,7 +191,7 @@ class FinanceApp : Application() {
             """.trimIndent()
 
         } catch (e: Exception) {
-            "Không thể lấy trạng thái workers: ${e.message}"
+            "Không thể lấy trạng thái workers"
         }
     }
 
@@ -295,8 +201,6 @@ class FinanceApp : Application() {
     fun getDebugInfo(): String {
         return try {
             """
-            ===== FINANCE APP DEBUG INFO =====
-            
             VIEWMODELS:
             • CategoryViewModel: ${_categoryViewModel != null}
             • TransactionViewModel: ${::transactionViewModel.isInitialized}
@@ -309,12 +213,10 @@ class FinanceApp : Application() {
             
             WORKERS:
             ${getWorkerStatus()}
-            
-            ===== END DEBUG INFO =====
             """.trimIndent()
 
         } catch (e: Exception) {
-            "Error getting debug info: ${e.message}"
+            "Error getting debug info"
         }
     }
 
@@ -323,35 +225,20 @@ class FinanceApp : Application() {
      */
     fun forceCheckNotifications() {
         try {
-            Log.i(TAG, "Buộc kiểm tra thông báo...")
-
             _aiButlerService?.forceCheckNow()
-            Log.i(TAG, "Đã kích hoạt force check")
-
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi force check notifications", e)
         }
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        Log.d(TAG, "onTrimMemory called with level: $level")
     }
 
     override fun onTerminate() {
         try {
-            Log.i(TAG, "Ứng dụng đang terminate, dọn dẹp resources...")
-
-            // Dừng AI Butler Service
             _aiButlerService?.stop()
-            Log.d(TAG, "AI Butler Service đã dừng")
-
-            // Hủy background workers
             AIButlerWorker.cancel(this)
-            Log.d(TAG, "Background workers đã hủy")
-
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi terminate ứng dụng", e)
         } finally {
             super.onTerminate()
         }

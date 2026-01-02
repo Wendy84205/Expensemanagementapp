@@ -29,10 +29,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.data.models.SavingsGoal
-import com.example.financeapp.screen.features.formatCurrency
 import com.example.financeapp.viewmodel.savings.SavingsViewModel
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -45,9 +43,10 @@ import java.util.*
 @Composable
 fun AddSavingsGoalScreen(
     navController: NavController,
-    goalId: String = "" // Thêm parameter này để nhận goalId
+    goalId: String = "",
+    savingsViewModel: SavingsViewModel // DÙNG instance truyền vào
 ) {
-    val viewModel: SavingsViewModel = viewModel()
+    // 🚨 KHÔNG TẠO VIEWMODEL MỚI! DÙNG CÁI ĐÃ TRUYỀN VÀO
     val auth = Firebase.auth
     val currentUser by remember(auth) {
         derivedStateOf { auth.currentUser }
@@ -73,16 +72,17 @@ fun AddSavingsGoalScreen(
     var nameError by remember { mutableStateOf<String?>(null) }
     var amountError by remember { mutableStateOf<String?>(null) }
 
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val addSuccess by viewModel.addSuccess.collectAsState()
-    val updateSuccess by viewModel.updateSuccess.collectAsState()
-    val deleteSuccess by viewModel.deleteSuccess.collectAsState()
+    // Lấy state từ savingsViewModel (instance truyền vào)
+    val isLoading by savingsViewModel.isLoading.collectAsState()
+    val error by savingsViewModel.error.collectAsState()
+    val addSuccess by savingsViewModel.addSuccess.collectAsState()
+    val updateSuccess by savingsViewModel.updateSuccess.collectAsState()
+    val deleteSuccess by savingsViewModel.deleteSuccess.collectAsState()
+    val savingsGoals by savingsViewModel.savingsGoals.collectAsState()
 
     // Thêm state để theo dõi chế độ và current goal
     val isEditMode = remember { mutableStateOf(goalId.isNotEmpty()) }
     val currentGoal = remember { mutableStateOf<SavingsGoal?>(null) }
-    val savingsGoals by viewModel.savingsGoals.collectAsState()
 
     val colors = listOf(
         Color(0xFF3B82F6), // Blue
@@ -103,7 +103,7 @@ fun AddSavingsGoalScreen(
     // Load dữ liệu nếu là chế độ chỉnh sửa
     LaunchedEffect(goalId) {
         if (goalId.isNotEmpty()) {
-            val goal = viewModel.getGoalById(goalId)
+            val goal = savingsViewModel.getGoalById(goalId) // DÙNG savingsViewModel
             goal?.let {
                 currentGoal.value = it
                 name = it.name
@@ -120,20 +120,20 @@ fun AddSavingsGoalScreen(
     LaunchedEffect(addSuccess) {
         if (addSuccess) {
             showSuccess = true
-            viewModel.resetAddSuccess()
+            savingsViewModel.resetAddSuccess() // DÙNG savingsViewModel
         }
     }
 
     LaunchedEffect(updateSuccess) {
         if (updateSuccess) {
             showSuccess = true
-            viewModel.resetUpdateSuccess()
+            savingsViewModel.resetUpdateSuccess() // DÙNG savingsViewModel
         }
     }
 
     LaunchedEffect(deleteSuccess) {
         if (deleteSuccess) {
-            viewModel.resetDeleteSuccess()
+            savingsViewModel.resetDeleteSuccess() // DÙNG savingsViewModel
             navController.popBackStack()
         }
     }
@@ -275,7 +275,7 @@ fun AddSavingsGoalScreen(
                     onClick = {
                         showDeleteDialog = false
                         coroutineScope.launch {
-                            viewModel.deleteSavingsGoal(goalId)
+                            savingsViewModel.deleteSavingsGoal(goalId) // DÙNG savingsViewModel
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(
@@ -385,11 +385,11 @@ fun AddSavingsGoalScreen(
                             addMoneyError = "Vui lòng nhập số tiền hợp lệ"
                         } else {
                             coroutineScope.launch {
-                                viewModel.addToSavingsGoal(goalId, amount)
+                                savingsViewModel.addToSavingsGoal(goalId, amount) // DÙNG savingsViewModel
                                 showAddMoneyDialog = false
                                 addMoneyAmount = ""
                                 // Reload goal data
-                                viewModel.loadSavingsGoals()
+                                savingsViewModel.loadSavingsGoals() // DÙNG savingsViewModel
                             }
                         }
                     },
@@ -449,7 +449,7 @@ fun AddSavingsGoalScreen(
         return isValid
     }
 
-    // Hàm format số tiền
+    // Hàm format số tiền input
     fun formatCurrencyInput(input: String): String {
         return if (input.isEmpty()) {
             ""
@@ -479,7 +479,7 @@ fun AddSavingsGoalScreen(
                 updatedFields["deadline"] = deadline ?: 0L
 
                 coroutineScope.launch {
-                    viewModel.updateGoalFields(goalId, updatedFields)
+                    savingsViewModel.updateGoalFields(goalId, updatedFields) // DÙNG savingsViewModel
                 }
             } else {
                 // Chế độ tạo mới
@@ -502,18 +502,9 @@ fun AddSavingsGoalScreen(
                 )
 
                 coroutineScope.launch {
-                    viewModel.addSavingsGoal(goal)
+                    savingsViewModel.addSavingsGoal(goal) // DÙNG savingsViewModel
                 }
             }
-        }
-    }
-
-    // Hàm format tiền tệ
-    fun formatCurrency(amount: Double): String {
-        return try {
-            java.text.NumberFormat.getNumberInstance(Locale.getDefault()).format(amount)
-        } catch (e: Exception) {
-            amount.toString()
         }
     }
 
@@ -668,9 +659,9 @@ fun AddSavingsGoalScreen(
                                 OutlinedButton(
                                     onClick = {
                                         coroutineScope.launch {
-                                            viewModel.addToSavingsGoal(goalId, amount)
+                                            savingsViewModel.addToSavingsGoal(goalId, amount) // DÙNG savingsViewModel
                                             // Reload data
-                                            viewModel.loadSavingsGoals()
+                                            savingsViewModel.loadSavingsGoals() // DÙNG savingsViewModel
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
@@ -1227,5 +1218,14 @@ fun AddSavingsGoalScreen(
                 }
             }
         }
+    }
+}
+
+// Helper function để format tiền tệ (để dùng trong screen này)
+private fun formatCurrency(amount: Double): String {
+    return try {
+        java.text.NumberFormat.getNumberInstance(Locale.getDefault()).format(amount) + "đ"
+    } catch (e: Exception) {
+        "${amount.toInt()}đ"
     }
 }

@@ -55,7 +55,7 @@ fun AddRecurringExpenseScreen(
         categories.filter { !it.isMainCategory }
     }
 
-    // State variables
+    // State variables với chuyển đổi ngày
     var title by remember { mutableStateOf(existingExpense?.title ?: "") }
     var amount by remember { mutableStateOf(existingExpense?.amount?.toString() ?: "") }
     var selectedCategory by remember {
@@ -68,11 +68,36 @@ fun AddRecurringExpenseScreen(
     var wallet by remember { mutableStateOf(existingExpense?.wallet ?: languageViewModel.getTranslation("main_wallet")) }
     var description by remember { mutableStateOf(existingExpense?.description ?: "") }
     var frequency by remember { mutableStateOf(existingExpense?.getFrequencyEnum() ?: RecurringFrequency.MONTHLY) }
-    var startDate by remember { mutableStateOf(existingExpense?.startDate ?: getTodayDate()) }
-    var startDateDayOfWeek by remember { mutableStateOf(getDayOfWeekFromDate(parseDate(startDate), languageViewModel)) }
+
+    // Chuyển đổi ngày từ internal format sang UI format
+    val initialStartDate = existingExpense?.startDate?.let {
+        RecurringExpense.formatDateForUI(it)
+    } ?: getTodayDateForUI()
+
+    var startDate by remember { mutableStateOf(initialStartDate) }
+    var startDateDayOfWeek by remember {
+        mutableStateOf(getDayOfWeekFromDate(parseDate(startDate), languageViewModel))
+    }
+
+    // End date state
+    val hasExistingEndDate = existingExpense?.endDate != null
+    var hasEndDate by remember { mutableStateOf(hasExistingEndDate) }
+
+    val initialEndDate = existingExpense?.endDate?.let {
+        RecurringExpense.formatDateForUI(it)
+    } ?: ""
+
+    var endDate by remember { mutableStateOf(initialEndDate) }
+    var endDateDayOfWeek by remember {
+        mutableStateOf(
+            if (endDate.isNotBlank()) getDayOfWeekFromDate(parseDate(endDate), languageViewModel)
+            else ""
+        )
+    }
 
     // State cho DatePicker
-    var showDatePicker by remember { mutableStateOf(false) }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
 
     // Colors
     val primaryColor = Color(0xFF2196F3)
@@ -103,6 +128,20 @@ fun AddRecurringExpenseScreen(
             ) {
                 Button(
                     onClick = {
+                        // CHUYỂN ĐỔI NGÀY TỪ UI FORMAT SANG INTERNAL FORMAT
+                        val internalStartDate = RecurringExpense.formatDateFromUI(startDate)
+                        val internalEndDate = if (hasEndDate && endDate.isNotBlank()) {
+                            RecurringExpense.formatDateFromUI(endDate)
+                        } else null
+
+                        val nextOccurrence = existingExpense?.nextOccurrence ?:
+                        if (isDateBeforeOrEqual(internalStartDate, RecurringExpense.getCurrentDate())) {
+                            // Nếu start date đã qua, tính next occurrence từ hôm nay
+                            calculateNextDate(RecurringExpense.getCurrentDate(), frequency)
+                        } else {
+                            internalStartDate
+                        }
+
                         val newExpense = RecurringExpense.fromEnum(
                             id = existingExpense?.id ?: UUID.randomUUID().toString(),
                             title = title,
@@ -113,10 +152,15 @@ fun AddRecurringExpenseScreen(
                             wallet = wallet,
                             description = description.ifBlank { null },
                             frequency = frequency,
-                            startDate = startDate,
-                            endDate = null,
-                            nextOccurrence = existingExpense?.nextOccurrence ?: startDate
+                            startDate = internalStartDate,
+                            endDate = internalEndDate,
+                            nextOccurrence = nextOccurrence,
+                            isActive = existingExpense?.isActive ?: true,
+                            userId = existingExpense?.userId ?: "",
+                            totalGenerated = existingExpense?.totalGenerated ?: 0,
+                            lastGenerated = existingExpense?.lastGenerated
                         )
+
                         if (existingExpense == null) {
                             recurringExpenseViewModel.addRecurringExpense(
                                 title = newExpense.title,
@@ -166,7 +210,6 @@ fun AddRecurringExpenseScreen(
                     .background(backgroundColor)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Form content
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -333,7 +376,7 @@ fun AddRecurringExpenseScreen(
                             )
                         }
 
-                        // Ngày bắt đầu - Giống AddTransaction
+                        // Ngày bắt đầu
                         Column {
                             Text(
                                 languageViewModel.getTranslation("start_date"),
@@ -346,7 +389,7 @@ fun AddRecurringExpenseScreen(
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { showDatePicker = true },
+                                    .clickable { showStartDatePicker = true },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -405,6 +448,96 @@ fun AddRecurringExpenseScreen(
                             }
                         }
 
+                        // Ngày kết thúc (optional)
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    languageViewModel.getTranslation("end_date_optional"),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = textColor
+                                )
+
+                                Switch(
+                                    checked = hasEndDate,
+                                    onCheckedChange = { hasEndDate = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = primaryColor,
+                                        checkedTrackColor = primaryColor.copy(alpha = 0.5f)
+                                    )
+                                )
+                            }
+
+                            if (hasEndDate) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showEndDatePicker = true },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .background(
+                                                        primaryColor.copy(alpha = 0.08f),
+                                                        RoundedCornerShape(10.dp)
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.CalendarToday,
+                                                    contentDescription = "Ngày kết thúc",
+                                                    tint = primaryColor,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            Column {
+                                                Text(
+                                                    if (endDate.isNotEmpty()) endDateDayOfWeek
+                                                    else languageViewModel.getTranslation("select_end_date"),
+                                                    color = Color(0xFF1F2937),
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 14.sp
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    endDate.ifEmpty { languageViewModel.getTranslation("no_date_selected") },
+                                                    color = Color(0xFF6B7280),
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                        Icon(
+                                            Icons.Default.ChevronRight,
+                                            contentDescription = "Chọn ngày",
+                                            tint = Color(0xFF9CA3AF),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Ghi chú
                         Column {
                             Text(
@@ -441,29 +574,45 @@ fun AddRecurringExpenseScreen(
         }
     }
 
-    // DatePicker Bottom Sheet - Sử dụng cùng hàm với AddTransaction
-    if (showDatePicker) {
+    // DatePicker cho start date
+    if (showStartDatePicker) {
         DatePickerBottomSheetForRecurring(
             initialDate = parseDate(startDate),
             onDateSelected = { date ->
                 startDate = formatDate(date)
                 startDateDayOfWeek = getDayOfWeekFromDate(date, languageViewModel)
-                showDatePicker = false
+                showStartDatePicker = false
             },
-            onDismiss = { showDatePicker = false },
-            primaryColor = primaryColor
+            onDismiss = { showStartDatePicker = false },
+            primaryColor = primaryColor,
+            title = "Chọn ngày bắt đầu"
+        )
+    }
+
+    // DatePicker cho end date
+    if (showEndDatePicker) {
+        DatePickerBottomSheetForRecurring(
+            initialDate = if (endDate.isNotBlank()) parseDate(endDate) else Date(),
+            onDateSelected = { date ->
+                endDate = formatDate(date)
+                endDateDayOfWeek = getDayOfWeekFromDate(date, languageViewModel)
+                showEndDatePicker = false
+            },
+            onDismiss = { showEndDatePicker = false },
+            primaryColor = primaryColor,
+            title = "Chọn ngày kết thúc"
         )
     }
 }
 
-// Tạo lại hàm DatePickerBottomSheet cho Recurring (copy từ AddTransaction)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DatePickerBottomSheetForRecurring(
     initialDate: Date,
     onDateSelected: (Date) -> Unit,
     onDismiss: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    title: String = "Chọn ngày"
 ) {
     val calendar = Calendar.getInstance().apply {
         time = initialDate
@@ -476,9 +625,7 @@ private fun DatePickerBottomSheetForRecurring(
         skipPartiallyExpanded = false
     )
 
-    // Lấy chiều cao màn hình
     val configuration = LocalConfiguration.current
-    val screenHeightDp = configuration.screenHeightDp.dp
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -488,14 +635,13 @@ private fun DatePickerBottomSheetForRecurring(
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight(0.95f) // Gần full màn hình
+            .fillMaxHeight(0.95f)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
         ) {
-            // Handle nhỏ
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -510,7 +656,6 @@ private fun DatePickerBottomSheetForRecurring(
                 )
             }
 
-            // Header gọn
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -519,7 +664,7 @@ private fun DatePickerBottomSheetForRecurring(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Chọn ngày bắt đầu",
+                    title,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF1F2937)
@@ -537,12 +682,11 @@ private fun DatePickerBottomSheetForRecurring(
                 }
             }
 
-            // DatePicker chiếm nhiều không gian nhất
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 450.dp, max = 550.dp) // Chiều cao linh hoạt
-                    .weight(1f, fill = false) // Chiếm không gian còn lại
+                    .heightIn(min = 450.dp, max = 550.dp)
+                    .weight(1f, fill = false)
             ) {
                 DatePicker(
                     state = datePickerState,
@@ -556,7 +700,6 @@ private fun DatePickerBottomSheetForRecurring(
                 )
             }
 
-            // Footer với ít padding hơn
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -608,7 +751,6 @@ private fun DatePickerBottomSheetForRecurring(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                // Nút nhỏ hơn
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -764,13 +906,13 @@ private fun parseColor(colorString: String): Color {
     }
 }
 
-// Helper function để lấy ngày hiện tại
-private fun getTodayDate(): String {
+// Helper function để lấy ngày hiện tại theo UI format
+private fun getTodayDateForUI(): String {
     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     return sdf.format(Date())
 }
 
-// ============== HÀM UTILITY GIỐNG AddTransactionScreen ==============
+// ============== HÀM UTILITY ==============
 private fun parseDate(dateString: String): Date {
     return try {
         val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -797,4 +939,44 @@ private fun getDayOfWeekFromDate(date: Date, languageViewModel: LanguageViewMode
     )
     val cal = Calendar.getInstance().apply { time = date }
     return days[cal.get(Calendar.DAY_OF_WEEK) - 1]
+}
+
+private fun isDateBeforeOrEqual(date1: String, date2: String): Boolean {
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val d1 = sdf.parse(date1)
+        val d2 = sdf.parse(date2)
+        d1 != null && d2 != null && (d1.before(d2) || d1 == d2)
+    } catch (e: Exception) {
+        false
+    }
+}
+
+private fun calculateNextDate(fromDate: String, frequency: RecurringFrequency): String {
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = sdf.parse(fromDate) ?: return fromDate
+
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+
+        when (frequency) {
+            RecurringFrequency.DAILY -> calendar.add(Calendar.DATE, 1)
+            RecurringFrequency.WEEKLY -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
+            RecurringFrequency.MONTHLY -> {
+                calendar.add(Calendar.MONTH, 1)
+                val maxDay = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+                val currentDay = calendar.get(Calendar.DAY_OF_MONTH)
+                if (currentDay > maxDay) {
+                    calendar.set(Calendar.DAY_OF_MONTH, maxDay)
+                }
+            }
+            RecurringFrequency.QUARTERLY -> calendar.add(Calendar.MONTH, 3)
+            RecurringFrequency.YEARLY -> calendar.add(Calendar.YEAR, 1)
+        }
+
+        sdf.format(calendar.time)
+    } catch (e: Exception) {
+        fromDate
+    }
 }

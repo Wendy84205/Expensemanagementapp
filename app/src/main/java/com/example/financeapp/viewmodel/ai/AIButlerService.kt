@@ -1,7 +1,7 @@
 package com.example.financeapp.viewmodel.ai
 
 import android.app.Application
-import android.util.Log
+import androidx.core.app.NotificationCompat
 import com.example.financeapp.FinanceApp
 import com.example.financeapp.data.models.isOverBudget
 import com.example.financeapp.utils.notification.NotificationHelper
@@ -67,20 +67,15 @@ class AIButlerService(private val application: Application) {
 
     fun start(): Boolean {
         if (isRunning) {
-            Log.w(TAG, "Service đã đang chạy")
             return false
         }
 
         isRunning = true
-        Log.i(TAG, "AI Butler Service đã khởi động")
 
-        // Tạo notification channel
         NotificationHelper.createChannel(application)
 
-        // Gửi thông báo chào mừng
         sendWelcomeNotification()
 
-        // Bắt đầu kiểm tra định kỳ
         startPeriodicChecks()
 
         return true
@@ -90,7 +85,6 @@ class AIButlerService(private val application: Application) {
         isRunning = false
         periodicCheckJob?.cancel()
         periodicCheckJob = null
-        Log.i(TAG, "AI Butler Service đã dừng")
     }
 
     fun isServiceRunning(): Boolean = isRunning
@@ -100,18 +94,13 @@ class AIButlerService(private val application: Application) {
     private fun startPeriodicChecks() {
         periodicCheckJob?.cancel()
         periodicCheckJob = serviceScope.launch {
-            Log.d(TAG, "Bắt đầu kiểm tra định kỳ...")
-
-            // Kiểm tra ngay lập tức khi khởi động
             forceCheckNow()
 
-            // Lặp kiểm tra định kỳ
             while (isRunning) {
                 try {
                     delay(CHECK_INTERVAL_MS)
                     forceCheckNow()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Lỗi trong quá trình kiểm tra định kỳ", e)
                     delay(MIN_CHECK_INTERVAL)
                 }
             }
@@ -122,8 +111,6 @@ class AIButlerService(private val application: Application) {
 
     private suspend fun checkBudgetExceeded() {
         try {
-            Log.d(TAG, "Kiểm tra ngân sách vượt quá...")
-
             val budgets = withContext(Dispatchers.Main) {
                 budgetViewModel.budgets.value.filter {
                     it.isActive &&
@@ -133,8 +120,6 @@ class AIButlerService(private val application: Application) {
             }
 
             if (budgets.isNotEmpty()) {
-                Log.i(TAG, "Phát hiện ${budgets.size} ngân sách vượt quá")
-
                 val categoryNames = budgets.mapNotNull { budget ->
                     withContext(Dispatchers.Main) {
                         categoryViewModel.categories.value.find { it.id == budget.categoryId }?.name
@@ -142,7 +127,7 @@ class AIButlerService(private val application: Application) {
                 }.distinct().joinToString(", ")
 
                 if (categoryNames.isNotEmpty() && notificationPreferences.canSendBudgetNotification()) {
-                    val exceededAmount = budgets.first().spent - budgets.first().amount
+                    val exceededAmount = budgets.first().spentAmount - budgets.first().amount
 
                     sendNotification(
                         "Vượt ngân sách",
@@ -150,22 +135,15 @@ class AIButlerService(private val application: Application) {
                                 "Vượt quá: ${formatCurrency(exceededAmount)}\n" +
                                 "Hãy kiểm soát chi tiêu!"
                     )
-                    Log.d(TAG, "Đã gửi thông báo vượt ngân sách: $categoryNames")
                 }
-            } else {
-                Log.d(TAG, "Không có ngân sách nào vượt quá")
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi kiểm tra ngân sách vượt quá", e)
         }
     }
 
     private suspend fun checkBudgetWarning() {
         try {
-            Log.d(TAG, "Kiểm tra ngân sách sắp vượt...")
-
-            // Lấy tất cả budget active trong kỳ
             val allBudgets = withContext(Dispatchers.Main) {
                 budgetViewModel.budgets.value.filter {
                     it.isActive &&
@@ -174,39 +152,16 @@ class AIButlerService(private val application: Application) {
                 }
             }
 
-            Log.d(TAG, "Đang kiểm tra ${allBudgets.size} ngân sách active...")
-
-            // DEBUG: In thông tin từng budget
-            allBudgets.forEach { budget ->
-                val spentRatio = budget.spent / budget.amount
-                val percentage = (spentRatio * 100).toInt()
-                Log.d(TAG,
-                    "Budget ${budget.categoryId}: " +
-                            "amount=${budget.amount}, " +
-                            "spent=${budget.spent}, " +
-                            "spentAmount=${budget.spentAmount}, " +
-                            "ratio=$spentRatio ($percentage%), " +
-                            "isOverBudget=${budget.isOverBudget}"
-                )
-            }
-
-            // Tìm ngân sách >80% và CHƯA vượt quá
             val warningBudgets = allBudgets.filter { budget ->
-                val spentRatio = budget.spent / budget.amount
+                val spentRatio = budget.spentAmount / budget.amount
                 spentRatio >= 0.8 && spentRatio < 1.0
             }
 
-            Log.d(TAG, "Tìm thấy ${warningBudgets.size} ngân sách >80% và chưa vượt")
-
             if (warningBudgets.isNotEmpty()) {
-                Log.i(TAG, "Phát hiện ${warningBudgets.size} ngân sách sắp vượt (>80%)")
-
-                // Lấy 3 ngân sách có tỷ lệ cao nhất
                 val topBudgets = warningBudgets.sortedByDescending {
-                    it.spent / it.amount
+                    it.spentAmount / it.amount
                 }.take(3)
 
-                // Tạo message chi tiết
                 val message = buildString {
                     append("Các ngân sách sắp vượt:\n")
                     topBudgets.forEach { budget ->
@@ -214,8 +169,8 @@ class AIButlerService(private val application: Application) {
                             categoryViewModel.categories.value.find { it.id == budget.categoryId }?.name
                                 ?: "Không xác định"
                         }
-                        val percentage = (budget.spent / budget.amount * 100).toInt()
-                        val remaining = budget.amount - budget.spent
+                        val percentage = (budget.spentAmount / budget.amount * 100).toInt()
+                        val remaining = budget.amount - budget.spentAmount
 
                         append("• $categoryName: $percentage% (còn ${formatCurrency(remaining)})\n")
                     }
@@ -227,23 +182,15 @@ class AIButlerService(private val application: Application) {
                         "Ngân sách sắp vượt",
                         message
                     )
-                    Log.d(TAG, "Đã gửi cảnh báo ngân sách sắp vượt")
                 }
-            } else {
-                Log.d(TAG, "Không có ngân sách nào sắp vượt (>80%)")
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi kiểm tra cảnh báo ngân sách", e)
-            Log.e(TAG, "Chi tiết lỗi: ${e.message}")
-            e.printStackTrace()
         }
     }
 
     private suspend fun checkLargeTransaction() {
         try {
-            Log.d(TAG, "Kiểm tra giao dịch lớn...")
-
             val recentTransactions = withContext(Dispatchers.Main) {
                 transactionViewModel.transactions.value
                     .filter { !it.isIncome }
@@ -254,8 +201,6 @@ class AIButlerService(private val application: Application) {
             val largeTransactions = recentTransactions.filter { it.amount > LARGE_TRANSACTION_THRESHOLD }
 
             if (largeTransactions.isNotEmpty() && notificationPreferences.canSendTransactionNotification()) {
-                Log.i(TAG, "Phát hiện ${largeTransactions.size} giao dịch lớn")
-
                 val latest = largeTransactions.first()
                 val categoryName = withContext(Dispatchers.Main) {
                     categoryViewModel.categories.value
@@ -269,14 +214,11 @@ class AIButlerService(private val application: Application) {
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi kiểm tra giao dịch lớn", e)
         }
     }
 
     private suspend fun checkNoTransactionToday() {
         try {
-            Log.d(TAG, "Kiểm tra giao dịch hôm nay...")
-
             val today = getTodayDate()
             val todayTransactions = withContext(Dispatchers.Main) {
                 transactionViewModel.transactions.value.filter { it.date == today }
@@ -286,8 +228,6 @@ class AIButlerService(private val application: Application) {
             val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
 
             if (todayTransactions.isEmpty() && currentHour >= TRANSACTION_CHECK_HOUR) {
-                Log.i(TAG, "Chưa có giao dịch nào hôm nay (sau $TRANSACTION_CHECK_HOUR giờ)")
-
                 sendNotification(
                     "Nhắc nhở ghi chép",
                     "Bạn chưa ghi nhận giao dịch nào hôm nay. Hãy cập nhật để theo dõi chi tiêu tốt hơn!"
@@ -295,21 +235,16 @@ class AIButlerService(private val application: Application) {
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi kiểm tra giao dịch hôm nay", e)
         }
     }
 
     private suspend fun checkMonthlySummary() {
         try {
-            Log.d(TAG, "Kiểm tra tổng kết tháng...")
-
             val calendar = Calendar.getInstance()
             val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
             val lastDayOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
             if (dayOfMonth >= (lastDayOfMonth - 2)) {
-                Log.i(TAG, "Đang trong 3 ngày cuối tháng, kiểm tra tổng kết")
-
                 val currentMonthTransactions = withContext(Dispatchers.Main) {
                     transactionViewModel.transactions.value.filter { isInCurrentMonth(it.date) }
                 }
@@ -339,31 +274,20 @@ class AIButlerService(private val application: Application) {
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi kiểm tra tổng kết tháng", e)
         }
     }
 
-    // Thêm vào AIButlerService.kt
     fun scheduleBackgroundWorker() {
         try {
-            Log.i(TAG, "Đang lên lịch background worker...")
-
-            // Lên lịch worker với WorkManager
             AIButlerWorker.schedule(application)
-
-            Log.i(TAG, "Đã lên lịch background worker thành công")
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi lên lịch background worker", e)
         }
     }
 
     fun stopBackgroundWorker() {
         try {
-            Log.i(TAG, "Đang dừng background worker...")
             AIButlerWorker.cancel(application)
-            Log.i(TAG, "Đã dừng background worker thành công")
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi dừng background worker", e)
         }
     }
 
@@ -388,10 +312,12 @@ class AIButlerService(private val application: Application) {
         try {
             if (title.contains("vượt", ignoreCase = true) ||
                 title.contains("VƯỢT", ignoreCase = true)) {
-                NotificationHelper.showBudgetAlertNotification(
-                    application,
-                    title,
-                    message
+                NotificationHelper.showNotification(
+                    context = application,
+                    title = title,
+                    message = message,
+                    channelId = NotificationHelper.CHANNEL_ID_ALERTS,
+                    priority = NotificationCompat.PRIORITY_HIGH
                 )
             } else {
                 NotificationHelper.showAINotification(
@@ -402,7 +328,6 @@ class AIButlerService(private val application: Application) {
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi gửi thông báo: $title", e)
         }
     }
 
@@ -417,8 +342,7 @@ class AIButlerService(private val application: Application) {
             (today.isAfter(budget.startDate) || today.isEqual(budget.startDate)) &&
                     (today.isBefore(budget.endDate) || today.isEqual(budget.endDate))
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi kiểm tra budget period", e)
-            true // Nếu lỗi, giả sử đang trong kỳ
+            true
         }
     }
 
@@ -435,7 +359,6 @@ class AIButlerService(private val application: Application) {
         return try {
             SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateString) ?: Date()
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi parse date: $dateString", e)
             Date()
         }
     }
@@ -457,23 +380,18 @@ class AIButlerService(private val application: Application) {
 
             currentMonth == transactionMonth && currentYear == transactionYear
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi kiểm tra tháng: $dateString", e)
             false
         }
     }
 
     fun forceCheckNow() {
         serviceScope.launch {
-            Log.i(TAG, "Buộc kiểm tra ngay lập tức...")
             executeAllChecks()
         }
     }
 
     private suspend fun executeAllChecks() {
         try {
-            Log.d(TAG, "Thực hiện tất cả các kiểm tra...")
-
-            // Đợi để đảm bảo dữ liệu đã load
             delay(2000)
 
             checkBudgetExceeded()
@@ -482,10 +400,7 @@ class AIButlerService(private val application: Application) {
             checkNoTransactionToday()
             checkMonthlySummary()
 
-            Log.i(TAG, "Đã hoàn thành tất cả kiểm tra định kỳ")
-
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi thực hiện các kiểm tra", e)
         }
     }
 
@@ -493,26 +408,19 @@ class AIButlerService(private val application: Application) {
         val now = System.currentTimeMillis()
 
         if (now - lastCheckTime < MIN_CHECK_INTERVAL) {
-            Log.d(TAG, "Bỏ qua kiểm tra, vừa kiểm tra gần đây")
             return
         }
 
         lastCheckTime = now
-        Log.d(TAG, "Bắt đầu kiểm tra điều kiện thông báo")
 
-        // Kiểm tra quyền thông báo
         if (!NotificationHelper.hasNotificationPermission(application)) {
-            Log.w(TAG, "Không có quyền thông báo, bỏ qua kiểm tra")
             return
         }
 
-        // Kiểm tra notification preferences
         if (!notificationPreferences.canSendAINotification()) {
-            Log.w(TAG, "Thông báo AI đã bị tắt trong cài đặt")
             return
         }
 
-        // Thực hiện các kiểm tra
         executeAllChecks()
     }
 }

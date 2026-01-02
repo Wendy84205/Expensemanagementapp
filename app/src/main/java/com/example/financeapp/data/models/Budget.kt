@@ -1,42 +1,58 @@
 package com.example.financeapp.data.models
 
+import androidx.room.TypeConverter
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 
-/**
- * Mô hình dữ liệu cho Hạn mức chi tiêu (Budget)
- */
 data class Budget(
     val id: String,
-    val categoryId: String,            // Gắn với danh mục con (vd: Ăn uống)
-    val amount: Double,                // Số tiền hạn mức
-    val periodType: BudgetPeriodType,  // Chu kỳ (Tuần / Tháng / Quý / Năm)
-    val startDate: LocalDate,          // Ngày bắt đầu áp dụng
-    val endDate: LocalDate,            // Ngày kết thúc (tự động theo periodType)
-    val note: String? = null,          // Ghi chú tuỳ chọn
-    val spentAmount: Double = 0.0,     // Số tiền đã chi tiêu (có thể cập nhật từ transaction)
-    val isActive: Boolean = true,       // Đang áp dụng hay đã hết hạn
-    val spent: Double = 0.0
+    val categoryId: String,
+    val amount: Double,
+    val periodType: BudgetPeriodType,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val note: String? = null,
+    val spentAmount: Double = 0.0,
+    val isActive: Boolean = true,
+    val userId: String = "",
+    val lastModified: Long = System.currentTimeMillis(),
+    val isDeleted: Boolean = false,
+    val version: Int = 1
 )
 
-/**
- * Enum xác định loại chu kỳ của hạn mức
- */
-enum class BudgetPeriodType(val displayName: String, val durationDays: Long) {
-    WEEK("Tuần này", 7),
-    MONTH("Tháng này", 30),
-    QUARTER("Quý này", 90),
-    YEAR("Năm nay", 365),
+enum class BudgetPeriodType {
+    WEEK,
+    MONTH,
+    QUARTER,
+    YEAR;
+
+    companion object {
+        fun fromName(name: String): BudgetPeriodType {
+            return values().find { it.name == name } ?: MONTH
+        }
+    }
+
+    fun getDisplayName(languageViewModel: LanguageViewModel): String {
+        return when (this) {
+            WEEK -> languageViewModel.getTranslation("week")
+            MONTH -> languageViewModel.getTranslation("month")
+            QUARTER -> languageViewModel.getTranslation("quarter")
+            YEAR -> languageViewModel.getTranslation("year")
+        }
+    }
 }
 
-/**
- * Hàm mở rộng tiện ích để tính ngày kết thúc dựa theo loại chu kỳ
- */
 fun calculateBudgetEndDate(startDate: LocalDate, periodType: BudgetPeriodType): LocalDate {
-    return startDate.plusDays(periodType.durationDays)
+    return when (periodType) {
+        BudgetPeriodType.WEEK -> startDate.plusWeeks(1)
+        BudgetPeriodType.MONTH -> startDate.plusMonths(1)
+        BudgetPeriodType.QUARTER -> startDate.plusMonths(3)
+        BudgetPeriodType.YEAR -> startDate.plusYears(1)
+    }
 }
 
-// Extension properties cho Budget
 val Budget.remainingAmount: Double
     get() = amount - spentAmount
 
@@ -48,9 +64,9 @@ val Budget.isOverBudget: Boolean
 
 val Budget.progressColor: String
     get() = when {
-        progressPercentage < 0.7 -> "#48BB78"  // Xanh
-        progressPercentage < 0.9 -> "#ED8936"  // Cam
-        else -> "#F56565"                      // Đỏ
+        progressPercentage < 0.7 -> "#48BB78"
+        progressPercentage < 0.9 -> "#ED8936"
+        else -> "#F56565"
     }
 
 val Budget.statusText: String
@@ -61,12 +77,28 @@ val Budget.statusText: String
         else -> "Đang hoạt động"
     }
 
-// Extension function cho BudgetPeriodType
-fun BudgetPeriodType.getDisplayName(languageViewModel: LanguageViewModel): String {
-    return when (this) {
-        BudgetPeriodType.WEEK -> "Tuần"
-        BudgetPeriodType.MONTH -> "Tháng"
-        BudgetPeriodType.QUARTER -> "Quý"
-        BudgetPeriodType.YEAR -> "Năm"
+class LocalDateConverter {
+    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+
+    @TypeConverter
+    fun fromLocalDate(date: LocalDate?): String? {
+        return date?.format(formatter)
+    }
+
+    @TypeConverter
+    fun toLocalDate(dateString: String?): LocalDate? {
+        return dateString?.let { LocalDate.parse(it, formatter) }
+    }
+}
+
+class BudgetPeriodTypeConverter {
+    @TypeConverter
+    fun fromBudgetPeriodType(type: BudgetPeriodType): String {
+        return type.name
+    }
+
+    @TypeConverter
+    fun toBudgetPeriodType(name: String): BudgetPeriodType {
+        return BudgetPeriodType.fromName(name)
     }
 }

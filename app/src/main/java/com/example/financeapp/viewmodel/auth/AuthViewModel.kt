@@ -11,7 +11,6 @@ import com.google.firebase.auth.FacebookAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,11 +31,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val firebaseUser: StateFlow<FirebaseUser?> = _firebaseUser
 
     val userSession: StateFlow<UserSession?> =
-        userPrefs.userFlow.stateIn(viewModelScope, SharingStarted.Companion.WhileSubscribed(5000), null)
+        userPrefs.userFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val currentUser: StateFlow<UserSession?> = userSession
     val isAuthenticated: StateFlow<Boolean> =
-        userSession.map { it != null }.stateIn(viewModelScope, SharingStarted.Companion.WhileSubscribed(5000), false)
+        userSession.map { it != null }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     init {
         firebaseAuth.addAuthStateListener { auth ->
@@ -44,7 +43,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // 🔹 Tạo hoặc lấy user từ Firestore dựa trên email
+    // Tạo hoặc lấy user từ Firestore dựa trên email
     private suspend fun createOrGetFirestoreUser(
         firebaseUser: FirebaseUser,
         provider: String
@@ -53,7 +52,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val userEmail = firebaseUser.email ?: ""
             val usersRef = firestore.collection("users")
 
-            // Kiểm tra user đã tồn tại theo email
             val querySnapshot = usersRef
                 .whereEqualTo("email", userEmail)
                 .limit(1)
@@ -61,22 +59,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 .await()
 
             val firestoreUserId = if (querySnapshot.isEmpty) {
-                // User chưa tồn tại → tạo mới
                 createNewFirestoreUser(firebaseUser, provider)
             } else {
-                // User đã tồn tại → cập nhật thông tin
                 updateExistingFirestoreUser(querySnapshot.documents.first(), firebaseUser, provider)
             }
 
             firestoreUserId
         } catch (e: Exception) {
-            Firebase.crashlytics.recordException(e)
-            // Fallback: sử dụng Firebase UID
             firebaseUser.uid
         }
     }
 
-    // 🔹 Tạo user mới trong Firestore
+    // Tạo user mới trong Firestore
     private suspend fun createNewFirestoreUser(
         firebaseUser: FirebaseUser,
         provider: String
@@ -104,7 +98,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         return userId
     }
 
-    // 🔹 Cập nhật user đã tồn tại trong Firestore
+    // Cập nhật user đã tồn tại trong Firestore
     private suspend fun updateExistingFirestoreUser(
         existingDoc: com.google.firebase.firestore.DocumentSnapshot,
         firebaseUser: FirebaseUser,
@@ -130,30 +124,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         return userId
     }
 
-    // 🔹 Lưu user sau khi login thành công (đã sửa)
+    // Lưu user sau khi login thành công
     private fun saveFirebaseUser(user: FirebaseUser?, provider: String) {
         if (user == null) return
 
         viewModelScope.launch {
             try {
-                // 1. Tạo/kiểm tra user trong Firestore
                 val firestoreUserId = createOrGetFirestoreUser(user, provider)
 
-                // 2. Lưu user vào DataStore
                 userPrefs.saveUser(
-                    id = firestoreUserId, // Sử dụng Firestore userId
+                    id = firestoreUserId,
                     email = user.email,
                     name = user.displayName,
                     avatar = user.photoUrl?.toString()
                 )
 
-                // 3. Đồng bộ dữ liệu cũ nếu cần
                 migrateOldDataIfNeeded(firestoreUserId)
-
-                Firebase.crashlytics.log("User saved: $firestoreUserId, provider: $provider")
             } catch (e: Exception) {
-                Firebase.crashlytics.recordException(e)
-                // Fallback: lưu với Firebase UID
                 userPrefs.saveUser(
                     id = user.uid,
                     email = user.email,
@@ -164,23 +151,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // 🔹 Migrate dữ liệu cũ không có userId
+    // Migrate dữ liệu cũ không có userId
     private suspend fun migrateOldDataIfNeeded(userId: String) {
         try {
             val transactionsRef = firestore.collection("transactions")
 
-            // 1. Tìm các transaction không có userId
             val oldTransactions = transactionsRef
                 .whereEqualTo("userId", "")
                 .get()
                 .await()
 
-            // 2. Cập nhật userId cho các transaction này
             for (doc in oldTransactions.documents) {
                 doc.reference.update("userId", userId).await()
             }
 
-            // 3. Tương tự cho các collection khác
             val budgetsRef = firestore.collection("budgets")
             val oldBudgets = budgetsRef
                 .whereEqualTo("userId", "")
@@ -201,84 +185,69 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 doc.reference.update("userId", userId).await()
             }
 
-            if (oldTransactions.documents.isNotEmpty() ||
-                oldBudgets.documents.isNotEmpty() ||
-                oldCategories.documents.isNotEmpty()) {
-                Firebase.crashlytics.log("Migrated old data for user: $userId")
-            }
         } catch (e: Exception) {
-            // Không crash nếu migration thất bại
-            Firebase.crashlytics.recordException(e)
         }
     }
 
-    // 🔹 Đăng ký bằng Email (đã sửa)
+    // Đăng ký bằng Email
     fun createUserWithEmail(email: String, password: String, onResult: (Boolean, String?) -> Unit) {
         firebaseAuth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Firebase.crashlytics.log("Register success: $email")
                     saveFirebaseUser(firebaseAuth.currentUser, "email")
                     onResult(true, null)
                 } else {
                     val msg = task.exception?.localizedMessage ?: "Đăng ký thất bại"
-                    Firebase.crashlytics.log("Register failed: $msg")
                     onResult(false, msg)
                 }
             }
     }
 
-    // 🔹 Đăng nhập bằng Email (đã sửa)
+    // Đăng nhập bằng Email
     fun signInWithEmail(email: String, password: String, onResult: (Boolean, String?) -> Unit) {
         firebaseAuth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Firebase.crashlytics.log("Login success: $email")
                     saveFirebaseUser(firebaseAuth.currentUser, "email")
                     onResult(true, null)
                 } else {
                     val msg = task.exception?.localizedMessage ?: "Đăng nhập thất bại"
-                    Firebase.crashlytics.log("Login failed: $msg")
                     onResult(false, msg)
                 }
             }
     }
 
-    // 🔹 Đăng nhập bằng Google (đã sửa)
+    // Đăng nhập bằng Google
     fun firebaseAuthWithGoogle(idToken: String, onResult: (Boolean, String?) -> Unit) {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         firebaseAuth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Firebase.crashlytics.log("Google login success")
                     saveFirebaseUser(firebaseAuth.currentUser, "google")
                     onResult(true, null)
                 } else {
                     val msg = task.exception?.localizedMessage ?: "Đăng nhập Google thất bại"
-                    Firebase.crashlytics.log("Google login failed: $msg")
                     onResult(false, msg)
                 }
             }
     }
 
-    // 🔹 Đăng nhập bằng Facebook (đã sửa)
+    // Đăng nhập bằng Facebook
     fun firebaseAuthWithFacebook(token: AccessToken, onResult: (Boolean, String?) -> Unit) {
         val credential = FacebookAuthProvider.getCredential(token.token)
         firebaseAuth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Firebase.crashlytics.log("Facebook login success")
                     saveFirebaseUser(firebaseAuth.currentUser, "facebook")
                     onResult(true, null)
                 } else {
                     val msg = task.exception?.localizedMessage ?: "Đăng nhập Facebook thất bại"
-                    Firebase.crashlytics.log("Facebook login failed: $msg")
                     onResult(false, msg)
                 }
             }
     }
 
-    // 🔹 Gửi email đặt lại mật khẩu
+    // Gửi email đặt lại mật khẩu
     fun sendPasswordResetEmail(email: String, onResult: (Boolean, String?) -> Unit) {
         firebaseAuth.sendPasswordResetEmail(email)
             .addOnCompleteListener { task ->
@@ -290,16 +259,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
     }
 
-    // 🔹 Đăng xuất
+    // Đăng xuất
     fun signOut() {
         firebaseAuth.signOut()
-        Firebase.crashlytics.log("User signed out")
         viewModelScope.launch {
             userPrefs.clearUser()
         }
     }
 
-    // 🔹 Xóa tài khoản (SỬA: Loại bỏ phần lấy userId từ DataStore)
+    // Xóa tài khoản
     fun deleteAccount(onResult: (Boolean, String?) -> Unit) {
         val user = firebaseAuth.currentUser
         if (user == null) {
@@ -309,17 +277,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                // SỬA: Sử dụng Firebase UID thay vì lấy từ DataStore
                 val userId = user.uid
 
-                // 1. Xóa dữ liệu trong Firestore
                 deleteUserDataFromFirestore(userId)
 
-                // 2. Xóa user khỏi Firebase Auth
                 user.delete()
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            // 3. Xóa khỏi DataStore
                             viewModelScope.launch {
                                 userPrefs.clearUser()
                             }
@@ -334,41 +298,35 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // 🔹 Xóa dữ liệu user từ Firestore
+    // Xóa dữ liệu user từ Firestore
     private suspend fun deleteUserDataFromFirestore(userId: String) {
         try {
-            // Xóa user document
             firestore.collection("users").document(userId).delete().await()
 
-            // Xóa transactions của user
             val transactions = firestore.collection("transactions")
                 .whereEqualTo("userId", userId)
                 .get()
                 .await()
             transactions.documents.forEach { it.reference.delete().await() }
 
-            // Xóa budgets của user
             val budgets = firestore.collection("budgets")
                 .whereEqualTo("userId", userId)
                 .get()
                 .await()
             budgets.documents.forEach { it.reference.delete().await() }
 
-            // Xóa categories của user
             val categories = firestore.collection("categories")
                 .whereEqualTo("userId", userId)
                 .get()
                 .await()
             categories.documents.forEach { it.reference.delete().await() }
 
-            // Xóa recurring expenses của user
             val recurring = firestore.collection("recurring_expenses")
                 .whereEqualTo("userId", userId)
                 .get()
                 .await()
             recurring.documents.forEach { it.reference.delete().await() }
 
-            // Xóa savings goals của user
             val savings = firestore.collection("savings_goals")
                 .whereEqualTo("userId", userId)
                 .get()
@@ -376,11 +334,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             savings.documents.forEach { it.reference.delete().await() }
 
         } catch (e: Exception) {
-            Firebase.crashlytics.recordException(e)
         }
     }
 
-    // 🔹 HÀM MỚI: Lấy userId từ userSession (nếu cần)
+    // Lấy userId từ userSession
     suspend fun getCurrentUserId(): String {
         return userSession.value?.id ?: firebaseAuth.currentUser?.uid ?: "anonymous"
     }

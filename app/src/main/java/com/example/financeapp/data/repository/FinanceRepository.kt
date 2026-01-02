@@ -102,7 +102,8 @@ class FinanceRepository @Inject constructor(
 
             // Lưu vào Room
             remoteBudgets.forEach { budget ->
-                val entity = BudgetEntity.fromBudget(budget, userId)
+                // SỬA: Chỉ truyền budget, không truyền userId nữa
+                val entity = BudgetEntity.fromBudget(budget.copy(userId = userId))
                 budgetDao.insert(entity)
             }
 
@@ -349,19 +350,17 @@ class FinanceRepository @Inject constructor(
         return categoryDao.getCategoryById(categoryId)?.toCategory()
     }
 
-    // ==================== BUDGETS ====================
     suspend fun addBudget(budget: Budget) {
         val userId = getCurrentUserId()
-        val entity = BudgetEntity.fromBudget(budget, userId)
+        val budgetWithUserId = budget.copy(userId = userId)
+        val entity = BudgetEntity.fromBudget(budgetWithUserId)
         budgetDao.insert(entity)
 
         if (isUserLoggedIn()) {
             try {
-                // SỬA: Sử dụng FirestoreService với userId
-                firestoreService.saveBudget(budget, userId)
+                firestoreService.saveBudget(budgetWithUserId, userId)
                 budgetDao.update(entity.copy(isSynced = true))
             } catch (e: Exception) {
-                // Saved offline
             }
         }
     }

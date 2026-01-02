@@ -1,6 +1,5 @@
 package com.example.financeapp.screen.main.dashboard
 
-import android.graphics.Paint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -9,35 +8,25 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Notes
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.toColorInt
 import androidx.navigation.NavController
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.components.ui.BottomNavBar
-import com.example.financeapp.components.utils.formatCurrency
-import com.example.financeapp.rememberLanguageText
+import com.example.financeapp.viewmodel.savings.SavingsViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.abs
 import kotlin.math.max
 
 @Composable
@@ -48,91 +37,150 @@ fun HomeScreen(
     transactions: List<Transaction>,
     onCalendarClick: () -> Unit,
     budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel,
-    categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel
+    categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel,
+    savingsViewModel: SavingsViewModel
 ) {
-    val gradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
-    )
+    val savingsGoals by savingsViewModel.savingsGoals.collectAsState()
+    val totalIncome by savingsViewModel.totalIncome.collectAsState()
+    val totalExpense by savingsViewModel.totalExpense.collectAsState()
+    val availableSavings by savingsViewModel.availableSavings.collectAsState()
+    val isLoading by savingsViewModel.isLoading.collectAsState()
 
-    // Lấy tháng hiện tại
+    var selectedTransactionTab by remember { mutableStateOf(0) }
     val currentMonth = remember { getCurrentMonthYear() }
 
-    // Lọc giao dịch tháng hiện tại
     val currentMonthTransactions = remember(transactions, currentMonth) {
         transactions.filter {
-            val transactionDate = parseDate(it.date)
-            val transactionMonth = formatMonthYear(transactionDate)
+            val transactionMonth = formatMonthYear(parseDate(it.date))
             transactionMonth == currentMonth
         }
     }
 
-    // Tính tổng chi tiêu tháng hiện tại
-    val monthlySpent = remember(currentMonthTransactions) {
-        currentMonthTransactions
-            .filter { !it.isIncome }
-            .sumOf { it.amount }
-            .toFloat()
+    val monthlySpent = if (totalExpense > 0) totalExpense.toFloat() else {
+        remember(currentMonthTransactions) {
+            currentMonthTransactions
+                .filter { !it.isIncome }
+                .sumOf { it.amount }
+                .toFloat()
+        }
     }
 
-    // Tính tổng thu nhập tháng hiện tại
-    val monthlyIncome = remember(currentMonthTransactions) {
-        currentMonthTransactions
-            .filter { it.isIncome }
-            .sumOf { it.amount }
-            .toFloat()
+    val monthlyIncome = if (totalIncome > 0) totalIncome.toFloat() else {
+        remember(currentMonthTransactions) {
+            currentMonthTransactions
+                .filter { it.isIncome }
+                .sumOf { it.amount }
+                .toFloat()
+        }
     }
 
-    // Lấy 7 ngày gần nhất
+    // Lấy dữ liệu tháng trước để tính % thay đổi
+    val previousMonthData = remember(transactions, currentMonth) {
+        getPreviousMonthData(transactions, currentMonth)
+    }
+
+    val previousMonthIncome = previousMonthData.first
+    val previousMonthExpense = previousMonthData.second
+
+    val incomeChange = remember(monthlyIncome, previousMonthIncome) {
+        calculateRealChangeText(currentAmount = monthlyIncome, previousAmount = previousMonthIncome)
+    }
+
+    val expenseChange = remember(monthlySpent, previousMonthExpense) {
+        calculateRealChangeText(currentAmount = monthlySpent, previousAmount = previousMonthExpense)
+    }
+
     val last7DaysData = remember(transactions) {
         getLast7DaysSpending(transactions)
     }
 
+    val total7DaysSpent = remember(last7DaysData) {
+        last7DaysData.sumOf { it.second.toDouble() }.toFloat()
+    }
+
+    val recentTransactions = remember(transactions) {
+        transactions.sortedByDescending { parseDate(it.date) }.take(3)
+    }
+
+    val totalSaved = remember(savingsGoals) {
+        savingsGoals.sumOf { it.currentAmount }.toFloat()
+    }
+
+    val totalTarget = remember(savingsGoals) {
+        savingsGoals.sumOf { it.targetAmount }.toFloat()
+    }
+
+    LaunchedEffect(Unit) {
+        savingsViewModel.loadSavingsGoals()
+        savingsViewModel.calculateAutoSavings()
+    }
+
     Scaffold(
         bottomBar = { BottomNavBar(navController = navController) },
-        containerColor = Color.Transparent
+        containerColor = Color(0xFFF8FAFC)
     ) { padding ->
-        Box(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(gradient)
                 .padding(padding)
+                .background(Color(0xFFF8FAFC)),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            item {
+                HeaderSection(
+                    currentUser = currentUser,
+                    isLoading = isLoading
+                )
+            }
+
+            item {
+                IncomeExpenseSection(
+                    monthlyIncome = monthlyIncome,
+                    monthlySpent = monthlySpent,
+                    incomeChange = incomeChange,
+                    expenseChange = expenseChange,
+                    availableSavings = availableSavings.toFloat()
+                )
+            }
+
+            if (savingsGoals.isNotEmpty()) {
                 item {
-                    HeaderSection(
-                        currentUser = currentUser,
-                        monthlySpent = monthlySpent,
-                        monthlyIncome = monthlyIncome,
-                        onCalendarClick = onCalendarClick
-                    )
-                }
-                item {
-                    RecentTransactionsCard(
+                    SavingsOverviewCard(
                         navController = navController,
-                        transactions = transactions,
-                        onAddTransaction = onAddTransaction
+                        savingsGoals = savingsGoals,
+                        totalSaved = totalSaved,
+                        totalTarget = totalTarget
                     )
                 }
-                item {
-                    SpendingChartCard(
-                        navController = navController,
-                        last7DaysData = last7DaysData,
-                        monthlySpent = monthlySpent
-                    )
-                }
-                item {
-                    BudgetCard(
-                        navController = navController,
-                        monthlySpent = monthlySpent,
-                        budgetViewModel = budgetViewModel,
-                        categoryViewModel = categoryViewModel
-                    )
-                }
+            }
+
+            item {
+                MonthlyGoalCard(
+                    navController = navController,
+                    monthlySpent = monthlySpent,
+                    monthlyIncome = monthlyIncome,
+                    savingsGoals = savingsGoals
+                )
+            }
+
+            item {
+                RecentTransactionsCard(
+                    selectedTab = selectedTransactionTab,
+                    onTabSelected = { selectedTransactionTab = it },
+                    recentTransactions = recentTransactions,
+                    onAddTransaction = onAddTransaction
+                )
+            }
+
+            item {
+                SpendingChartCard(
+                    chartData = last7DaysData,
+                    totalSpent = total7DaysSpent
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
@@ -141,71 +189,115 @@ fun HomeScreen(
 @Composable
 private fun HeaderSection(
     currentUser: com.example.financeapp.data.models.User?,
-    monthlySpent: Float,
+    isLoading: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "Xin chào,",
+                color = Color(0xFF64748B),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "${currentUser?.name ?: "Người dùng"}!",
+                color = Color(0xFF0F172A),
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (isLoading) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Đang tải dữ liệu...",
+                    color = Color(0xFF64748B),
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IncomeExpenseSection(
     monthlyIncome: Float,
-    onCalendarClick: () -> Unit
+    monthlySpent: Float,
+    incomeChange: String,
+    expenseChange: String,
+    availableSavings: Float
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 20.dp)
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column {
-                Text(
-                    text = rememberLanguageText("greeting"),
-                    color = Color(0xFF64748B),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal
-                )
-                Text(
-                    text = currentUser?.name ?: rememberLanguageText("user"),
-                    color = Color(0xFF0F172A),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            IconButton(
-                onClick = onCalendarClick,
-                modifier = Modifier
-                    .size(50.dp)
-                    .background(Color(0xFF3B82F6), CircleShape)
-                    .clip(CircleShape)
-            ) {
-                Icon(
-                    Icons.Filled.CalendarToday,
-                    contentDescription = rememberLanguageText("calendar"),
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            IncomeExpenseCard(
+                title = "Thu nhập",
+                amount = monthlyIncome,
+                changeText = incomeChange,
+                changeColor = Color(0xFF10B981),
+                amountColor = Color(0xFF0F172A),
+                modifier = Modifier.weight(1f)
+            )
+            IncomeExpenseCard(
+                title = "Chi tiêu",
+                amount = monthlySpent,
+                changeText = expenseChange,
+                changeColor = Color(0xFFEF4444),
+                amountColor = Color(0xFF0F172A),
+                modifier = Modifier.weight(1f)
+            )
         }
 
-        // Số tiền đã chi và thu trong tháng
-        Spacer(modifier = Modifier.height(24.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Card thu nhập
-            IncomeExpenseCard(
-                title = rememberLanguageText("income_card_title"),
-                amount = monthlyIncome,
-                color = Color(0xFF10B981),
-                modifier = Modifier.weight(1f)
-            )
-
-            // Card chi tiêu
-            IncomeExpenseCard(
-                title = rememberLanguageText("expense_card_title"),
-                amount = monthlySpent,
-                color = Color(0xFFEF4444),
-                modifier = Modifier.weight(1f)
-            )
+        if (availableSavings > 0) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFF0F9FF),
+                border = BorderStroke(1.dp, Color(0xFFBAE6FD))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Có thể tiết kiệm",
+                            color = Color(0xFF0369A1),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = formatVND(availableSavings),
+                            color = Color(0xFF0C4A6E),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = "Thêm vào mục tiêu →",
+                        color = Color(0xFF0284C7),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clickable {
+                            // TODO: Navigate to savings goals
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -214,613 +306,150 @@ private fun HeaderSection(
 private fun IncomeExpenseCard(
     title: String,
     amount: Float,
-    color: Color,
+    changeText: String,
+    changeColor: Color,
+    amountColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Surface(
         modifier = modifier
-            .shadow(2.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+            .height(120.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // Tiêu đề
             Text(
                 text = title,
                 color = Color(0xFF64748B),
-                fontSize = 12.sp
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = formatCurrency(amount.toDouble()),
-                color = color,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = rememberLanguageText("this_month"),
-                color = Color(0xFF94A3B8),
-                fontSize = 10.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun RecentTransactionsCard(
-    navController: NavController,
-    transactions: List<Transaction>,
-    onAddTransaction: () -> Unit
-) {
-    // Lấy 5 giao dịch gần nhất
-    val recentTransactions = remember(transactions) {
-        transactions.sortedByDescending { parseDate(it.date) }.take(5)
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .shadow(2.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = rememberLanguageText("recent_transactions"),
-                    color = Color(0xFF0F172A),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                if (recentTransactions.isNotEmpty()) {
-                    Text(
-                        text = rememberLanguageText("view_all"),
-                        color = Color(0xFF3B82F6),
-                        fontSize = 14.sp,
-                        modifier = Modifier.clickable {
-                            navController.navigate("transactions")
-                        }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Hai nút Thu và Chi
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                TransactionTypeButton(
-                    text = rememberLanguageText("income"),
-                    color = Color(0xFF10B981),
-                    modifier = Modifier.weight(1f),
-                    onClick = onAddTransaction
-                )
-                TransactionTypeButton(
-                    text = rememberLanguageText("expense"),
-                    color = Color(0xFFEF4444),
-                    modifier = Modifier.weight(1f),
-                    onClick = onAddTransaction
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Hiển thị danh sách giao dịch hoặc placeholder
-            if (recentTransactions.isEmpty()) {
-                NoTransactionsPlaceholder(onAddTransaction)
-            } else {
-                RecentTransactionsList(transactions = recentTransactions)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TransactionTypeButton(
-    text: String,
-    color: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = color.copy(alpha = 0.1f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = text,
-                color = color,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
             )
-        }
-    }
-}
 
-@Composable
-private fun NoTransactionsPlaceholder(onAddTransaction: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 20.dp)
-    ) {
-        Text(
-            text = "📊",
-            fontSize = 32.sp
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = rememberLanguageText("no_recent_transactions"),
-            color = Color(0xFF64748B),
-            fontSize = 14.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onAddTransaction,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF3B82F6)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
             Text(
-                text = rememberLanguageText("create_transaction"),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-@Composable
-private fun RecentTransactionsList(transactions: List<Transaction>) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        transactions.forEach { transaction ->
-            TransactionItem(transaction = transaction)
-        }
-    }
-}
-
-@Composable
-private fun TransactionItem(transaction: Transaction) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                // Hiển thị title thay vì category ID
-                Text(
-                    text = transaction.title.ifBlank {
-                        transaction.description.ifBlank { rememberLanguageText("transaction") }
-                    },
-                    color = Color(0xFF0F172A),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "${transaction.date} • ${transaction.dayOfWeek}",
-                        color = Color(0xFF64748B),
-                        fontSize = 12.sp
-                    )
-                }
-                if (transaction.description.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = transaction.description,
-                        color = Color(0xFF94A3B8),
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                }
-            }
-            Text(
-                text = if (transaction.isIncome) "+${formatCurrency(transaction.amount.toFloat())}"
-                else "-${formatCurrency(transaction.amount.toFloat())}",
-                color = if (transaction.isIncome) Color(0xFF10B981) else Color(0xFFEF4444),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun SpendingChartCard(
-    navController: NavController,
-    last7DaysData: List<Pair<String, Float>>,
-    monthlySpent: Float
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .shadow(2.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = rememberLanguageText("spending_7_days"),
-                    color = Color(0xFF0F172A),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "${rememberLanguageText("monthly_spent")} ${formatCurrency(monthlySpent)}",
-                    color = Color(0xFF3B82F6),
-                    fontSize = 14.sp,
-                    modifier = Modifier.clickable {
-                        navController.navigate("statistics")
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Biểu đồ cột với dữ liệu thực
-            SimpleColumnChart(last7DaysData)
-        }
-    }
-}
-
-@Composable
-private fun SimpleColumnChart(data: List<Pair<String, Float>>) {
-    if (data.isEmpty()) {
-        PlaceholderChart(message = rememberLanguageText("no_chart_data"))
-        return
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val chartData = data.map { it.second }
-            val days = data.map { it.first }
-
-            val maxValue = max(chartData.maxOrNull() ?: 1f, 1f)
-            val paddingTop = 20f
-            val paddingBottom = 30f
-            val chartHeight = size.height - paddingTop - paddingBottom
-            val columnWidth = (size.width - 40f) / chartData.size
-            val spacing = 4f
-
-            // Vẽ các cột
-            chartData.forEachIndexed { index, value ->
-                val columnHeight = (value / maxValue * chartHeight)
-                val x = 20f + index * (columnWidth + spacing)
-                val y = paddingTop + chartHeight - columnHeight
-
-                drawRoundRect(
-                    color = Color(0xFF3B82F6),
-                    topLeft = Offset(x, y),
-                    size = Size(columnWidth, columnHeight),
-                    cornerRadius = CornerRadius(x = 4f, y = 4f)
-                )
-
-                // Vẽ nhãn ngày
-                drawContext.canvas.nativeCanvas.drawText(
-                    days[index],
-                    x + columnWidth / 2,
-                    size.height - 10f,
-                    Paint().apply {
-                        color = android.graphics.Color.parseColor("#64748B")
-                        textSize = 12f
-                        textAlign = Paint.Align.CENTER
-                    }
-                )
-            }
-
-            // Vẽ trục Y
-            drawLine(
-                color = Color(0xFFE2E8F0),
-                start = Offset(15f, paddingTop),
-                end = Offset(15f, paddingTop + chartHeight),
-                strokeWidth = 2f
+                text = formatVND(amount),
+                color = amountColor,
+                fontSize = calculateFontSizeForAmount(amount),
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = calculateLineHeightForAmount(amount)
             )
 
-            // Vẽ các mốc giá trị
-            for (i in 0..4) {
-                val y = paddingTop + chartHeight * (1 - i / 4f)
-                val value = (maxValue * i / 4).toInt()
-
-                drawLine(
-                    color = Color(0xFFE2E8F0),
-                    start = Offset(15f, y),
-                    end = Offset(size.width - 20f, y),
-                    strokeWidth = 1f
-                )
-
-                drawContext.canvas.nativeCanvas.drawText(
-                    formatCurrencyCompact(value.toFloat()),
-                    8f,
-                    y + 4f,
-                    Paint().apply {
-                        color = android.graphics.Color.parseColor("#94A3B8")
-                        textSize = 10f
-                        textAlign = Paint.Align.RIGHT
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BudgetCard(
-    navController: NavController,
-    monthlySpent: Float,
-    budgetViewModel: com.example.financeapp.viewmodel.budget.BudgetViewModel,
-    categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel // Thêm CategoryViewModel
-) {
-    val budgets by budgetViewModel.budgets.collectAsState()
-    val categories by categoryViewModel.categories.collectAsState()
-
-    // Lấy tất cả budget đã tạo
-    val allBudgets = remember(budgets) {
-        budgets.sortedByDescending { it.startDate }
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .shadow(2.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
+            // % thay đổi
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = rememberLanguageText("budget_title"),
-                    color = Color(0xFF0F172A),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                if (allBudgets.isNotEmpty()) {
-                    Text(
-                        text = "${allBudgets.size} ngân sách",
-                        color = Color(0xFF3B82F6),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (allBudgets.isEmpty()) {
-                // Hiển thị khi không có budget
-                NoBudgetPlaceholder(navController = navController)
-            } else {
-                // Hiển thị danh sách tất cả budget
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Hiển thị tất cả budgets
-                    allBudgets.forEach { budget ->
-                        // Tìm category tương ứng
-                        val category = categories.find { it.id == budget.categoryId }
-                        BudgetItemWithIcon(
-                            budget = budget,
-                            category = category,
-                            navController = navController
-                        )
-                    }
-
-                    // Nút thêm budget mới
-                    Button(
-                        onClick = {
-                            navController.navigate("add_budget")
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3B82F6)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Thêm ngân sách mới",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BudgetItemWithIcon(
-    budget: com.example.financeapp.data.models.Budget,
-    category: com.example.financeapp.viewmodel.transaction.Category?,
-    navController: NavController
-) {
-    val budgetAmount = budget.amount.toFloat()
-    val spentAmount = budget.spentAmount.toFloat()
-    val spendingPercentage = remember(budgetAmount, spentAmount) {
-        if (budgetAmount > 0) {
-            (spentAmount / budgetAmount * 100).coerceAtMost(100f)
-        } else 0f
-    }
-
-    val isExceeded = spendingPercentage >= 100
-    val isWarning = spendingPercentage > 80 && spendingPercentage < 100
-    val remaining = budgetAmount - spentAmount // <-- Định nghĩa biến remaining ở đây
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                navController.navigate("edit_budget/${budget.id}")
-            },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = when {
-                isExceeded -> Color(0xFFFFF8E1)
-                !budget.isActive -> Color(0xFFF8F8F8)
-                else -> Color(0xFFF8FAFC)
-            }
-        ),
-        border = when {
-            isExceeded -> BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.3f))
-            !budget.isActive -> BorderStroke(1.dp, Color(0xFFDDDDDD))
-            else -> null
-        }
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Header với icon và tên category
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Icon category
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            parseColor(category?.color ?: "#3B82F6").copy(alpha = 0.1f),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        category?.icon ?: "💰",
-                        fontSize = 16.sp,
-                        color = parseColor(category?.color ?: "#3B82F6")
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    // Tên category
-                    Text(
-                        text = category?.name ?: "Ngân sách chung",
-                        color = Color(0xFF0F172A),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    // Thông tin thời gian và chu kỳ
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${budget.startDate.dayOfMonth}/${budget.startDate.monthValue} - ${budget.endDate.dayOfMonth}/${budget.endDate.monthValue}",
-                            color = Color(0xFF64748B),
-                            fontSize = 11.sp
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Loại chu kỳ
-                        val periodText = when (budget.periodType) {
-                            com.example.financeapp.data.models.BudgetPeriodType.WEEK -> "Tuần"
-                            com.example.financeapp.data.models.BudgetPeriodType.MONTH -> "Tháng"
-                            com.example.financeapp.data.models.BudgetPeriodType.QUARTER -> "Quý"
-                            com.example.financeapp.data.models.BudgetPeriodType.YEAR -> "Năm"
-                            else -> "Tháng"
-                        }
-
-                        Text(
-                            text = "/$periodText",
-                            color = Color(0xFF64748B),
-                            fontSize = 11.sp
-                        )
-
-                        // Badge trạng thái
-                        if (!budget.isActive) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFFDDDDDD), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "Tạm dừng",
-                                    color = Color(0xFF666666),
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Phần trăm
+                        .size(6.dp)
+                        .background(changeColor, CircleShape)
+                )
                 Text(
-                    text = "${spendingPercentage.toInt()}%",
-                    color = when {
-                        isExceeded -> Color(0xFFEF4444)
-                        isWarning -> Color(0xFFF59E0B)
-                        !budget.isActive -> Color(0xFF94A3B8)
-                        else -> Color(0xFF10B981)
-                    },
-                    fontSize = 16.sp,
+                    text = changeText,
+                    color = changeColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+private fun formatVND(amount: Float): String {
+    return if (amount >= 1000000000) {
+        val ty = amount / 1000000000
+        String.format("%,.1f tỷ", ty).replace(",", ".")
+    } else if (amount >= 1000000) {
+        val trieu = amount / 1000000
+        String.format("%,.0f triệu", trieu).replace(",", ".")
+    } else {
+        String.format("%,.0f đ", amount).replace(",", ".")
+    }
+}
+
+private fun calculateFontSizeForAmount(amount: Float): androidx.compose.ui.unit.TextUnit {
+    val formattedAmount = formatVND(amount)
+    return when {
+        formattedAmount.length > 15 -> 14.sp  // Rất dài
+        formattedAmount.length > 12 -> 16.sp  // Dài
+        formattedAmount.length > 10 -> 18.sp  // Trung bình
+        formattedAmount.length > 8 -> 20.sp   // Ngắn
+        else -> 22.sp                          // Rất ngắn
+    }
+}
+
+private fun calculateLineHeightForAmount(amount: Float): androidx.compose.ui.unit.TextUnit {
+    val fontSize = calculateFontSizeForAmount(amount)
+    return when (fontSize) {
+        14.sp -> 18.sp
+        16.sp -> 20.sp
+        18.sp -> 22.sp
+        20.sp -> 24.sp
+        else -> 26.sp
+    }
+}
+
+@Composable
+private fun SavingsOverviewCard(
+    navController: NavController,
+    savingsGoals: List<com.example.financeapp.data.models.SavingsGoal>,
+    totalSaved: Float,
+    totalTarget: Float
+) {
+    val totalProgress = if (totalTarget > 0) {
+        (totalSaved / totalTarget * 100).coerceIn(0f, 100f)
+    } else 0f
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Mục tiêu tiết kiệm",
+                    color = Color(0xFF0F172A),
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = "Xem tất cả",
+                    color = Color(0xFF3B82F6),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable {
+                        navController.navigate("savings_goals")
+                    }
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Thông tin số tiền
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -828,246 +457,828 @@ private fun BudgetItemWithIcon(
             ) {
                 Column {
                     Text(
-                        text = "Đã chi: ${formatCurrency(spentAmount)}",
-                        color = Color(0xFF64748B),
-                        fontSize = 11.sp
+                        text = formatVND(totalSaved),
+                        color = Color(0xFF0F172A),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Ngân sách: ${formatCurrency(budgetAmount)}",
+                        text = "Đã tiết kiệm",
                         color = Color(0xFF64748B),
-                        fontSize = 11.sp
+                        fontSize = 14.sp
                     )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = formatVND(totalTarget),
+                        color = Color(0xFF64748B),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Mục tiêu",
+                        color = Color(0xFF64748B),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LinearProgressIndicator(
+                progress = totalProgress / 100,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = Color(0xFF10B981),
+                trackColor = Color(0xFFE2E8F0)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${totalProgress.toInt()}%",
+                    color = Color(0xFF10B981),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${savingsGoals.size} mục tiêu",
+                    color = Color(0xFF64748B),
+                    fontSize = 14.sp
+                )
+            }
+
+            if (savingsGoals.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    savingsGoals.take(3).forEach { goal ->
+                        GoalProgressItem(goal = goal)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalProgressItem(goal: com.example.financeapp.data.models.SavingsGoal) {
+    val progress = goal.calculateProgress()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(Color(0xFFE2E8F0), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "T",
+                fontSize = 18.sp,
+                color = Color(0xFF475569)
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = goal.name,
+                    color = Color(0xFF0F172A),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${progress.toInt()}%",
+                    color = Color(0xFF10B981),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            LinearProgressIndicator(
+                progress = progress / 100,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp),
+                color = Color(0xFF10B981),
+                trackColor = Color(0xFFE2E8F0)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatVND(goal.currentAmount.toFloat()),
+                    color = Color(0xFF64748B),
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = formatVND(goal.targetAmount.toFloat()),
+                    color = Color(0xFF64748B),
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlyGoalCard(
+    navController: NavController,
+    monthlySpent: Float,
+    monthlyIncome: Float,
+    savingsGoals: List<com.example.financeapp.data.models.SavingsGoal>
+) {
+    val monthlySavingsNeeded = if (savingsGoals.isNotEmpty()) {
+        val goalsWithDeadline = savingsGoals.filter { it.deadline > 0 }
+        if (goalsWithDeadline.isNotEmpty()) {
+            goalsWithDeadline.sumOf { it.getMonthlyNeeded() }.toFloat()
+        } else {
+            monthlyIncome * 0.2f
+        }
+    } else 0f
+
+    val monthlyActualSavings = (monthlyIncome - monthlySpent).coerceAtLeast(0f)
+    val monthlyProgress = if (monthlySavingsNeeded > 0) {
+        (monthlyActualSavings / monthlySavingsNeeded * 100).coerceIn(0f, 100f)
+    } else if (monthlyIncome > 0) {
+        (monthlyActualSavings / monthlyIncome * 100)
+    } else 0f
+
+    val activeGoals = savingsGoals.filter { it.isActive && !it.isCompleted }.size
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Tiến độ tiết kiệm",
+                        color = Color(0xFF0F172A),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (savingsGoals.isNotEmpty()) {
+                        Text(
+                            text = "$activeGoals mục tiêu đang hoạt động",
+                            color = Color(0xFF64748B),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Xem chi tiết",
+                    color = Color(0xFF3B82F6),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable {
+                        navController.navigate("savings_goals")
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val strokeWidth = 12.dp.toPx()
+                        val radius = (size.minDimension - strokeWidth) / 2
+                        val center = Offset(size.width / 2, size.height / 2)
+
+                        drawArc(
+                            color = Color(0xFFE2E8F0),
+                            startAngle = -90f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            topLeft = Offset(
+                                center.x - radius,
+                                center.y - radius
+                            ),
+                            size = Size(radius * 2, radius * 2),
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        )
+
+                        drawArc(
+                            color = getProgressColor(monthlyProgress),
+                            startAngle = -90f,
+                            sweepAngle = 360f * monthlyProgress / 100,
+                            useCenter = false,
+                            topLeft = Offset(
+                                center.x - radius,
+                                center.y - radius
+                            ),
+                            size = Size(radius * 2, radius * 2),
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "${monthlyProgress.toInt()}%",
+                            color = Color(0xFF0F172A),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "tiến độ",
+                            color = Color(0xFF64748B),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
 
                 Column(
-                    horizontalAlignment = Alignment.End
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Còn lại:",
-                        color = Color(0xFF64748B),
-                        fontSize = 11.sp
+                        text = formatVND(monthlyActualSavings),
+                        color = Color(0xFF0F172A),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
                     )
+
                     Text(
-                        text = formatCurrency(remaining), // <-- Sử dụng biến remaining đã định nghĩa
-                        color = when {
-                            isExceeded -> Color(0xFFEF4444)
-                            isWarning -> Color(0xFFF59E0B)
-                            !budget.isActive -> Color(0xFF94A3B8)
-                            else -> Color(0xFF10B981)
-                        },
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Tiết kiệm thực tế / tháng",
+                        color = Color(0xFF64748B),
+                        fontSize = 14.sp
                     )
-                }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
-            // Progress bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .background(
-                        when {
-                            !budget.isActive -> Color(0xFFE2E8F0)
-                            else -> Color(0xFFE2E8F0)
-                        },
-                        RoundedCornerShape(3.dp)
-                    )
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(spendingPercentage / 100f)
-                        .height(6.dp)
-                        .background(
-                            color = when {
-                                isExceeded -> Color(0xFFEF4444)
-                                isWarning -> Color(0xFFF59E0B)
-                                !budget.isActive -> Color(0xFF94A3B8)
-                                else -> Color(0xFF10B981)
-                            },
-                            shape = RoundedCornerShape(3.dp)
+                    if (monthlySavingsNeeded > 0) {
+                        Text(
+                            text = "Cần ${formatVND(monthlySavingsNeeded)} mỗi tháng",
+                            color = Color(0xFF10B981),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
                         )
-                )
-            }
+                    }
 
-            // Hiển thị cảnh báo nếu cần
-            if (isExceeded) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Vượt ngân sách: ${formatCurrency(-remaining)}",
-                    color = Color(0xFFEF4444),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            } else if (isWarning) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Đã chi hơn 80% ngân sách",
-                    color = Color(0xFFF59E0B),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            // Hiển thị ghi chú nếu có
-            if (!budget.note.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        Icons.Default.Notes,
-                        contentDescription = "Ghi chú",
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier
-                            .size(12.dp)
-                            .padding(top = 2.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = budget.note ?: "",
-                        color = Color(0xFF64748B),
-                        fontSize = 11.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(getProgressColor(monthlyProgress), CircleShape)
+                            )
+                            Text(
+                                text = "Tiết kiệm ${monthlyProgress.toInt()}%",
+                                color = Color(0xFF64748B),
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(Color(0xFFE2E8F0), CircleShape)
+                            )
+                            Text(
+                                text = "Chi tiêu ${(100 - monthlyProgress).toInt()}%",
+                                color = Color(0xFF64748B),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
-// Hàm parse màu từ string (lấy từ BudgetScreen)
-private fun parseColor(colorString: String): Color {
-    return try {
-        val color = colorString.toColorInt()
-        Color(color)
-    } catch (e: Exception) {
-        Color(0xFF3B82F6)
-    }
-}
 
 @Composable
-private fun NoBudgetPlaceholder(navController: NavController) {
-    // Giữ nguyên như trước
-    Column(
+private fun RecentTransactionsCard(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    recentTransactions: List<Transaction>,
+    onAddTransaction: () -> Unit
+) {
+    val filteredTransactions = remember(recentTransactions, selectedTab) {
+        when (selectedTab) {
+            0 -> recentTransactions
+            1 -> recentTransactions.filter { it.isIncome }
+            else -> recentTransactions.filter { !it.isIncome }
+        }
+    }
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
     ) {
-        Text(
-            text = "💰",
-            fontSize = 36.sp
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Chưa có ngân sách nào",
-            color = Color(0xFF0F172A),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Thiết lập ngân sách để quản lý chi tiêu hiệu quả hơn",
-            color = Color(0xFF64748B),
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        Button(
-            onClick = {
-                navController.navigate("add_budget")
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF3B82F6)
-            ),
-            shape = RoundedCornerShape(12.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
         ) {
             Text(
-                text = "Thiết lập ngân sách",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                text = "Giao dịch gần đây",
+                color = Color(0xFF0F172A),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .background(Color(0xFFF1F5F9), RoundedCornerShape(10.dp)),
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                TabButton(
+                    text = "Tất cả",
+                    isSelected = selectedTab == 0,
+                    onClick = { onTabSelected(0) },
+                    modifier = Modifier.weight(1f)
+                )
+
+                TabButton(
+                    text = "Thu nhập",
+                    isSelected = selectedTab == 1,
+                    onClick = { onTabSelected(1) },
+                    modifier = Modifier.weight(1f)
+                )
+
+                TabButton(
+                    text = "Chi tiêu",
+                    isSelected = selectedTab == 2,
+                    onClick = { onTabSelected(2) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (filteredTransactions.isEmpty()) {
+                NoTransactionsPlaceholder(onAddTransaction)
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    filteredTransactions.forEachIndexed { index, transaction ->
+                        TransactionItem(transaction = transaction)
+                        if (index < filteredTransactions.size - 1) {
+                            Divider(
+                                color = Color(0xFFF1F5F9),
+                                thickness = 1.dp
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
 @Composable
-private fun PlaceholderChart(message: String) {
+private fun TabButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor = if (isSelected) Color.White else Color.Transparent
+    val textColor = if (isSelected) Color(0xFF0F172A) else Color(0xFF64748B)
+
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp)),
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable(onClick = onClick)
+            .background(backgroundColor, RoundedCornerShape(10.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = 14.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun TransactionItem(transaction: Transaction) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
-                text = "📊",
-                fontSize = 32.sp
+                text = transaction.title.ifBlank {
+                    transaction.description.ifBlank { "Giao dịch" }
+                },
+                color = Color(0xFF0F172A),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = message,
+                text = if (transaction.isIncome) "Thu nhập" else "Chi tiêu",
                 color = Color(0xFF64748B),
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Text(
+            text = if (transaction.isIncome) {
+                formatVND(transaction.amount.toFloat())
+            } else {
+                "-${formatVND(transaction.amount.toFloat())}"
+            },
+            color = if (transaction.isIncome) Color(0xFF10B981) else Color(0xFF0F172A),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun NoTransactionsPlaceholder(onAddTransaction: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+    ) {
+        Text(
+            text = "Chưa có giao dịch nào",
+            color = Color(0xFF64748B),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onAddTransaction,
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color(0xFF3B82F6),
+                containerColor = Color.Transparent
+            ),
+            border = BorderStroke(1.dp, Color(0xFF3B82F6))
+        ) {
+            Text(
+                text = "Thêm giao dịch đầu tiên",
                 fontSize = 14.sp
             )
         }
     }
 }
 
-// ========== Hàm hỗ trợ ==========
+@Composable
+private fun SpendingChartCard(
+    chartData: List<Pair<String, Float>>,
+    totalSpent: Float
+) {
+    val displayChartData = remember(chartData) {
+        if (chartData.size == 7) {
+            chartData
+        } else {
+            listOf(
+                "T2" to 0f,
+                "T3" to 0f,
+                "T4" to 0f,
+                "T5" to 0f,
+                "T6" to 0f,
+                "T7" to 0f,
+                "CN" to 0f
+            )
+        }
+    }
 
-// Thêm hàm này vào phần helper functions
-private fun formatLocalDateMonthYear(localDate: java.time.LocalDate): String {
-    return try {
-        val month = localDate.monthValue
-        val year = localDate.year
-        "$month/$year"
-    } catch (e: Exception) {
-        "0/0"
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "Phân tích chi tiêu",
+                color = Color(0xFF0F172A),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "7 ngày gần đây",
+                color = Color(0xFF64748B),
+                fontSize = 14.sp
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Tổng cộng",
+                    color = Color(0xFF0F172A),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = formatVND(totalSpent),
+                    color = Color(0xFF0F172A),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            ColumnChart(chartData = displayChartData)
+        }
+    }
+}
+
+@Composable
+private fun ColumnChart(chartData: List<Pair<String, Float>>) {
+    val maxValue = max(chartData.maxOfOrNull { it.second } ?: 1f, 1f)
+    val density = LocalDensity.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val barWidth = (size.width - 40.dp.toPx()) / chartData.size
+                val maxBarHeight = size.height - 40.dp.toPx()
+
+                // Vẽ grid lines
+                for (i in 1..3) {
+                    val gridY = (size.height - 40.dp.toPx()) * (i / 4f)
+                    drawLine(
+                        color = Color(0xFFF1F5F9),
+                        start = Offset(20.dp.toPx(), gridY),
+                        end = Offset(size.width - 20.dp.toPx(), gridY),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+
+                // Vẽ các cột
+                chartData.forEachIndexed { index, (_, value) ->
+                    val barHeight = (value / maxValue) * maxBarHeight
+                    val x = 20.dp.toPx() + index * barWidth
+                    val y = size.height - 40.dp.toPx() - barHeight
+
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF4F46E5),
+                                Color(0xFF3B82F6)
+                            ),
+                            startY = y,
+                            endY = y + barHeight
+                        ),
+                        topLeft = Offset(x, y),
+                        size = Size(barWidth - 6.dp.toPx(), barHeight),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                            x = 4.dp.toPx(),
+                            y = 4.dp.toPx()
+                        )
+                    )
+                }
+
+                // Vẽ trục Y
+                drawLine(
+                    color = Color(0xFFE2E8F0),
+                    start = Offset(16.dp.toPx(), 12.dp.toPx()),
+                    end = Offset(16.dp.toPx(), size.height - 40.dp.toPx()),
+                    strokeWidth = 1.5.dp.toPx()
+                )
+            }
+        }
+
+        // Hiển thị label ngày
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            chartData.forEach { (day, _) ->
+                Text(
+                    text = day,
+                    color = Color(0xFF64748B),
+                    fontSize = 11.sp,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+private fun calculateRealChangeText(currentAmount: Float, previousAmount: Float): String {
+    return if (previousAmount > 0) {
+        val changePercent = ((currentAmount - previousAmount) / previousAmount * 100).toInt()
+        if (changePercent >= 0) {
+            "+$changePercent% so với tháng trước"
+        } else {
+            "$changePercent% so với tháng trước"
+        }
+    } else if (currentAmount > 0) {
+        "+100% so với tháng trước"
+    } else {
+        "0% so với tháng trước"
+    }
+}
+
+// HÀM LẤY DỮ LIỆU THÁNG TRƯỚC
+private fun getPreviousMonthData(transactions: List<Transaction>, currentMonth: String): Pair<Float, Float> {
+    val calendar = Calendar.getInstance()
+    val sdf = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+    val currentDate = sdf.parse(currentMonth) ?: Date()
+
+    calendar.time = currentDate
+    calendar.add(Calendar.MONTH, -1)
+    val previousMonth = sdf.format(calendar.time)
+
+    var previousIncome = 0f
+    var previousExpense = 0f
+
+    transactions.forEach { transaction ->
+        try {
+            val transactionDate = parseDate(transaction.date)
+            val transactionMonth = formatMonthYear(transactionDate)
+
+            if (transactionMonth == previousMonth) {
+                val amount = transaction.amount.toFloat()
+                if (transaction.isIncome) {
+                    previousIncome += amount
+                } else {
+                    previousExpense += amount
+                }
+            }
+        } catch (_: Exception) {
+            // Bỏ qua lỗi parse
+        }
+    }
+
+    return Pair(previousIncome, previousExpense)
+}
+
+// CÁC HÀM HELPER KHÁC
+private fun getProgressColor(progress: Float): Color {
+    return when {
+        progress >= 80 -> Color(0xFF10B981)
+        progress >= 50 -> Color(0xFF3B82F6)
+        progress >= 30 -> Color(0xFFF59E0B)
+        else -> Color(0xFFEF4444)
     }
 }
 
 private fun getLast7DaysSpending(transactions: List<Transaction>): List<Pair<String, Float>> {
     val calendar = Calendar.getInstance()
     val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
-    val result = mutableListOf<Pair<String, Float>>()
 
-    // Lấy 7 ngày gần nhất
+    val spendingByDate = mutableMapOf<String, Float>()
+
+    transactions.forEach { transaction ->
+        if (!transaction.isIncome) {
+            try {
+                val transactionDate = parseDate(transaction.date)
+                val dateKey = dateFormat.format(transactionDate)
+                val currentSpending = spendingByDate.getOrDefault(dateKey, 0f)
+                spendingByDate[dateKey] = currentSpending + transaction.amount.toFloat()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    val result = mutableListOf<Pair<String, Float>>()
+    val daysOfWeek = listOf("CN", "T2", "T3", "T4", "T5", "T6", "T7")
+
     for (i in 6 downTo 0) {
         calendar.time = Date()
         calendar.add(Calendar.DAY_OF_YEAR, -i)
+
+        val dayOfWeekIndex = calendar.get(Calendar.DAY_OF_WEEK) - 1
+        val dayOfWeek = if (dayOfWeekIndex == 0) "CN" else daysOfWeek[dayOfWeekIndex]
         val dateKey = dateFormat.format(calendar.time)
+        val spending = spendingByDate.getOrDefault(dateKey, 0f)
 
-        // Tính tổng chi tiêu trong ngày
-        val daySpending = transactions
-            .filter {
-                try {
-                    val transactionDate = parseDate(it.date)
-                    val compareDate = dateFormat.format(transactionDate)
-                    compareDate == dateKey && !it.isIncome
-                } catch (e: Exception) {
-                    false
-                }
-            }
-            .sumOf { it.amount.toDouble() }
-            .toFloat()
-
-        result.add(dateKey to daySpending)
+        result.add(dayOfWeek to spending)
     }
 
-    return result
+    val sundayData = result.find { it.first == "CN" }
+    val otherDaysData = result.filter { it.first != "CN" }
+
+    val sortedOtherDays = otherDaysData.sortedBy {
+        when (it.first) {
+            "T2" -> 0
+            "T3" -> 1
+            "T4" -> 2
+            "T5" -> 3
+            "T6" -> 4
+            "T7" -> 5
+            else -> 6
+        }
+    }
+
+    return if (sundayData != null) {
+        sortedOtherDays + sundayData
+    } else {
+        sortedOtherDays
+    }
 }
 
 private fun parseDate(dateString: String): Date {
     return try {
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateString) ?: Date()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Date()
     }
 }
@@ -1082,32 +1293,20 @@ private fun getCurrentMonthYear(): String {
     return formatMonthYear(calendar.time)
 }
 
-fun formatCurrency(amount: Double): String {
-    return String.format(Locale.getDefault(), "%,.0f₫", amount).replace(",", ".")
+private fun com.example.financeapp.data.models.SavingsGoal.calculateProgress(): Float {
+    return if (this.targetAmount > 0) {
+        ((this.currentAmount / this.targetAmount) * 100).toFloat().coerceIn(0f, 100f)
+    } else 0f
 }
 
-fun formatCurrencyCompact(amount: Float): String {
-    return when {
-        abs(amount) >= 1000000 -> String.format("%,.1fM", amount / 1000000)
-        abs(amount) >= 1000 -> String.format("%,.0fK", amount / 1000)
-        else -> String.format("%,.0f", amount)
-    }.replace(",", ".")
+private fun com.example.financeapp.data.models.SavingsGoal.getMonthlyNeeded(): Double {
+    if (this.deadline <= 0 || this.isCompleted) return 0.0
+    val remaining = (this.targetAmount - this.currentAmount).coerceAtLeast(0L).toDouble()
+    return remaining / this.deadline
 }
-
-// Data classes - GIỮ NGUYÊN
 data class UserSession(
     val id: String,
     val email: String,
     val name: String,
     val avatar: String?
-)
-
-data class SavingFund(
-    val id: String,
-    val name: String,
-    val description: String?,
-    val balance: Float,
-    val targetAmount: Float?,
-    val targetDate: Date?,
-    val color: String?
 )

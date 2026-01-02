@@ -15,7 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.financeapp.MainActivity
-import android.util.Log
+import com.example.financeapp.R
 
 /**
  * Helper class để quản lý thông báo notification trong ứng dụng
@@ -25,24 +25,22 @@ object NotificationHelper {
 
     // ==================== CONSTANTS ====================
 
-    private const val TAG = "NotificationHelper"
-
     /** ID của notification channel cho thông báo chung */
-    private const val CHANNEL_ID_GENERAL = "wendyai_channel"
+    const val CHANNEL_ID_GENERAL = "wendyai_channel"
 
     /** ID của notification channel cho cảnh báo khẩn cấp */
-    private const val CHANNEL_ID_ALERTS = "wendyai_alerts_channel"
+    const val CHANNEL_ID_ALERTS = "wendyai_alerts_channel"
 
     /** ID của notification channel cho AI Butler */
-    private const val CHANNEL_ID_AI = "wendy_ai_channel"
+    const val CHANNEL_ID_AI = "wendy_ai_channel"
 
     /** Tên các channels */
-    private const val CHANNEL_NAME_GENERAL = "Thông báo chung"
+    private const val CHANNEL_NAME_GENERAL = "Wendy AI Finance"
     private const val CHANNEL_NAME_ALERTS = "Cảnh báo tài chính"
-    private const val CHANNEL_NAME_AI = "Wendy AI"
+    private const val CHANNEL_NAME_AI = "Wendy AI Thông minh"
 
     /** Mô tả channels */
-    private const val CHANNEL_DESC_GENERAL = "Thông báo từ ứng dụng quản lý tài chính"
+    private const val CHANNEL_DESC_GENERAL = "Thông báo từ ứng dụng Wendy AI Finance"
     private const val CHANNEL_DESC_ALERTS = "Cảnh báo vượt ngân sách và chi tiêu"
     private const val CHANNEL_DESC_AI = "Thông báo thông minh từ AI"
 
@@ -60,13 +58,13 @@ object NotificationHelper {
                     channelId = CHANNEL_ID_GENERAL,
                     channelName = CHANNEL_NAME_GENERAL,
                     channelDescription = CHANNEL_DESC_GENERAL,
-                    importance = NotificationManager.IMPORTANCE_DEFAULT,
+                    importance = NotificationManager.IMPORTANCE_HIGH,
                     enableSound = true,
                     soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
                     enableVibration = true,
                     vibrationPattern = longArrayOf(100, 200, 100, 200),
                     enableLights = true,
-                    lightColor = android.graphics.Color.GREEN
+                    lightColor = ContextCompat.getColor(context, R.color.purple_500)
                 )
 
                 // 2. Channel cho cảnh báo khẩn cấp
@@ -98,15 +96,9 @@ object NotificationHelper {
                     enableLights = true,
                     lightColor = android.graphics.Color.BLUE
                 )
-
-                Log.d(TAG, "Đã tạo tất cả notification channels")
-            } else {
-                // Android < 8.0 không cần tạo channel
-                Log.d(TAG, "Android version < O, không cần tạo channel")
             }
-
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi tạo notification channels", e)
+            // Không xử lý exception
         }
     }
 
@@ -163,20 +155,21 @@ object NotificationHelper {
                     channel.lightColor = lightColor
                 }
 
-                // Lock screen visibility
+                // Lock screen visibility - QUAN TRỌNG: Hiển thị trên màn hình khóa
                 channel.lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
 
                 // Show badge
                 channel.setShowBadge(true)
 
-                notificationManager.createNotificationChannel(channel)
-                Log.d(TAG, "Đã tạo channel: $channelName")
-            } else {
-                Log.d(TAG, "Channel $channelName đã tồn tại")
-            }
+                // Hiển thị trên màn hình khóa
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    channel.setAllowBubbles(true)
+                }
 
+                notificationManager.createNotificationChannel(channel)
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi tạo channel $channelName", e)
+            // Không xử lý exception
         }
     }
 
@@ -214,15 +207,15 @@ object NotificationHelper {
         message: String,
         channelId: String = CHANNEL_ID_GENERAL,
         autoCancel: Boolean = true,
-        priority: Int = NotificationCompat.PRIORITY_DEFAULT,
+        priority: Int = NotificationCompat.PRIORITY_HIGH,
         enableSound: Boolean = true,
-        enableVibration: Boolean = true
+        enableVibration: Boolean = true,
+        notificationId: Int = System.currentTimeMillis().toInt()
     ): Boolean {
         return try {
             // 1. Kiểm tra permission
             if (!hasNotificationPermission(context)) {
-                Log.w(TAG, "Không có quyền notification")
-                return false
+                // Vẫn tiếp tục, có thể hiển thị được trên một số device
             }
 
             // 2. Đảm bảo channels đã được tạo
@@ -231,22 +224,17 @@ object NotificationHelper {
             // 3. Tạo PendingIntent để mở app khi click notification
             val intent = Intent(context, MainActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            intent.putExtra("from_notification", true)
+            intent.putExtra("notification_title", title)
+            intent.putExtra("notification_message", message)
+            intent.putExtra("notification_channel", channelId)
 
-            val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                PendingIntent.getActivity(
-                    context,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                )
-            } else {
-                PendingIntent.getActivity(
-                    context,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT
-                )
-            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                notificationId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
             // 4. Xây dựng notification
             val builder = NotificationCompat.Builder(context, channelId)
@@ -254,27 +242,25 @@ object NotificationHelper {
                 .setContentText(message)
                 .setAutoCancel(autoCancel)
                 .setPriority(priority)
-                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
                 .setContentIntent(pendingIntent) // Mở app khi click
                 .setWhen(System.currentTimeMillis()) // Thời gian hiện tại
+                .setShowWhen(true) // Hiển thị thời gian
+                .setColor(ContextCompat.getColor(context, R.color.purple_500)) // Màu accent
 
             // 5. Thêm small icon
             try {
-                // Sử dụng icon từ resources
-                val iconResId = context.resources.getIdentifier(
-                    "ic_notification",
-                    "drawable",
-                    context.packageName
-                )
+                // Thử lấy icon từ drawable
+                val iconResId = R.drawable.ic_notification_wendy
                 if (iconResId != 0) {
                     builder.setSmallIcon(iconResId)
                 } else {
                     // Fallback icon
-                    builder.setSmallIcon(android.R.drawable.ic_dialog_info)
+                    builder.setSmallIcon(R.drawable.ic_logo_wendy_ai)
                 }
             } catch (e: Exception) {
                 // Fallback icon
-                builder.setSmallIcon(android.R.drawable.ic_dialog_info)
+                builder.setSmallIcon(R.drawable.ic_logo_wendy_ai)
             }
 
             // 6. Cấu hình âm thanh và rung (chỉ Android < O mới cần set ở đây)
@@ -285,7 +271,10 @@ object NotificationHelper {
                 }
 
                 if (enableVibration) {
-                    val vibrationPattern = longArrayOf(0, 300, 200, 300)
+                    val vibrationPattern = when(channelId) {
+                        CHANNEL_ID_ALERTS -> longArrayOf(0, 500, 250, 500)
+                        else -> longArrayOf(0, 300, 200, 300)
+                    }
                     builder.setVibrate(vibrationPattern)
                 }
             }
@@ -295,28 +284,19 @@ object NotificationHelper {
                 val bigTextStyle = NotificationCompat.BigTextStyle()
                     .bigText(message)
                     .setBigContentTitle(title)
+                    .setSummaryText("Wendy AI Finance")
                 builder.setStyle(bigTextStyle)
             }
 
             // 8. Hiển thị notification
             val notificationManager = NotificationManagerCompat.from(context)
 
-            if (!notificationManager.areNotificationsEnabled()) {
-                Log.w(TAG, "Notifications bị tắt trong hệ thống")
-                return false
-            }
-
-            val notificationId = System.currentTimeMillis().toInt()
             notificationManager.notify(notificationId, builder.build())
-
-            Log.d(TAG, "Đã hiển thị notification: $title")
             true
 
         } catch (e: SecurityException) {
-            Log.e(TAG, "Lỗi permission khi hiển thị notification", e)
             false
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi hiển thị notification", e)
             false
         }
     }
@@ -326,25 +306,65 @@ object NotificationHelper {
      */
     fun showBudgetAlertNotification(
         context: Context,
-        title: String,
-        message: String,
-        details: String = ""
+        categoryName: String,
+        spentAmount: Double,
+        budgetAmount: Double,
+        exceededAmount: Double
     ): Boolean {
         return try {
-            val fullMessage = if (details.isNotEmpty()) "$message\n$details" else message
+            val title = "⚠️ VƯỢT NGÂN SÁCH: $categoryName"
+            val message = """
+                |Bạn đã vượt ngân sách!
+                |Đã chi: ${formatCurrency(spentAmount)}
+                |Ngân sách: ${formatCurrency(budgetAmount)}
+                |Vượt quá: ${formatCurrency(exceededAmount)}
+            """.trimMargin()
 
             showNotification(
                 context = context,
                 title = title,
-                message = fullMessage,
+                message = message,
                 channelId = CHANNEL_ID_ALERTS,
+                priority = NotificationCompat.PRIORITY_MAX,
+                enableSound = true,
+                enableVibration = true
+            )
+
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Hiển thị notification cảnh báo sắp vượt ngân sách
+     */
+    fun showBudgetWarningNotification(
+        context: Context,
+        categoryName: String,
+        spentAmount: Double,
+        budgetAmount: Double,
+        percentage: Int
+    ): Boolean {
+        return try {
+            val title = "📊 SẮP VƯỢT NGÂN SÁCH: $categoryName"
+            val message = """
+                |$categoryName đã dùng $percentage% ngân sách
+                |Đã chi: ${formatCurrency(spentAmount)}
+                |Ngân sách: ${formatCurrency(budgetAmount)}
+                |Còn lại: ${formatCurrency(budgetAmount - spentAmount)}
+            """.trimMargin()
+
+            showNotification(
+                context = context,
+                title = title,
+                message = message,
+                channelId = CHANNEL_ID_GENERAL,
                 priority = NotificationCompat.PRIORITY_HIGH,
                 enableSound = true,
                 enableVibration = true
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi hiển thị budget alert", e)
             false
         }
     }
@@ -355,44 +375,99 @@ object NotificationHelper {
     fun showAINotification(
         context: Context,
         title: String,
-        message: String
+        message: String,
+        showSound: Boolean = true
     ): Boolean {
         return try {
             showNotification(
                 context = context,
-                title = title,
+                title = "🤖 $title",
                 message = message,
                 channelId = CHANNEL_ID_AI,
                 priority = NotificationCompat.PRIORITY_DEFAULT,
-                enableSound = true,
-                enableVibration = true
+                enableSound = showSound,
+                enableVibration = false
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi hiển thị AI notification", e)
             false
         }
     }
 
     /**
-     * Simple notification method (cho backward compatibility)
+     * Hiển thị notification cho recurring expense
      */
-    fun showSimpleNotification(
+    fun showRecurringExpenseNotification(
         context: Context,
-        title: String,
-        message: String
+        expenseTitle: String,
+        amount: Double,
+        frequency: String
     ): Boolean {
         return try {
+            val title = "🔄 Đã tạo giao dịch định kỳ"
+            val message = """
+                |$expenseTitle: ${formatCurrency(amount)}
+                |Tần suất: $frequency
+                |Đã được thêm vào danh sách giao dịch
+            """.trimMargin()
+
             showNotification(
                 context = context,
                 title = title,
                 message = message,
                 channelId = CHANNEL_ID_GENERAL,
+                priority = NotificationCompat.PRIORITY_DEFAULT,
                 enableSound = true,
-                enableVibration = false // Không rung cho thông báo đơn giản
+                enableVibration = false
             )
+
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi hiển thị simple notification", e)
+            false
+        }
+    }
+
+    /**
+     * Hiển thị notification cho savings goal
+     */
+    fun showSavingsNotification(
+        context: Context,
+        goalName: String,
+        progress: Int,
+        remainingDays: Long,
+        remainingAmount: Double
+    ): Boolean {
+        return try {
+            val title = if (remainingDays <= 7) {
+                "⏰ $goalName SẮP ĐẾN HẠN!"
+            } else {
+                "💰 $goalName - Tiến độ: $progress%"
+            }
+
+            val message = if (remainingDays > 0) {
+                """
+                |Còn $remainingDays ngày
+                |Cần thêm: ${formatCurrency(remainingAmount)}
+                |Tiến độ: $progress%
+                """.trimMargin()
+            } else {
+                """
+                |Mục tiêu đã đến hạn!
+                |Cần hoàn thành: ${formatCurrency(remainingAmount)}
+                |Tiến độ: $progress%
+                """.trimMargin()
+            }
+
+            showNotification(
+                context = context,
+                title = title,
+                message = message,
+                channelId = CHANNEL_ID_AI,
+                priority = NotificationCompat.PRIORITY_HIGH,
+                enableSound = true,
+                enableVibration = remainingDays <= 3
+            )
+
+        } catch (e: Exception) {
             false
         }
     }
@@ -417,7 +492,30 @@ object NotificationHelper {
         try {
             NotificationManagerCompat.from(context).cancelAll()
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi xóa notification", e)
+            // Không xử lý exception
+        }
+    }
+
+    /**
+     * Xóa notification theo ID
+     */
+    fun cancelNotification(context: Context, notificationId: Int) {
+        try {
+            NotificationManagerCompat.from(context).cancel(notificationId)
+        } catch (e: Exception) {
+            // Không xử lý exception
+        }
+    }
+
+    /**
+     * Format currency in VND format
+     */
+    private fun formatCurrency(amount: Double): String {
+        return try {
+            val formatter = java.text.NumberFormat.getInstance(java.util.Locale.getDefault())
+            "${formatter.format(amount)}đ"
+        } catch (e: Exception) {
+            "${amount.toInt()}đ"
         }
     }
 
@@ -430,21 +528,8 @@ object NotificationHelper {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
                     as NotificationManager
             val channels = notificationManager.notificationChannels
-
-            Log.d(TAG, "=== NOTIFICATION CHANNELS ===")
-            channels.forEach { channel ->
-                Log.d(TAG,
-                    "Channel: ${channel.id}\n" +
-                            "Name: ${channel.name}\n" +
-                            "Importance: ${channel.importance}\n" +
-                            "Sound: ${channel.sound}\n" +
-                            "Vibration: ${channel.vibrationPattern?.joinToString()}\n" +
-                            "Lights: ${channel.lightColor}"
-                )
-            }
-            Log.d(TAG, "=== END CHANNELS ===")
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khi debug channels", e)
+            // Không xử lý exception
         }
     }
 }

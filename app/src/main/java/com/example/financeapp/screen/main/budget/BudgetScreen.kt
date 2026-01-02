@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.core.graphics.toColorInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
@@ -49,7 +48,7 @@ fun BudgetScreen(
     val budgets by budgetViewModel.budgets.collectAsState()
     val categories by categoryViewModel.categories.collectAsState()
     val budgetExceededEvent by budgetViewModel.budgetExceededEvent.collectAsState()
-    val isLoading = false
+    val isLoading by budgetViewModel.isLoading.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showStatusDialog by remember { mutableStateOf(false) }
@@ -57,12 +56,10 @@ fun BudgetScreen(
     var selectedBudget by remember { mutableStateOf<Budget?>(null) }
     var exceededBudgetInfo by remember { mutableStateOf<Pair<Budget, Double>?>(null) }
 
-    // Load data khi vào màn hình
     LaunchedEffect(Unit) {
         budgetViewModel.startRealTimeUpdates()
     }
 
-    // Xử lý sự kiện vượt quá ngân sách
     LaunchedEffect(budgetExceededEvent) {
         budgetExceededEvent?.let { (budget, exceededAmount) ->
             exceededBudgetInfo = budget to exceededAmount
@@ -119,13 +116,10 @@ fun BudgetScreen(
             onAddClick = {
                 navController.navigate("add_budget")
             },
-            languageViewModel = languageViewModel,
-            budgetViewModel = budgetViewModel,
-            categoryViewModel = categoryViewModel
+            languageViewModel = languageViewModel
         )
     }
 
-    // Dialog xác nhận xóa
     if (showDeleteDialog && selectedBudget != null) {
         SimpleDeleteDialog(
             budget = selectedBudget!!,
@@ -143,7 +137,6 @@ fun BudgetScreen(
         )
     }
 
-    // Dialog thay đổi trạng thái
     if (showStatusDialog && selectedBudget != null) {
         StatusDialog(
             budget = selectedBudget!!,
@@ -161,7 +154,6 @@ fun BudgetScreen(
         )
     }
 
-    // Dialog thông báo vượt quá ngân sách
     if (showBudgetExceededDialog && exceededBudgetInfo != null) {
         BudgetExceededDialog(
             budget = exceededBudgetInfo!!.first,
@@ -188,31 +180,23 @@ fun BudgetExceededDialog(
         .find { it.id == budget.categoryId }
         ?.name ?: languageViewModel.getTranslation("unknown_category")
 
-    Dialog(
-        onDismissRequest = onDismiss
-    ) {
+    Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.White
-            ),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon cảnh báo
                 Box(
                     modifier = Modifier
                         .size(70.dp)
-                        .background(
-                            Color(0xFFFFEBEE),
-                            CircleShape
-                        ),
+                        .background(Color(0xFFFFEBEE), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -225,7 +209,6 @@ fun BudgetExceededDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tiêu đề
                 Text(
                     languageViewModel.getTranslation("budget_exceeded"),
                     fontSize = 20.sp,
@@ -235,7 +218,6 @@ fun BudgetExceededDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Danh mục
                 Text(
                     categoryName,
                     fontSize = 16.sp,
@@ -245,17 +227,12 @@ fun BudgetExceededDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Thông tin chi tiết
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Color(0xFFF8F9FA),
-                            RoundedCornerShape(12.dp)
-                        )
+                        .background(Color(0xFFF8F9FA), RoundedCornerShape(12.dp))
                         .padding(16.dp)
                 ) {
-                    // Ngân sách
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -275,7 +252,6 @@ fun BudgetExceededDialog(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Đã chi
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -286,7 +262,7 @@ fun BudgetExceededDialog(
                             color = Color(0xFF666666)
                         )
                         Text(
-                            formatCurrency(budget.spent),
+                            formatCurrency(budget.spentAmount),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF333333)
@@ -295,7 +271,6 @@ fun BudgetExceededDialog(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Vượt quá
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -315,8 +290,10 @@ fun BudgetExceededDialog(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Progress bar
-                    val percentage = (budget.spent / budget.amount * 100).toInt().coerceIn(0, 100)
+                    val percentage = if (budget.amount > 0) {
+                        ((budget.spentAmount / budget.amount * 100).toInt().coerceIn(0, 100))
+                    } else 0
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -343,12 +320,9 @@ fun BudgetExceededDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Nút OK
                 Button(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF44336)
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
@@ -363,12 +337,8 @@ fun BudgetExceededDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Nút xem chi tiết (nếu cần)
                 TextButton(
-                    onClick = {
-                        // Có thể điều hướng đến trang chi tiết ngân sách
-                        onDismiss()
-                    },
+                    onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
@@ -407,9 +377,7 @@ private fun SimpleTopAppBar(
                 )
             }
         },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = Color.White
-        )
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
     )
 }
 
@@ -423,31 +391,24 @@ private fun BudgetContent(
     onToggleStatus: (Budget) -> Unit,
     onDelete: (Budget) -> Unit,
     onAddClick: () -> Unit,
-    languageViewModel: LanguageViewModel,
-    budgetViewModel: BudgetViewModel,
-    categoryViewModel: CategoryViewModel
+    languageViewModel: LanguageViewModel
 ) {
     Column(modifier = modifier) {
         if (isLoading) {
             LoadingState()
         } else {
-            // Thêm banner cảnh báo nếu có ngân sách vượt quá
-            val exceededBudgets = budgets.filter { it.isOverBudget }
+            val exceededBudgets = budgets.filter { it.isOverBudget && it.isActive }
             if (exceededBudgets.isNotEmpty()) {
                 WarningBanner(
                     exceededBudgets = exceededBudgets,
-                    categories = categories,
-                    languageViewModel = languageViewModel,
-                    budgetViewModel = budgetViewModel,
-                    categoryViewModel = categoryViewModel
+                    languageViewModel = languageViewModel
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
             SimpleStatsCard(
                 budgets = budgets,
-                languageViewModel = languageViewModel,
-                budgetViewModel = budgetViewModel
+                languageViewModel = languageViewModel
             )
             Spacer(modifier = Modifier.height(16.dp))
             BudgetList(
@@ -466,21 +427,16 @@ private fun BudgetContent(
 @Composable
 private fun WarningBanner(
     exceededBudgets: List<Budget>,
-    categories: List<Category>,
-    languageViewModel: LanguageViewModel,
-    budgetViewModel: BudgetViewModel,
-    categoryViewModel: CategoryViewModel
+    languageViewModel: LanguageViewModel
 ) {
-    val totalExceededAmount = budgetViewModel.getTotalExceededAmount()
+    val totalExceededAmount = exceededBudgets.sumOf { it.spentAmount - it.amount }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFEBEE)
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
         border = BorderStroke(1.dp, Color(0xFFF44336).copy(alpha = 0.3f))
     ) {
         Row(
@@ -515,7 +471,6 @@ private fun WarningBanner(
                 )
             }
 
-            // Badge số lượng
             Box(
                 modifier = Modifier
                     .background(Color(0xFFF44336), CircleShape)
@@ -549,22 +504,32 @@ private fun LoadingState() {
 @Composable
 private fun SimpleStatsCard(
     budgets: List<Budget>,
-    languageViewModel: LanguageViewModel,
-    budgetViewModel: BudgetViewModel
+    languageViewModel: LanguageViewModel
 ) {
-    val activeBudgets = budgets.count { it.isActive }
-    val totalBudget = budgetViewModel.getTotalBudgetAmount()
-    val totalSpent = budgetViewModel.getTotalSpentAmount()
-    val exceededBudgets = budgetViewModel.exceededBudgets.value.size
+    val now = java.time.LocalDate.now()
+
+    val activeBudgets = budgets.count {
+        it.isActive && !now.isBefore(it.startDate) && !now.isAfter(it.endDate)
+    }
+
+    val totalBudget = budgets
+        .filter { it.isActive && !now.isBefore(it.startDate) && !now.isAfter(it.endDate) }
+        .sumOf { it.amount }
+
+    val totalSpent = budgets
+        .filter { it.isActive && !now.isBefore(it.startDate) && !now.isAfter(it.endDate) }
+        .sumOf { it.spentAmount }
+
+    val exceededBudgets = budgets.count {
+        it.isActive && it.isOverBudget && !now.isBefore(it.startDate) && !now.isAfter(it.endDate)
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -586,9 +551,7 @@ private fun SimpleStatsCard(
                     )
                 }
 
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
                         "$activeBudgets",
                         fontSize = 20.sp,
@@ -605,7 +568,6 @@ private fun SimpleStatsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Stats row
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
@@ -618,7 +580,7 @@ private fun SimpleStatsCard(
 
                 StatItem(
                     title = languageViewModel.getTranslation("remaining"),
-                    value = formatCurrency(totalBudget - totalSpent),
+                    value = formatCurrency((totalBudget - totalSpent).coerceAtLeast(0.0)),
                     color = Color(0xFF4CAF50)
                 )
 
@@ -631,7 +593,6 @@ private fun SimpleStatsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Progress bar
             if (totalBudget > 0) {
                 val progress = (totalSpent / totalBudget).toFloat().coerceIn(0f, 1f)
 
@@ -684,9 +645,7 @@ private fun StatItem(
     value: String,
     color: Color
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             value,
             fontSize = 16.sp,
@@ -711,11 +670,9 @@ private fun BudgetList(
     onAddClick: () -> Unit,
     languageViewModel: LanguageViewModel
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 16.dp)) {
         if (budgets.isEmpty()) {
             EmptyBudgetState(
                 onAddClick = onAddClick,
@@ -726,9 +683,8 @@ private fun BudgetList(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Hiển thị ngân sách vượt quá trước
-                val exceededBudgets = budgets.filter { it.isOverBudget }
-                val normalBudgets = budgets.filterNot { it.isOverBudget }
+                val exceededBudgets = budgets.filter { it.isOverBudget && it.isActive }
+                val normalBudgets = budgets.filterNot { it.isOverBudget && it.isActive }
 
                 if (exceededBudgets.isNotEmpty()) {
                     item {
@@ -807,7 +763,7 @@ private fun SimpleBudgetCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Có thể thêm navigation chi tiết */ },
+            .clickable { },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isExceeded) Color(0xFFFFF8E1) else Color.White
@@ -816,7 +772,6 @@ private fun SimpleBudgetCard(
         border = if (isExceeded) BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.3f)) else null
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header với danh mục và menu
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = CenterVertically,
@@ -824,7 +779,6 @@ private fun SimpleBudgetCard(
             ) {
                 Column {
                     Row(verticalAlignment = CenterVertically) {
-                        // Icon danh mục
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -850,9 +804,7 @@ private fun SimpleBudgetCard(
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (isExceeded) Color(0xFFF44336) else Color(0xFF333333)
                             )
-                            Row(
-                                verticalAlignment = CenterVertically
-                            ) {
+                            Row(verticalAlignment = CenterVertically) {
                                 Text(
                                     "${budget.startDate.format(formatter)}",
                                     fontSize = 12.sp,
@@ -895,11 +847,8 @@ private fun SimpleBudgetCard(
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        modifier = Modifier
-                            .width(180.dp)
-                            .background(Color.White)
+                        modifier = Modifier.width(180.dp)
                     ) {
-                        // Chỉnh sửa
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -916,8 +865,7 @@ private fun SimpleBudgetCard(
                                     Text(
                                         languageViewModel.getTranslation("edit"),
                                         color = Color(0xFF333333),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Normal
+                                        fontSize = 14.sp
                                     )
                                 }
                             },
@@ -934,7 +882,6 @@ private fun SimpleBudgetCard(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        // Tạm dừng / Kích hoạt
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -952,8 +899,7 @@ private fun SimpleBudgetCard(
                                         if (budget.isActive) languageViewModel.getTranslation("pause")
                                         else languageViewModel.getTranslation("activate"),
                                         color = Color(0xFF333333),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Normal
+                                        fontSize = 14.sp
                                     )
                                 }
                             },
@@ -970,7 +916,6 @@ private fun SimpleBudgetCard(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        // Xóa
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -987,8 +932,7 @@ private fun SimpleBudgetCard(
                                     Text(
                                         languageViewModel.getTranslation("delete"),
                                         color = Color(0xFFF44336),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Normal
+                                        fontSize = 14.sp
                                     )
                                 }
                             },
@@ -1004,7 +948,6 @@ private fun SimpleBudgetCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Thông tin số tiền
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = CenterVertically,
@@ -1038,7 +981,7 @@ private fun SimpleBudgetCard(
                     )
                     if (isExceeded) {
                         Text(
-                            "${languageViewModel.getTranslation("exceeded")} ${formatCurrency(budget.spent - budget.amount)}",
+                            "${languageViewModel.getTranslation("exceeded")} ${formatCurrency(budget.spentAmount - budget.amount)}",
                             fontSize = 11.sp,
                             color = Color(0xFFF44336),
                             fontWeight = FontWeight.Medium
@@ -1049,7 +992,6 @@ private fun SimpleBudgetCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Progress bar
             val progressColor = when {
                 !budget.isActive -> Color(0xFF999999)
                 isExceeded -> Color(0xFFF44336)
@@ -1071,7 +1013,6 @@ private fun SimpleBudgetCard(
                 )
             }
 
-            // Ghi chú (nếu có)
             budget.note?.takeIf { it.isNotBlank() }?.let { note ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
@@ -1155,9 +1096,7 @@ private fun SimpleDeleteDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
-                onClick = onConfirm
-            ) {
+            TextButton(onClick = onConfirm) {
                 Text(
                     languageViewModel.getTranslation("delete").uppercase(),
                     color = Color(0xFFF44336),
@@ -1166,9 +1105,7 @@ private fun SimpleDeleteDialog(
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
+            TextButton(onClick = onDismiss) {
                 Text(
                     languageViewModel.getTranslation("cancel").uppercase(),
                     color = Color(0xFF666666),
@@ -1201,9 +1138,7 @@ private fun SimpleDeleteDialog(
             )
         },
         text = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     "${languageViewModel.getTranslation("confirm_delete_budget")} \"$categoryName\"?",
                     fontSize = 14.sp,
@@ -1238,9 +1173,7 @@ private fun StatusDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
-                onClick = onToggle
-            ) {
+            TextButton(onClick = onToggle) {
                 Text(
                     actionText.uppercase(),
                     color = Color(0xFF2196F3),
@@ -1249,9 +1182,7 @@ private fun StatusDialog(
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
+            TextButton(onClick = onDismiss) {
                 Text(
                     languageViewModel.getTranslation("cancel").uppercase(),
                     color = Color(0xFF666666),
@@ -1296,11 +1227,10 @@ private fun StatusDialog(
     )
 }
 
-@Composable
 private fun parseColor(colorString: String): Color {
+    val hex = if (colorString.startsWith("#")) colorString else "#$colorString"
     return try {
-        val color = colorString.toColorInt()
-        Color(color)
+        Color(android.graphics.Color.parseColor(hex))
     } catch (e: Exception) {
         Color(0xFF2196F3)
     }

@@ -30,6 +30,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.utils.notification.NotificationHelper
+import com.example.financeapp.viewmodel.savings.SavingsViewModel
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import kotlinx.coroutines.launch
 
@@ -40,7 +41,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     navController: NavController,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    savingsViewModel: SavingsViewModel
 ) {
     // ==================== INITIALIZATION ====================
     val languageViewModel = LocalLanguageViewModel.current

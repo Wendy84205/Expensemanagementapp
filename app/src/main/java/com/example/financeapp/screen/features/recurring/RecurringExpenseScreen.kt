@@ -46,7 +46,6 @@ fun RecurringExpenseScreen(
     val recurringExpenses by recurringExpenseViewModel.recurringExpenses.collectAsState()
     val isLoading by recurringExpenseViewModel.isLoading.collectAsState()
 
-    // Colors
     val primaryColor = Color(0xFF2196F3)
     val backgroundColor = Color(0xFFF5F5F5)
     val cardColor = Color.White
@@ -125,7 +124,6 @@ fun RecurringExpenseScreen(
         }
     }
 
-    // Dialog xác nhận xóa
     if (showDeleteDialog && selectedExpense != null) {
         SimpleDeleteDialog(
             expense = selectedExpense!!,
@@ -142,7 +140,6 @@ fun RecurringExpenseScreen(
         )
     }
 
-    // Dialog thay đổi trạng thái
     if (showStatusDialog && selectedExpense != null) {
         StatusDialog(
             expense = selectedExpense!!,
@@ -265,7 +262,6 @@ private fun SimpleStatsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Chi hàng tháng
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = CenterVertically,
@@ -351,15 +347,38 @@ private fun SimpleExpenseCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
-    // Format next occurrence
+    // Format next occurrence từ internal format sang UI format (ĐÃ FIX)
     val nextDate = try {
-        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        val date = sdf.parse(expense.nextOccurrence)
-        val outputFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
-        outputFormat.format(date ?: Date())
+        RecurringExpense.formatDateForUI(expense.nextOccurrence)
     } catch (e: Exception) {
-        expense.nextOccurrence
+        expense.nextOccurrence // Fallback
     }
+
+    // Format ngày đẹp hơn
+    val formattedNextDate = try {
+        val sdf = SimpleDateFormat("dd/MM", Locale.getDefault())
+        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            .parse(expense.nextOccurrence)
+        date?.let { sdf.format(it) } ?: nextDate
+    } catch (e: Exception) {
+        nextDate
+    }
+
+    // Format start date
+    val startDate = try {
+        RecurringExpense.formatDateForUI(expense.startDate)
+    } catch (e: Exception) {
+        expense.startDate
+    }
+
+    // Format end date nếu có
+    val endDateText = expense.endDate?.let {
+        try {
+            " - ${RecurringExpense.formatDateForUI(it)}"
+        } catch (e: Exception) {
+            ""
+        }
+    } ?: ""
 
     Card(
         modifier = Modifier
@@ -372,14 +391,12 @@ private fun SimpleExpenseCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header với danh mục và menu
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = CenterVertically) {
-                    // Icon danh mục
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -429,7 +446,6 @@ private fun SimpleExpenseCard(
                             .width(180.dp)
                             .background(Color.White)
                     ) {
-                        // Chỉnh sửa
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -464,7 +480,6 @@ private fun SimpleExpenseCard(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        // Tạm dừng / Kích hoạt
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -500,7 +515,6 @@ private fun SimpleExpenseCard(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        // Xóa
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -534,7 +548,6 @@ private fun SimpleExpenseCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Thông tin số tiền và tần suất
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = CenterVertically,
@@ -548,7 +561,6 @@ private fun SimpleExpenseCard(
                         color = Color(0xFF333333)
                     )
                     Text(
-                        // Dùng getFrequencyDisplayName với languageViewModel
                         getFrequencyDisplayName(expense.getFrequencyEnum(), languageViewModel),
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
@@ -559,7 +571,7 @@ private fun SimpleExpenseCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        "${languageViewModel.getTranslation("next")}: $nextDate",
+                        "${languageViewModel.getTranslation("next")}: $formattedNextDate",
                         fontSize = 12.sp,
                         color = Color(0xFF666666)
                     )
@@ -571,7 +583,32 @@ private fun SimpleExpenseCard(
                 }
             }
 
-            // Status indicator
+            // Thêm thông tin ngày bắt đầu và kết thúc
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "${languageViewModel.getTranslation("period")}: $startDate$endDateText",
+                    fontSize = 11.sp,
+                    color = Color(0xFF888888)
+                )
+
+                if (expense.lastGenerated != null) {
+                    val lastGen = try {
+                        RecurringExpense.formatDateForUI(expense.lastGenerated)
+                    } catch (e: Exception) {
+                        expense.lastGenerated
+                    }
+                    Text(
+                        "${languageViewModel.getTranslation("last")}: $lastGen",
+                        fontSize = 11.sp,
+                        color = Color(0xFF888888)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             Box(
                 modifier = Modifier
@@ -594,7 +631,6 @@ private fun SimpleExpenseCard(
                 )
             }
 
-            // Ghi chú (nếu có)
             expense.description?.takeIf { it.isNotBlank() }?.let { note ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
@@ -817,7 +853,6 @@ private fun StatusDialog(
     )
 }
 
-// Helper function để lấy tên tần suất đa ngôn ngữ
 private fun getFrequencyDisplayName(frequency: RecurringFrequency, languageViewModel: LanguageViewModel): String {
     return when (frequency) {
         RecurringFrequency.DAILY -> languageViewModel.getTranslation("daily")

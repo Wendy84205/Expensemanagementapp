@@ -67,6 +67,7 @@ dependencies {
     implementation(libs.androidx.compose.testing)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.foundation)
+    implementation(libs.androidx.compose.animation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -75,26 +76,25 @@ dependencies {
     implementation("androidx.compose.material3:material3-window-size-class:1.3.0")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
 
-    // ✅ Thêm Compose BOM để đồng bộ version
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
 
-    // ✅ Thêm Compose UI + Material3 + Activity Compose + Navigation
+
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    // ✅ Preview/debug (tuỳ chọn)
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.compose.ui:ui-tooling-preview")
 
-    // 🔹 Compose UI / Material / Foundation
+
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.runtime:runtime")
     implementation("androidx.compose.ui:ui:1.6.0")
 
-    // 🔹 Activity Compose (bắt buộc cho setContent { })
+    // 🔹 Activity Compose
     implementation("androidx.activity:activity-compose:1.9.0")
 
     // 🔹 Navigation Compose
@@ -115,7 +115,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Các dependencies khác giữ nguyên...
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("androidx.core:core-ktx:1.12.0")
@@ -163,8 +162,8 @@ dependencies {
     ksp("com.google.dagger:hilt-compiler:2.48")
 
     // Accompanist for permissions
-    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
-
-    // Accompanist for permissions
     implementation ("com.google.accompanist:accompanist-permissions:0.32.0")
+
+    implementation("com.google.firebase:firebase-messaging:23.0.0")
+    implementation("com.google.firebase:firebase-analytics:21.0.0")
 }

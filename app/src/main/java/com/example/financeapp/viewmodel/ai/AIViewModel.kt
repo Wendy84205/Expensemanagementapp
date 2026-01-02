@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financeapp.data.models.Budget
 import com.example.financeapp.data.models.BudgetPeriodType
 import com.example.financeapp.BuildConfig
@@ -18,15 +19,20 @@ import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.random.Random
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.math.sqrt
 
 // ==================== DATA CLASSES ====================
@@ -165,7 +171,7 @@ data class RealTimeData(
  * Enum cho trạng thái AI
  */
 enum class AIState {
-    IDLE, PROCESSING, ERROR
+    IDLE, PROCESSING, ERROR, LEARNING
 }
 
 // ==================== AI COMMANDS ====================
@@ -264,9 +270,23 @@ sealed class AICommand {
         val income: Double? = null
     ) : AICommand()
 
+    data class GetCategoryInsights(
+        val category: String,
+        val period: String = "month"
+    ) : AICommand()
+
+    data class GenerateReport(
+        val period: String,
+        val reportType: String = "summary"
+    ) : AICommand()
+
     object GetFinancialHealthScore : AICommand()
     object ShowSummary : AICommand()
     object GetQuickTips : AICommand()
+    object GetMonthlyOverview : AICommand()
+    object GetWeeklyReport : AICommand()
+    object GetSavingsAdvice : AICommand()
+    object GetInvestmentTips : AICommand()
     object UnknownCommand : AICommand()
 }
 
@@ -314,6 +334,18 @@ class NaturalLanguageParser(
             containsAny(lowerMessage, listOf("mẹo", "tip", "advice", "khuyên", "gợi ý")) -> {
                 Log.d(TAG, "Nhận diện: QUICK TIPS")
                 AICommand.GetQuickTips
+            }
+            containsAny(lowerMessage, listOf("báo cáo", "report", "báo cáo tuần", "weekly")) -> {
+                Log.d(TAG, "Nhận diện: WEEKLY REPORT")
+                AICommand.GetWeeklyReport
+            }
+            containsAny(lowerMessage, listOf("tiết kiệm", "savings", "tiết kiệm tiền")) -> {
+                Log.d(TAG, "Nhận diện: SAVINGS ADVICE")
+                AICommand.GetSavingsAdvice
+            }
+            containsAny(lowerMessage, listOf("đầu tư", "investment", "đầu tư tiền")) -> {
+                Log.d(TAG, "Nhận diện: INVESTMENT TIPS")
+                AICommand.GetInvestmentTips
             }
             else -> {
                 Log.d(TAG, "Nhận diện: UNKNOWN COMMAND")
@@ -605,6 +637,9 @@ class AICommandExecutor(
                 is AICommand.AnalyzeSpendingTrend -> analyzeSpendingTrend(command)
                 is AICommand.ShowSummary -> showSummary()
                 is AICommand.GetQuickTips -> getQuickTips()
+                is AICommand.GetWeeklyReport -> getWeeklyReport()
+                is AICommand.GetSavingsAdvice -> getSavingsAdvice()
+                is AICommand.GetInvestmentTips -> getInvestmentTips()
                 else -> AICommandResult(false, "Tính năng đang phát triển: ${command::class.simpleName}")
             }
         } catch (e: Exception) {
@@ -1583,6 +1618,196 @@ class AICommandExecutor(
         }
     }
 
+    /**
+     * Lấy báo cáo tuần
+     */
+    private suspend fun getWeeklyReport(): AICommandResult {
+        return try {
+            Log.d(TAG, "Lấy báo cáo tuần")
+
+            val weekTransactions = getTransactionsForPeriod("week")
+            val lastWeekTransactions = getTransactionsForPeriod("previous_week")
+
+            val weekIncome = weekTransactions.filter { it.isIncome }.sumOf { it.amount }
+            val weekExpense = weekTransactions.filter { !it.isIncome }.sumOf { it.amount }
+            val weekBalance = weekIncome - weekExpense
+
+            val lastWeekIncome = lastWeekTransactions.filter { it.isIncome }.sumOf { it.amount }
+            val lastWeekExpense = lastWeekTransactions.filter { !it.isIncome }.sumOf { it.amount }
+
+            val incomeChange = if (lastWeekIncome > 0) ((weekIncome - lastWeekIncome) / lastWeekIncome * 100) else 0.0
+            val expenseChange = if (lastWeekExpense > 0) ((weekExpense - lastWeekExpense) / lastWeekExpense * 100) else 0.0
+
+            val topCategories = weekTransactions
+                .filter { !it.isIncome }
+                .groupBy { it.category }
+                .mapValues { (_, trans) -> trans.sumOf { it.amount } }
+                .toList()
+                .sortedByDescending { it.second }
+                .take(5)
+
+            val message = """
+            BÁO CÁO TUẦN
+            --------------------
+            
+            TỔNG QUAN:
+            • Thu nhập: ${formatCurrency(weekIncome)} ${getChangeSymbol(incomeChange)}${"%.1f".format(abs(incomeChange))}%
+            • Chi tiêu: ${formatCurrency(weekExpense)} ${getChangeSymbol(expenseChange)}${"%.1f".format(abs(expenseChange))}%
+            • Số dư: ${formatCurrency(weekBalance)}
+            • Số giao dịch: ${weekTransactions.size}
+            
+            ${if (topCategories.isNotEmpty()) {
+                "TOP CHI TIÊU:\n" + topCategories.joinToString("\n") {
+                        (cat, amount) -> "• $cat: ${formatCurrency(amount)}"
+                }
+            } else ""}
+            
+            ĐÁNH GIÁ:
+            ${getWeeklyAssessment(weekBalance, weekExpense, weekIncome)}
+            
+            MỤC TIÊU TUẦN TỚI:
+            ${getWeeklyGoals(weekExpense, weekIncome)}
+        """.trimIndent()
+
+            AICommandResult(success = true, message = message)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy báo cáo tuần: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy báo cáo tuần: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy lời khuyên tiết kiệm
+     */
+    private suspend fun getSavingsAdvice(): AICommandResult {
+        return try {
+            Log.d(TAG, "Lấy lời khuyên tiết kiệm")
+
+            val totalIncome = transactionViewModel.getTotalIncome()
+            val totalExpense = transactionViewModel.getTotalExpense()
+            val savingsRate = if (totalIncome > 0) ((totalIncome - totalExpense) / totalIncome * 100) else 0.0
+
+            val advice = mutableListOf<String>()
+
+            if (savingsRate < 10) {
+                advice.add("Hãy tiết kiệm ít nhất 10-15% thu nhập mỗi tháng")
+                advice.add("Xem xét cắt giảm chi tiêu không cần thiết")
+                advice.add("Tạo quỹ khẩn cấp với 3-6 tháng chi phí sinh hoạt")
+            } else if (savingsRate < 20) {
+                advice.add("Tuyệt vời! Bạn đang tiết kiệm tốt. Mục tiêu tiếp theo là 20%")
+                advice.add("Xem xét đầu tư một phần tiết kiệm để sinh lời")
+                advice.add("Đa dạng hóa các kênh tiết kiệm")
+            } else {
+                advice.add("Xuất sắc! Bạn là người quản lý tài chính rất giỏi")
+                advice.add("Cân nhắc đầu tư dài hạn để tăng trưởng tài sản")
+                advice.add("Lập kế hoạch tài chính cho các mục tiêu lớn")
+            }
+
+            // Thêm các mẹo chung
+            advice.addAll(listOf(
+                "Tự động hóa chuyển tiền tiết kiệm mỗi tháng",
+                "Đặt mục tiêu tiết kiệm cụ thể và theo dõi tiến độ",
+                "So sánh lãi suất tiết kiệm giữa các ngân hàng",
+                "Tận dụng các chương trình khuyến mãi tiết kiệm"
+            ))
+
+            val personalizedAdvice = advice.take(5)
+
+            val message = """
+            LỜI KHUYÊN TIẾT KIỆM
+            
+            TÌNH HÌNH HIỆN TẠI:
+            • Tỷ lệ tiết kiệm: ${"%.1f".format(savingsRate)}%
+            • Thu nhập: ${formatCurrency(totalIncome)}
+            • Chi tiêu: ${formatCurrency(totalExpense)}
+            
+            KHUYẾN NGHỊ CÁ NHÂN HÓA:
+            ${personalizedAdvice.joinToString("\n") { "• $it" }}
+            
+            MẸO TIẾT KIỆM THÔNG MINH:
+            • Áp dụng quy tắc 24 giờ trước khi mua sắm lớn
+            • Sử dụng ứng dụng so sánh giá
+            • Tận dụng các chương trình giảm giá, khuyến mãi
+            • Học cách sửa chữa thay vì mua mới
+        """.trimIndent()
+
+            AICommandResult(success = true, message = message)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy lời khuyên tiết kiệm: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy lời khuyên tiết kiệm: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy mẹo đầu tư
+     */
+    private suspend fun getInvestmentTips(): AICommandResult {
+        return try {
+            Log.d(TAG, "Lấy mẹo đầu tư")
+
+            val totalIncome = transactionViewModel.getTotalIncome()
+            val totalExpense = transactionViewModel.getTotalExpense()
+            val savings = totalIncome - totalExpense
+
+            val tips = mutableListOf<String>()
+
+            if (savings < 1000000) {
+                tips.add("Tập trung tích lũy vốn trước khi đầu tư")
+                tips.add("Bắt đầu với các kênh an toàn như tiết kiệm ngân hàng")
+                tips.add("Đặt mục tiêu tiết kiệm ít nhất 10 triệu trước khi đầu tư")
+            } else if (savings < 5000000) {
+                tips.add("Cân nhắc đầu tư trái phiếu chính phủ")
+                tips.add("Tìm hiểu về quỹ mở với mức đầu tư thấp")
+                tips.add("Đa dạng hóa rủi ro bằng cách chia nhỏ vốn đầu tư")
+            } else {
+                tips.add("Cân bằng danh mục đầu tư giữa cổ phiếu, trái phiếu và bất động sản")
+                tips.add("Xem xét đầu tư dài hạn vào các công ty tiềm năng")
+                tips.add("Tham khảo ý kiến chuyên gia tài chính")
+            }
+
+            // Thêm nguyên tắc đầu tư cơ bản
+            val basicPrinciples = listOf(
+                "Không bỏ tất cả trứng vào một giỏ - đa dạng hóa đầu tư",
+                "Đầu tư dài hạn thường an toàn hơn đầu tư ngắn hạn",
+                "Chỉ đầu tư số tiền bạn có thể chấp nhận mất",
+                "Nghiên cứu kỹ trước khi đầu tư vào bất kỳ kênh nào",
+                "Theo dõi và đánh giá hiệu quả đầu tư định kỳ"
+            )
+
+            tips.addAll(basicPrinciples)
+
+            val message = """
+            MẸO ĐẦU TƯ THÔNG MINH
+            
+            TÌNH HÌNH TÀI CHÍNH:
+            • Tiền tiết kiệm có thể đầu tư: ${formatCurrency(savings)}
+            • Thu nhập hàng tháng: ${formatCurrency(totalIncome)}
+            
+            KHUYẾN NGHỊ PHÙ HỢP:
+            ${tips.take(6).joinToString("\n") { "• $it" }}
+            
+            NGUYÊN TẮC VÀNG:
+            • Luôn có kế hoạch đầu tư rõ ràng
+            • Kiểm soát cảm xúc khi thị trường biến động
+            • Tái đầu tư lợi nhuận để tăng trưởng vốn
+            • Cập nhật kiến thức tài chính thường xuyên
+            
+            LƯU Ý QUAN TRỌNG:
+            • Đầu tư luôn đi kèm rủi ro
+            • Hiệu quả trong quá khứ không đảm bảo tương lai
+            • Tham khảo ý kiến chuyên gia trước khi quyết định lớn
+        """.trimIndent()
+
+            AICommandResult(success = true, message = message)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy mẹo đầu tư: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy mẹo đầu tư: ${e.message}")
+        }
+    }
+
     // ==================== CÁC PHƯƠNG THỨC HỖ TRỢ ====================
 
     /**
@@ -1710,9 +1935,9 @@ class AICommandExecutor(
      */
     private fun getChangeSymbol(change: Double): String {
         return when {
-            change > 0 -> "tăng"
-            change < 0 -> "giảm"
-            else -> "không đổi"
+            change > 0 -> "↑"
+            change < 0 -> "↓"
+            else -> "→"
         }
     }
 
@@ -1728,6 +1953,38 @@ class AICommandExecutor(
             balanceChange < 0 -> "Số dư giảm, cần xem xét"
             else -> "Tình hình ổn định"
         }
+    }
+
+    /**
+     * Lấy đánh giá tuần
+     */
+    private fun getWeeklyAssessment(balance: Double, expense: Double, income: Double): String {
+        return when {
+            balance > 0 && expense < income * 0.7 -> "TUYỆT VỜI! Bạn đang quản lý chi tiêu rất tốt và có tiết kiệm"
+            balance > 0 && expense < income * 0.9 -> "TỐT! Bạn đang sống trong khả năng tài chính"
+            balance < 0 && expense > income -> "CẢNH BÁO! Chi tiêu vượt thu nhập, cần điều chỉnh ngay"
+            else -> "ỔN ĐỊNH! Tài chính đang trong tầm kiểm soát"
+        }
+    }
+
+    /**
+     * Lấy mục tiêu tuần tới
+     */
+    private fun getWeeklyGoals(expense: Double, income: Double): String {
+        val suggestions = mutableListOf<String>()
+
+        if (expense > income * 0.8) {
+            suggestions.add("Giảm chi tiêu xuống dưới 80% thu nhập")
+            suggestions.add("Cắt giảm ít nhất 1 danh mục chi tiêu không cần thiết")
+        }
+
+        suggestions.addAll(listOf(
+            "Theo dõi chi tiêu hàng ngày",
+            "Đặt ngân sách cho từng danh mục cụ thể",
+            "Tiết kiệm ít nhất 10% thu nhập"
+        ))
+
+        return suggestions.joinToString("\n") { "• $it" }
     }
 
     /**
@@ -1933,7 +2190,19 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
 
     // Flow cho dữ liệu real-time
     private val _realTimeData = MutableStateFlow<RealTimeData>(RealTimeData())
-    val realTimeData: StateFlow<RealTimeData> = _realTimeData
+    val realTimeData: StateFlow<RealTimeData> = _realTimeData.asStateFlow()
+
+    // Flow cho messages
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    // Flow cho AI state
+    private val _aiState = MutableStateFlow(AIState.IDLE)
+    val aiState: StateFlow<AIState> = _aiState.asStateFlow()
+
+    // State
+    val isAITyping = mutableStateOf(false)
+    val lastError = mutableStateOf<String?>(null)
 
     private val transactionViewModel: TransactionViewModel by lazy {
         (application as FinanceApp).transactionViewModel
@@ -1951,20 +2220,10 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
         (application as FinanceApp).recurringExpenseViewModel
     }
 
-    private val _messages = mutableStateListOf<ChatMessage>()
-    val messages: List<ChatMessage> get() = _messages
-
-    private val _aiState = MutableStateFlow(AIState.IDLE)
-    val aiState: StateFlow<AIState> = _aiState
-
-
-    val isAITyping = mutableStateOf(false)
-    val lastError = mutableStateOf<String?>(null)
-
     private val generativeModel: GenerativeModel by lazy {
         try {
             GenerativeModel(
-                modelName = "gemini-2.0-flash",
+                modelName = "gemini-2.5-flash",
                 apiKey = BuildConfig.GEMINI_API_KEY
             )
         } catch (e: Exception) {
@@ -2007,6 +2266,9 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sentEvents = mutableSetOf<String>()
     private val eventCooldowns = mutableMapOf<String, Long>()
+
+    // Coroutine scope riêng để quản lý lifecycle
+    private val aiCoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     init {
         Log.d(TAG, "AIViewModel khởi tạo với hệ thống học hỏi thông minh")
@@ -2263,7 +2525,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun calculateRealTimeEngagement(): Int {
         val now = System.currentTimeMillis()
-        val lastHourActivity = _messages.count { now - it.timestamp < 60 * 60 * 1000 }
+        val lastHourActivity = _messages.value.count { now - it.timestamp < 60 * 60 * 1000 }
 
         return when {
             lastHourActivity > 10 -> 10
@@ -2369,8 +2631,8 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             return false
         }
 
-        if (_messages.size <= 1) {
-            Log.d(TAG, "Chưa đủ tin nhắn: ${_messages.size}")
+        if (_messages.value.size <= 1) {
+            Log.d(TAG, "Chưa đủ tin nhắn: ${_messages.value.size}")
             return false
         }
 
@@ -2385,7 +2647,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             return false
         }
 
-        val lastMessage = _messages.lastOrNull()
+        val lastMessage = _messages.value.lastOrNull()
         if (lastMessage != null && !lastMessage.isUser && lastMessage.isProactive) {
             Log.d(TAG, "Tin nhắn cuối đã là proactive")
             return false
@@ -2648,8 +2910,9 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
         currentJob?.cancel()
         brainJob?.cancel()
         dataMonitoringJob?.cancel()
+        aiCoroutineScope.cancel()
 
-        _messages.clear()
+        _messages.update { emptyList() }
         conversationHistory.clear()
         lastError.value = null
         financialInsightsCache.clear()
@@ -2663,7 +2926,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
     fun debugStatus(): String {
         return """
             AI STATUS:
-            • Messages: ${_messages.size}
+            • Messages: ${_messages.value.size}
             • Real-time data: ${_realTimeData.value}
             • Last proactive: ${(System.currentTimeMillis() - lastProactiveMessageTime)/1000}s ago
             • User activity: ${(System.currentTimeMillis() - lastUserActivityTime)/1000}s ago
@@ -2711,7 +2974,11 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             isUser = true,
             timestamp = System.currentTimeMillis()
         )
-        _messages.add(userMessage)
+
+        _messages.update { currentMessages ->
+            currentMessages + userMessage
+        }
+
         conversationHistory.add("Người dùng: $text")
 
         if (conversationHistory.size > MAX_CONVERSATION_HISTORY) {
@@ -2781,6 +3048,21 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         is AICommand.GetFinancialHealthScore -> {
                             Log.d(TAG, "Xử lý GetFinancialHealthScore command")
+                            val result = commandExecutor.executeCommand(command)
+                            handleCommandResult(result, userText)
+                        }
+                        is AICommand.GetWeeklyReport -> {
+                            Log.d(TAG, "Xử lý GetWeeklyReport command")
+                            val result = commandExecutor.executeCommand(command)
+                            handleCommandResult(result, userText)
+                        }
+                        is AICommand.GetSavingsAdvice -> {
+                            Log.d(TAG, "Xử lý GetSavingsAdvice command")
+                            val result = commandExecutor.executeCommand(command)
+                            handleCommandResult(result, userText)
+                        }
+                        is AICommand.GetInvestmentTips -> {
+                            Log.d(TAG, "Xử lý GetInvestmentTips command")
                             val result = commandExecutor.executeCommand(command)
                             handleCommandResult(result, userText)
                         }
@@ -2922,7 +3204,10 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             "phân tích", "analytics", "thống kê", "xem", "tổng quan", "summary",
             "xem giao dịch", "xem giao dich", "liệt kê", "liet ke",
             "ngân sách", "ngan sach", "budget", "đặt ngân sách", "dat ngan sach", "set budget",
-            "điểm sức khỏe", "diem suc khoe", "health score", "financial health"
+            "điểm sức khỏe", "diem suc khoe", "health score", "financial health",
+            "báo cáo", "report", "báo cáo tuần", "weekly",
+            "tiết kiệm", "savings", "tiết kiệm tiền",
+            "đầu tư", "investment", "đầu tư tiền"
         )
 
         val questionKeywords = listOf(
@@ -2959,12 +3244,13 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      * Khởi tạo chat AI
      */
     private fun initializeAIChat() {
-        _messages.clear()
+        _messages.update { emptyList() }
         conversationHistory.clear()
 
-        _messages.add(
-            ChatMessage(
-                text = """
+        _messages.update {
+            listOf(
+                ChatMessage(
+                    text = """
                 WENDY AI - TRỢ LÝ TÀI CHÍNH THÔNG MINH
                 
                 Chào bạn! Tôi là WendyAI, trợ lý tài chính thông minh của bạn. 
@@ -2978,10 +3264,11 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
                 
                 Hãy thử nói: "Thêm chi tiêu 50k cho ăn uống" hoặc "Xem giao dịch hôm nay"
                 """.trimIndent(),
-                isUser = false,
-                timestamp = System.currentTimeMillis()
+                    isUser = false,
+                    timestamp = System.currentTimeMillis()
+                )
             )
-        )
+        }
     }
 
     /**
@@ -2990,10 +3277,12 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
     fun clearChat() {
         currentJob?.cancel()
         brainJob?.cancel()
-        _messages.clear()
+
+        _messages.update { emptyList() }
         conversationHistory.clear()
         lastError.value = null
         financialInsightsCache.clear()
+
         initializeAIChat()
 
         viewModelScope.launch {
@@ -3017,13 +3306,14 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      * Xử lý phản hồi AI
      */
     private fun handleAIResponse(response: String) {
-        _messages.add(
-            ChatMessage(
+        _messages.update { currentMessages ->
+            currentMessages + ChatMessage(
                 text = response,
                 isUser = false,
                 timestamp = System.currentTimeMillis()
             )
-        )
+        }
+
         conversationHistory.add("AI: $response")
     }
 
@@ -3071,6 +3361,61 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
         pushProactiveMessage("Tôi đang suy nghĩ về câu hỏi trước của bạn... Đợi xíu nhé!")
     }
 
+    /**
+     * Đẩy tin nhắn proactive
+     */
+    private fun pushProactiveMessage(text: String) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Đang đẩy tin nhắn: ${text.take(50)}...")
+
+                if (_aiState.value == AIState.PROCESSING) {
+                    Log.w(TAG, "Bỏ qua vì AI đang xử lý")
+                    return@launch
+                }
+
+                val message = ChatMessage(
+                    text = text,
+                    isUser = false,
+                    timestamp = System.currentTimeMillis(),
+                    isProactive = true
+                )
+
+                _messages.update { currentMessages ->
+                    currentMessages + message
+                }
+
+                lastProactiveMessageTime = System.currentTimeMillis()
+
+                Log.d(TAG, "Đã thêm tin nhắn chủ động vào danh sách")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Lỗi pushProactiveMessage: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Kích hoạt tin nhắn proactive từ sự kiện
+     */
+    fun triggerProactiveMessage(trigger: String) {
+        viewModelScope.launch {
+            Log.d(TAG, "Trigger proactive message: $trigger")
+
+            val message = when (trigger) {
+                "new_transaction" -> "Bạn vừa thêm giao dịch mới. Muốn xem tổng quan không?"
+                "budget_warning" -> "Có ngân sách sắp vượt. Cần kiểm tra ngay!"
+                "low_balance" -> "Số dư đang thấp. Hãy cẩn thận chi tiêu!"
+                "weekend" -> "Cuối tuần rồi! Đã lên kế hoạch chi tiêu chưa?"
+                else -> null
+            }
+
+            if (message != null && shouldSendProactiveMessage(Long.MAX_VALUE)) {
+                pushProactiveMessage(message)
+            }
+        }
+    }
+
     // ==================== CÁC PHƯƠNG THỨC HỖ TRỢ ====================
 
     /**
@@ -3091,15 +3436,16 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      */
     private suspend fun loadInitialInsights() {
         delay(1000)
-        if (messages.size == 1) {
+        if (_messages.value.size == 1) {
             val quickTips = getQuickFinancialTips().random()
-            _messages.add(
-                ChatMessage(
+
+            _messages.update { currentMessages ->
+                currentMessages + ChatMessage(
                     text = "Mẹo nhanh: $quickTips\n\nHãy thử nhập: 'Thêm chi tiêu 50k cho ăn uống' hoặc 'Xem giao dịch hôm nay'",
                     isUser = false,
                     timestamp = System.currentTimeMillis()
                 )
-            )
+            }
         }
     }
 
@@ -3119,7 +3465,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             val currentTime = Calendar.getInstance()
             val currentHour = currentTime.get(Calendar.HOUR_OF_DAY)
             val currentDay = currentTime.get(Calendar.DAY_OF_WEEK)
-            val recentMessages = _messages.takeLast(10)
+            val recentMessages = _messages.value.takeLast(10)
 
             val lastUserMessage = recentMessages.findLast { it.isUser }?.text?.lowercase() ?: ""
 
@@ -3281,58 +3627,6 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             if (!hasSentEventToday("weekend_review_$today")) {
                 pushProactiveMessage("Chủ nhật rồi! Hãy xem lại chi tiêu tuần vừa qua và lên kế hoạch cho tuần mới!")
                 markEventSent("weekend_review_$today")
-            }
-        }
-    }
-
-    /**
-     * Đẩy tin nhắn proactive
-     */
-    private fun pushProactiveMessage(text: String) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Đang đẩy tin nhắn: ${text.take(50)}...")
-
-                if (_aiState.value == AIState.PROCESSING) {
-                    Log.w(TAG, "Bỏ qua vì AI đang xử lý")
-                    return@launch
-                }
-
-                val message = ChatMessage(
-                    text = text,
-                    isUser = false,
-                    timestamp = System.currentTimeMillis(),
-                    isProactive = true
-                )
-
-                _messages.add(message)
-                lastProactiveMessageTime = System.currentTimeMillis()
-
-                Log.d(TAG, "Đã thêm tin nhắn chủ động vào danh sách")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Lỗi pushProactiveMessage: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Kích hoạt tin nhắn proactive từ sự kiện
-     */
-    fun triggerProactiveMessage(trigger: String) {
-        viewModelScope.launch {
-            Log.d(TAG, "Trigger proactive message: $trigger")
-
-            val message = when (trigger) {
-                "new_transaction" -> "Bạn vừa thêm giao dịch mới. Muốn xem tổng quan không?"
-                "budget_warning" -> "Có ngân sách sắp vượt. Cần kiểm tra ngay!"
-                "low_balance" -> "Số dư đang thấp. Hãy cẩn thận chi tiêu!"
-                "weekend" -> "Cuối tuần rồi! Đã lên kế hoạch chi tiêu chưa?"
-                else -> null
-            }
-
-            if (message != null && shouldSendProactiveMessage(Long.MAX_VALUE)) {
-                pushProactiveMessage(message)
             }
         }
     }

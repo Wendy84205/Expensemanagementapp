@@ -23,7 +23,6 @@ import com.example.financeapp.screen.auth.AuthScreen
 import com.example.financeapp.screen.main.budget.BudgetScreen
 import com.example.financeapp.screen.features.CalendarScreen
 import com.example.financeapp.screen.features.category.CategoryScreen
-import com.example.financeapp.screen.features.invoice.InvoiceScannerScreen
 import com.example.financeapp.screen.settings.ExtensionsScreen
 import com.example.financeapp.screen.main.dashboard.HomeScreen
 import com.example.financeapp.screen.settings.LanguageSettingsScreen
@@ -36,6 +35,7 @@ import com.example.financeapp.utils.notification.NotificationPreferences
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.auth.AuthViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
+import com.example.financeapp.viewmodel.savings.SavingsViewModel // THÊM DÒNG NÀY
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
@@ -66,7 +66,8 @@ fun NavGraph(
     languageViewModel: LanguageViewModel,
     categoryViewModel: CategoryViewModel,
     recurringExpenseViewModel: RecurringExpenseViewModel,
-    budgetViewModel: BudgetViewModel
+    budgetViewModel: BudgetViewModel,
+    savingsViewModel: SavingsViewModel // THÊM DÒNG NÀY
 ) {
     var userId by remember { mutableStateOf<String?>(null) }
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
@@ -117,7 +118,8 @@ fun NavGraph(
                     navController.navigate("calendar")
                 },
                 budgetViewModel = budgetViewModel,
-                categoryViewModel = categoryViewModel
+                categoryViewModel = categoryViewModel,
+                savingsViewModel = savingsViewModel // THÊM VÀO HOME SCREEN
             )
         }
 
@@ -131,7 +133,8 @@ fun NavGraph(
                 },
                 transactionViewModel = transactionViewModel,
                 budgetViewModel = budgetViewModel,
-                categoryViewModel = categoryViewModel
+                categoryViewModel = categoryViewModel,
+                savingsViewModel = savingsViewModel
             )
         }
 
@@ -147,7 +150,8 @@ fun NavGraph(
                         budgetViewModel = budgetViewModel
                     )
                     navController.popBackStack()
-                }
+                },
+                savingsViewModel = savingsViewModel // THÊM VÀO ADD TRANSACTION
             )
         }
 
@@ -176,16 +180,15 @@ fun NavGraph(
                 transactionViewModel = transactionViewModel,
                 budgetViewModel = budgetViewModel,
                 categoryViewModel = categoryViewModel,
+                savingsViewModel = savingsViewModel,
                 onBack = { navController.popBackStack() },
                 onSave = { transaction ->
-                    // ✅ Sử dụng coroutine để đảm bảo transaction được lưu trước khi navigate
                     coroutineScope.launch {
                         if (existingTransaction == null) {
                             transactionViewModel.addTransaction(
                                 transaction = transaction,
                                 budgetViewModel = budgetViewModel
                             )
-                            // ✅ Đợi đủ lâu để state được cập nhật, wallet balance được trừ, và UI refresh
                             delay(800)
                         } else {
                             transactionViewModel.updateTransaction(
@@ -194,7 +197,6 @@ fun NavGraph(
                             )
                             delay(800)
                         }
-                        // ✅ Đảm bảo navigate sau khi mọi thứ đã được cập nhật
                         navController.popBackStack()
                     }
                 },
@@ -215,11 +217,11 @@ fun NavGraph(
             StatisticsScreen(
                 navController = navController,
                 transactions = transactions,
-                categoryViewModel = categoryViewModel
+                categoryViewModel = categoryViewModel,
+                savingsViewModel = savingsViewModel
             )
         }
 
-        // 🔹 Cài đặt - ĐÃ CẬP NHẬT VỚI notificationPrefs
         composable("settings") {
             SettingsScreen(
                 navController = navController,
@@ -228,7 +230,8 @@ fun NavGraph(
                     navController.navigate("auth") {
                         popUpTo("home") { inclusive = true }
                     }
-                }
+                },
+                savingsViewModel = savingsViewModel // THÊM VÀO SETTINGS
             )
         }
 
@@ -247,7 +250,8 @@ fun NavGraph(
         composable("chat_ai") {
             ChatAIScreen(
                 navController = navController,
-                aiViewModel = aiViewModel
+                aiViewModel = aiViewModel,
+                savingsViewModel = savingsViewModel
             )
         }
 
@@ -392,9 +396,12 @@ fun NavGraph(
                 existingExpense = existingExpense
             )
         }
+
+        // 🔹 SAVINGS GOALS ROUTES - CẬP NHẬT
         composable("savings_goals") {
             SavingsGoalsScreen(
-                navController = navController
+                navController = navController,
+                savingsViewModel = savingsViewModel
             )
         }
 
@@ -402,20 +409,17 @@ fun NavGraph(
             val goalId = backStackEntry.arguments?.getString("goalId") ?: ""
             AddSavingsGoalScreen(
                 navController = navController,
-                goalId = goalId
+                goalId = goalId,
+                savingsViewModel = savingsViewModel
             )
         }
 
         composable("add_savings_goal") {
             AddSavingsGoalScreen(
                 navController = navController,
-                goalId = ""
+                goalId = "",
+                savingsViewModel = savingsViewModel
             )
-        }
-        composable(
-            route = "invoice_scanner"
-        ) {
-            InvoiceScannerScreen(navController = navController)
         }
     }
 }

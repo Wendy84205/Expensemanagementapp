@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.data.models.SavingsGoal
 import com.example.financeapp.screen.features.formatCurrency
@@ -36,13 +35,15 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SavingsGoalsScreen(
-    navController: NavController
+    navController: NavController,
+    savingsViewModel: SavingsViewModel  // DÙNG instance từ NavGraph
 ) {
-    val viewModel: SavingsViewModel = viewModel()
-    val savingsGoals by viewModel.savingsGoals.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val addSuccess by viewModel.addSuccess.collectAsState()
+    // 🚨 QUAN TRỌNG: KHÔNG TẠO VIEWMODEL MỚI, DÙNG instance truyền vào
+    val savingsGoals by savingsViewModel.savingsGoals.collectAsState()
+    val isLoading by savingsViewModel.isLoading.collectAsState()
+    val error by savingsViewModel.error.collectAsState()
+    val addSuccess by savingsViewModel.addSuccess.collectAsState()
+    val monthlyAnalysis by savingsViewModel.monthlyAnalysis.collectAsState()
 
     val auth = Firebase.auth
     val currentUser by remember(auth) {
@@ -51,78 +52,79 @@ fun SavingsGoalsScreen(
 
     // Load data khi vào màn hình
     LaunchedEffect(Unit) {
-        println("DEBUG: LaunchedEffect chạy - load data")
-        viewModel.loadSavingsGoals()
+        println("💰 SavingsGoalsScreen: Đang tải goals...")
+        savingsViewModel.loadSavingsGoals()
     }
 
     // Khi quay lại từ màn hình thêm/sửa mục tiêu
     LaunchedEffect(addSuccess) {
         if (addSuccess) {
-            println("DEBUG: Thành công, reload data")
-            viewModel.loadSavingsGoals()
-            viewModel.resetAddSuccess()
+            println("🔄 SavingsGoalsScreen: Reload data sau khi thêm thành công")
+            savingsViewModel.loadSavingsGoals()
+            savingsViewModel.resetAddSuccess()
         }
     }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
                     Text(
                         "Mục tiêu tiết kiệm",
-                        fontSize = 20.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
+                        onClick = { navController.popBackStack() }
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Quay lại",
-                            tint = Color(0xFF475569)
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF1E293B)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier.shadow(
+                    elevation = 2.dp,
+                    shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                 )
             )
         },
         floatingActionButton = {
             AnimatedVisibility(
                 visible = currentUser != null,
-                enter = fadeIn() + slideInVertically(),
-                exit = fadeOut() + slideOutVertically()
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
             ) {
                 FloatingActionButton(
                     onClick = { navController.navigate("add_savings_goal") },
-                    containerColor = Color(0xFF3B82F6),
+                    containerColor = MaterialTheme.colorScheme.primary,
                     shape = CircleShape,
                     modifier = Modifier
-                        .size(60.dp)
+                        .size(64.dp)
                         .shadow(
-                            elevation = 8.dp,
+                            elevation = 12.dp,
                             shape = CircleShape,
-                            clip = true
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                         )
                 ) {
                     Icon(
                         Icons.Default.Add,
                         contentDescription = "Thêm mục tiêu",
-                        tint = Color.White,
-                        modifier = Modifier.size(30.dp)
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
         },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(
             modifier = Modifier
@@ -144,19 +146,20 @@ fun SavingsGoalsScreen(
                     error != null -> {
                         ErrorView(
                             error = error!!,
-                            onRetry = { viewModel.loadSavingsGoals() }
+                            onRetry = { savingsViewModel.loadSavingsGoals() }
                         )
                     }
                     savingsGoals.isEmpty() -> {
                         EmptySavingsGoals(
-                            onAddClick = { navController.navigate("add_savings_goal") }
+                            onAddClick = { navController.navigate("add_savings_goal") },
+                            monthlyAnalysis = monthlyAnalysis
                         )
                     }
                     else -> {
                         SavingsGoalsList(
                             savingsGoals = savingsGoals,
                             navController = navController,
-                            viewModel = viewModel
+                            monthlyAnalysis = monthlyAnalysis
                         )
                     }
                 }
@@ -173,16 +176,18 @@ private fun LoadingView() {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             CircularProgressIndicator(
-                color = Color(0xFF3B82F6),
-                strokeWidth = 3.dp
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 4.dp,
+                modifier = Modifier.size(48.dp)
             )
             Text(
                 "Đang tải mục tiêu...",
-                color = Color(0xFF64748B),
-                fontSize = 14.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -199,37 +204,57 @@ private fun ErrorView(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(24.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .background(Color(0xFFFEE2E2), CircleShape),
+                    .size(96.dp)
+                    .background(
+                        MaterialTheme.colorScheme.errorContainer,
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.ErrorOutline,
                     contentDescription = null,
-                    tint = Color(0xFFDC2626),
-                    modifier = Modifier.size(40.dp)
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
                 )
             }
+
+            Text(
+                text = "Có lỗi xảy ra",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
+            )
+
             Text(
                 text = error,
-                color = Color(0xFFDC2626),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp)
+                lineHeight = 22.sp,
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
+
             Button(
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF3B82F6)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.width(150.dp)
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(48.dp)
             ) {
-                Text("Thử lại")
+                Text(
+                    "Thử lại",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -239,7 +264,7 @@ private fun ErrorView(
 private fun SavingsGoalsList(
     savingsGoals: List<SavingsGoal>,
     navController: NavController,
-    viewModel: SavingsViewModel
+    monthlyAnalysis: com.example.financeapp.viewmodel.savings.SavingsViewModel.MonthlyAnalysis
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -247,7 +272,7 @@ private fun SavingsGoalsList(
             start = 16.dp,
             top = 16.dp,
             end = 16.dp,
-            bottom = 80.dp
+            bottom = 88.dp
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -255,11 +280,12 @@ private fun SavingsGoalsList(
             SavingsGoalsHeader(
                 totalGoals = savingsGoals.size,
                 totalSaved = savingsGoals.sumOf { it.currentAmount },
-                totalTarget = savingsGoals.sumOf { it.targetAmount }
+                totalTarget = savingsGoals.sumOf { it.targetAmount },
+                monthlyAnalysis = monthlyAnalysis
             )
         }
 
-        items(savingsGoals) { goal ->
+        items(savingsGoals, key = { it.id }) { goal ->
             SavingsGoalCard(
                 goal = goal,
                 onClick = {
@@ -274,82 +300,142 @@ private fun SavingsGoalsList(
 private fun SavingsGoalsHeader(
     totalGoals: Int,
     totalSaved: Long,
-    totalTarget: Long
+    totalTarget: Long,
+    monthlyAnalysis: com.example.financeapp.viewmodel.savings.SavingsViewModel.MonthlyAnalysis
 ) {
-    Card(
+    val totalProgress = if (totalTarget > 0) {
+        (totalSaved.toFloat() / totalTarget.toFloat() * 100).coerceAtMost(100f)
+    } else 0f
+
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        shadowElevation = 4.dp
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // Title
             Text(
-                text = "Tổng quan",
-                fontSize = 18.sp,
+                text = "📊 Tổng quan tiết kiệm",
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B),
-                modifier = Modifier.padding(bottom = 16.dp)
+                color = MaterialTheme.colorScheme.onSurface
             )
 
+            // Stats grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                GoalStat(
+                StatItem(
                     title = "Mục tiêu",
                     value = totalGoals.toString(),
-                    color = Color(0xFF3B82F6)
+                    icon = Icons.Default.Flag,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                GoalStat(
+                StatItem(
                     title = "Đã tiết kiệm",
                     value = formatCurrency(totalSaved.toDouble()),
-                    color = Color(0xFF10B981)
+                    icon = Icons.Default.Savings,
+                    color = MaterialTheme.colorScheme.tertiary
                 )
-                GoalStat(
-                    title = "Tổng mục tiêu",
-                    value = formatCurrency(totalTarget.toDouble()),
-                    color = Color(0xFF8B5CF6)
+                StatItem(
+                    title = "Tỉ lệ tiết kiệm",
+                    value = "${monthlyAnalysis.savingsRate.toInt()}%",
+                    icon = Icons.Default.TrendingUp,
+                    color = MaterialTheme.colorScheme.secondary
                 )
             }
 
-            // Overall progress bar
+            // Progress section
             if (totalTarget > 0) {
-                Spacer(modifier = Modifier.height(20.dp))
-                val overallProgress = (totalSaved.toFloat() / totalTarget.toFloat() * 100).coerceAtMost(100f)
-
-                Column {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
                             text = "Tiến độ tổng thể",
-                            fontSize = 14.sp,
-                            color = Color(0xFF64748B)
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "${overallProgress.toInt()}%",
-                            fontSize = 14.sp,
+                            text = "${totalProgress.toInt()}%",
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF3B82F6)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     LinearProgressIndicator(
-                        progress = overallProgress / 100,
+                        progress = totalProgress / 100,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(10.dp),
-                        color = Color(0xFF3B82F6),
-                        trackColor = Color(0xFFE2E8F0)
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(6.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatCurrency(totalSaved.toDouble()),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = formatCurrency(totalTarget.toDouble()),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Monthly insights
+            if (monthlyAnalysis.savings > 0) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Tiết kiệm tháng này",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatCurrency(monthlyAnalysis.savings.toDouble()),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Icon(
+                            Icons.Default.Celebration,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
             }
         }
@@ -357,14 +443,30 @@ private fun SavingsGoalsHeader(
 }
 
 @Composable
-private fun GoalStat(
+private fun StatItem(
     title: String,
     value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     color: Color
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.width(100.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .background(color.copy(alpha = 0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(24.dp)
+            )
+        }
         Text(
             text = value,
             fontSize = 16.sp,
@@ -374,7 +476,8 @@ private fun GoalStat(
         Text(
             text = title,
             fontSize = 12.sp,
-            color = Color(0xFF64748B)
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -390,52 +493,55 @@ private fun NotLoggedInView(onLoginClick: () -> Unit) {
     ) {
         Box(
             modifier = Modifier
-                .size(120.dp)
-                .background(Color(0xFFF1F5F9), CircleShape),
+                .size(160.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
+                    CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.Lock,
                 contentDescription = null,
-                tint = Color(0xFF64748B),
-                modifier = Modifier.size(60.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(80.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Text(
             text = "Cần đăng nhập",
-            fontSize = 22.sp,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E293B)
+            color = MaterialTheme.colorScheme.onSurface
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Đăng nhập để xem và quản lý\nmục tiêu tiết kiệm của bạn",
-            fontSize = 16.sp,
-            color = Color(0xFF64748B),
+            fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            lineHeight = 24.sp
+            lineHeight = 28.sp
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
         Button(
             onClick = onLoginClick,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF3B82F6)
+                containerColor = MaterialTheme.colorScheme.primary
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(56.dp)
         ) {
             Text(
                 "Đăng nhập ngay",
-                fontSize = 16.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -443,7 +549,10 @@ private fun NotLoggedInView(onLoginClick: () -> Unit) {
 }
 
 @Composable
-private fun EmptySavingsGoals(onAddClick: () -> Unit) {
+private fun EmptySavingsGoals(
+    onAddClick: () -> Unit,
+    monthlyAnalysis: com.example.financeapp.viewmodel.savings.SavingsViewModel.MonthlyAnalysis
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -453,45 +562,83 @@ private fun EmptySavingsGoals(onAddClick: () -> Unit) {
     ) {
         Box(
             modifier = Modifier
-                .size(140.dp)
-                .background(Color(0xFFF0F9FF), CircleShape),
+                .size(180.dp)
+                .background(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
+                    CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.Savings,
                 contentDescription = null,
-                tint = Color(0xFF0EA5E9),
-                modifier = Modifier.size(80.dp)
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(96.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         Text(
             text = "Chưa có mục tiêu tiết kiệm",
-            fontSize = 22.sp,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E293B)
+            color = MaterialTheme.colorScheme.onSurface
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Bắt đầu tiết kiệm bằng cách tạo\nmục tiêu đầu tiên của bạn",
-            fontSize = 16.sp,
-            color = Color(0xFF64748B),
+            fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            lineHeight = 24.sp
+            lineHeight = 28.sp
         )
 
-        Spacer(modifier = Modifier.height(40.dp))
+        // Show potential savings if available
+        if (monthlyAnalysis.savings > 0) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Bạn có thể tiết kiệm",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatCurrency(monthlyAnalysis.savings.toDouble()),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = "tháng này",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(36.dp))
 
         Button(
             onClick = onAddClick,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF3B82F6)
+                containerColor = MaterialTheme.colorScheme.primary
             ),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
@@ -503,24 +650,24 @@ private fun EmptySavingsGoals(onAddClick: () -> Unit) {
                 Icon(
                     Icons.Default.Add,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = MaterialTheme.colorScheme.onPrimary
                 )
                 Text(
                     "Tạo mục tiêu mới",
-                    fontSize = 16.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Tiết kiệm giúp bạn đạt được\nnhững ước mơ trong tương lai",
-            fontSize = 14.sp,
-            color = Color(0xFF94A3B8),
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            lineHeight = 24.sp
         )
     }
 }
@@ -546,36 +693,34 @@ private fun SavingsGoalCard(
         0L
     }
 
-    // Chọn màu cho card
-    val colors = listOf(
-        Color(0xFF3B82F6), // Blue
-        Color(0xFF10B981), // Green
-        Color(0xFFF59E0B), // Yellow
-        Color(0xFFEF4444), // Red
-        Color(0xFF8B5CF6), // Purple
-        Color(0xFFEC4899)  // Pink
-    )
-    val color = colors.getOrElse(goal.color) { colors[0] }
+    // Color scheme based on progress
+    val cardColor = when {
+        goal.isCompleted || progress >= 100 -> MaterialTheme.colorScheme.tertiaryContainer
+        progress > 70 -> MaterialTheme.colorScheme.primaryContainer
+        progress > 50 -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surface
+    }
 
-    // Format deadline
-    val deadlineText = if (goal.deadline > 0) {
-        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(goal.deadline))
-    } else "Không có hạn"
+    val progressColor = when {
+        goal.isCompleted || progress >= 100 -> MaterialTheme.colorScheme.tertiary
+        progress > 70 -> MaterialTheme.colorScheme.primary
+        progress > 50 -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.error
+    }
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        color = cardColor,
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            // Header với icon và tên
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -583,143 +728,138 @@ private fun SavingsGoalCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Icon with progress circle
                     Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .background(color.copy(alpha = 0.1f), CircleShape),
+                        modifier = Modifier.size(56.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        CircularProgressIndicator(
+                            progress = progress / 100,
+                            modifier = Modifier.size(56.dp),
+                            strokeWidth = 3.dp,
+                            color = progressColor,
+                            trackColor = progressColor.copy(alpha = 0.2f)
+                        )
                         Icon(
-                            Icons.Default.Savings,
+                            getGoalIcon(goal.category),
                             contentDescription = null,
-                            tint = color,
+                            tint = progressColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
+
                     Column {
                         Text(
                             text = goal.name,
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         if (goal.description.isNotEmpty()) {
                             Text(
                                 text = goal.description,
-                                fontSize = 13.sp,
-                                color = Color(0xFF64748B),
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 modifier = Modifier.width(200.dp)
                             )
                         }
+                        Text(
+                            text = goal.category,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
                     }
                 }
 
-                // Progress percentage
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            when {
-                                goal.isCompleted || progress >= 100 -> Color(0xFF10B981).copy(alpha = 0.1f)
-                                progress > 70 -> Color(0xFF3B82F6).copy(alpha = 0.1f)
-                                else -> Color(0xFFF59E0B).copy(alpha = 0.1f)
-                            }
-                        )
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                // Status badge
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = progressColor.copy(alpha = 0.1f)
                 ) {
                     Text(
                         text = "${progress.toInt()}%",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = when {
-                            goal.isCompleted || progress >= 100 -> Color(0xFF10B981)
-                            progress > 70 -> Color(0xFF3B82F6)
-                            else -> Color(0xFFF59E0B)
-                        }
+                        color = progressColor,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Progress bar với label
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatCurrency(goal.currentAmount.toDouble()),
-                        fontSize = 13.sp,
-                        color = Color(0xFF64748B)
-                    )
-                    Text(
-                        text = formatCurrency(goal.targetAmount.toDouble()),
-                        fontSize = 13.sp,
-                        color = Color(0xFF64748B)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
+            // Progress section
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 LinearProgressIndicator(
                     progress = progress / 100,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(10.dp)
                         .clip(RoundedCornerShape(5.dp)),
-                    color = when {
-                        goal.isCompleted || progress >= 100 -> Color(0xFF10B981)
-                        progress > 70 -> Color(0xFF3B82F6)
-                        progress > 50 -> Color(0xFFF59E0B)
-                        else -> Color(0xFFEF4444)
-                    },
-                    trackColor = Color(0xFFE2E8F0)
+                    color = progressColor,
+                    trackColor = progressColor.copy(alpha = 0.2f)
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatCurrency(goal.currentAmount.toDouble()),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = formatCurrency(goal.targetAmount.toDouble()),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Stats row - CHỈ HIỂN THỊ THÔNG TIN CƠ BẢN
+            // Stats row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Remaining amount (tiền còn lại cần tiết kiệm)
                 GoalStatItem(
                     icon = Icons.Default.AccountBalanceWallet,
                     title = "Còn cần",
                     value = formatCurrency((goal.targetAmount - goal.currentAmount).toDouble()),
-                    color = Color(0xFFEF4444)
+                    color = MaterialTheme.colorScheme.error
                 )
 
-                // Monthly contribution (góp hàng tháng)
                 if (monthlyContribution > 0 && remainingDays > 30) {
                     GoalStatItem(
                         icon = Icons.Default.CalendarToday,
                         title = "Mỗi tháng",
                         value = formatCurrency(monthlyContribution.toDouble()),
-                        color = Color(0xFF3B82F6)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 } else {
-                    // Nếu không tính được góp hàng tháng, hiển thị category
                     GoalStatItem(
-                        icon = Icons.Default.Category,
-                        title = "Danh mục",
-                        value = goal.category,
-                        color = Color(0xFF8B5CF6)
+                        icon = Icons.Default.Schedule,
+                        title = if (remainingDays > 0) "$remainingDays ngày" else "Không hạn",
+                        value = "",
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
 
-                // Deadline (hạn chót)
                 GoalStatItem(
-                    icon = Icons.Default.Schedule,
-                    title = if (remainingDays > 0) "Còn $remainingDays ngày" else "Hạn",
-                    value = if (remainingDays > 0) "" else deadlineText,
-                    color = Color(0xFF10B981)
+                    icon = if (goal.autoCalculate) Icons.Default.AutoMode else Icons.Default.ManageAccounts,
+                    title = if (goal.autoCalculate) "Tự động" else "Thủ công",
+                    value = if (goal.allocationPercentage > 0) "${goal.allocationPercentage}%" else "",
+                    color = if (goal.autoCalculate) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -734,22 +874,24 @@ private fun GoalStatItem(
     color: Color
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 icon,
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(16.dp)
             )
             Text(
                 text = title,
                 fontSize = 12.sp,
-                color = Color(0xFF64748B)
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (value.isNotEmpty()) {
@@ -763,7 +905,7 @@ private fun GoalStatItem(
     }
 }
 
-// Helper function để tính số ngày còn lại
+// Helper functions
 private fun calculateRemainingDays(deadline: Long): Int {
     if (deadline <= 0) return 0
     val currentTime = System.currentTimeMillis()
@@ -772,5 +914,21 @@ private fun calculateRemainingDays(deadline: Long): Int {
         (diff / (1000 * 60 * 60 * 24)).toInt()
     } else {
         0
+    }
+}
+
+private fun getGoalIcon(category: String): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (category.lowercase()) {
+        "du lịch", "travel" -> Icons.Default.Flight
+        "xe cộ", "car", "vehicle" -> Icons.Default.DirectionsCar
+        "nhà cửa", "house", "home" -> Icons.Default.Home
+        "giáo dục", "education", "study" -> Icons.Default.School
+        "sức khỏe", "health" -> Icons.Default.MedicalServices
+        "hôn nhân", "wedding" -> Icons.Default.Favorite
+        "đầu tư", "investment" -> Icons.Default.TrendingUp
+        "khẩn cấp", "emergency" -> Icons.Default.Warning
+        "mua sắm", "shopping" -> Icons.Default.ShoppingCart
+        "giải trí", "entertainment" -> Icons.Default.Movie
+        else -> Icons.Default.Savings
     }
 }

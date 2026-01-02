@@ -1,18 +1,18 @@
 package com.example.financeapp.data.remote
 
-import android.content.ContentValues.TAG
 import android.util.Log
 import com.example.financeapp.data.models.SavingsGoal
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.data.models.User
 import com.example.financeapp.data.models.Budget
+import com.example.financeapp.data.models.BudgetPeriodType
 import com.example.financeapp.data.models.RecurringExpense
-import com.example.financeapp.data.models.RecurringFrequency
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
+import java.time.LocalDate
 import java.util.*
 
 class FirestoreService {
@@ -97,7 +97,7 @@ class FirestoreService {
     // ========== BUDGETS ==========
     suspend fun saveBudget(budget: Budget, userId: String) {
         try {
-            val budgetMap = mapOf(
+            val budgetMap = mutableMapOf(
                 "id" to budget.id,
                 "userId" to userId,
                 "categoryId" to budget.categoryId,
@@ -108,9 +108,21 @@ class FirestoreService {
                 "note" to (budget.note ?: ""),
                 "spentAmount" to budget.spentAmount,
                 "isActive" to budget.isActive,
-                "spent" to budget.spent,
                 "createdAt" to System.currentTimeMillis()
             )
+
+            if (budget.userId.isNotBlank()) {
+                budgetMap["userId"] = budget.userId
+            }
+            if (budget.lastModified > 0) {
+                budgetMap["lastModified"] = budget.lastModified
+            }
+            if (budget.version > 0) {
+                budgetMap["version"] = budget.version
+            }
+            if (budget.isDeleted) {
+                budgetMap["isDeleted"] = budget.isDeleted
+            }
 
             db.collection("budgets")
                 .document(budget.id)
@@ -131,15 +143,13 @@ class FirestoreService {
             snapshot.documents.map { doc ->
                 val data = doc.data ?: emptyMap()
 
-                // Parse period type
                 val periodTypeStr = data["periodType"] as? String ?: "MONTH"
                 val periodType = try {
-                    com.example.financeapp.data.models.BudgetPeriodType.valueOf(periodTypeStr)
+                    BudgetPeriodType.valueOf(periodTypeStr)
                 } catch (e: Exception) {
-                    com.example.financeapp.data.models.BudgetPeriodType.MONTH
+                    BudgetPeriodType.MONTH
                 }
 
-                // Parse dates
                 val startDateStr = data["startDate"] as? String ?: ""
                 val endDateStr = data["endDate"] as? String ?: ""
 
@@ -149,21 +159,25 @@ class FirestoreService {
                     amount = (data["amount"] as? Double) ?: 0.0,
                     periodType = periodType,
                     startDate = if (startDateStr.isNotEmpty())
-                        java.time.LocalDate.parse(startDateStr)
-                    else java.time.LocalDate.now(),
+                        LocalDate.parse(startDateStr)
+                    else LocalDate.now(),
                     endDate = if (endDateStr.isNotEmpty())
-                        java.time.LocalDate.parse(endDateStr)
-                    else java.time.LocalDate.now().plusMonths(1),
+                        LocalDate.parse(endDateStr)
+                    else LocalDate.now().plusMonths(1),
                     note = data["note"] as? String,
                     spentAmount = (data["spentAmount"] as? Double) ?: 0.0,
                     isActive = data["isActive"] as? Boolean ?: true,
-                    spent = (data["spent"] as? Double) ?: 0.0
+                    userId = data["userId"] as? String ?: userId,
+                    lastModified = (data["lastModified"] as? Long) ?: System.currentTimeMillis(),
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    version = (data["version"] as? Int) ?: 1
                 )
             }
         } catch (e: Exception) {
             emptyList()
         }
     }
+
     fun setupBudgetsListener(
         userId: String,
         onBudgetsUpdated: (List<Budget>) -> Unit,
@@ -181,10 +195,41 @@ class FirestoreService {
                     val budgetsList = mutableListOf<Budget>()
                     for (document in querySnapshot.documents) {
                         try {
-                            val budget = document.toObject(Budget::class.java)
-                            budget?.let { budgetsList.add(it) }
+                            val data = document.data ?: continue
+
+                            val periodTypeStr = data["periodType"] as? String ?: "MONTH"
+                            val periodType = try {
+                                BudgetPeriodType.valueOf(periodTypeStr)
+                            } catch (e: Exception) {
+                                BudgetPeriodType.MONTH
+                            }
+
+                            val startDateStr = data["startDate"] as? String ?: ""
+                            val endDateStr = data["endDate"] as? String ?: ""
+
+                            val budget = Budget(
+                                id = data["id"] as? String ?: document.id,
+                                categoryId = data["categoryId"] as? String ?: "",
+                                amount = (data["amount"] as? Double) ?: 0.0,
+                                periodType = periodType,
+                                startDate = if (startDateStr.isNotEmpty())
+                                    LocalDate.parse(startDateStr)
+                                else LocalDate.now(),
+                                endDate = if (endDateStr.isNotEmpty())
+                                    LocalDate.parse(endDateStr)
+                                else LocalDate.now().plusMonths(1),
+                                note = data["note"] as? String,
+                                spentAmount = (data["spentAmount"] as? Double) ?: 0.0,
+                                isActive = data["isActive"] as? Boolean ?: true,
+                                userId = data["userId"] as? String ?: userId,
+                                lastModified = (data["lastModified"] as? Long) ?: System.currentTimeMillis(),
+                                isDeleted = data["isDeleted"] as? Boolean ?: false,
+                                version = (data["version"] as? Int) ?: 1
+                            )
+
+                            budgetsList.add(budget)
                         } catch (e: Exception) {
-                            Log.e(TAG, "Lỗi parse budget document: ${e.message}")
+                            Log.e("FirestoreService", "Lỗi parse budget document: ${e.message}")
                         }
                     }
                     onBudgetsUpdated(budgetsList)
@@ -194,9 +239,14 @@ class FirestoreService {
 
     suspend fun deleteBudget(budgetId: String, userId: String) {
         try {
+            val updates = mapOf(
+                "isDeleted" to true,
+                "lastModified" to System.currentTimeMillis()
+            )
+
             db.collection("budgets")
                 .document(budgetId)
-                .delete()
+                .update(updates)
                 .await()
         } catch (e: Exception) {
             throw e
@@ -570,12 +620,10 @@ class FirestoreService {
             val userEmail = email ?: ""
             var finalUserId = userId
 
-            // Kiểm tra user đã tồn tại theo email
             val existingUser = getUserByEmail(userEmail)
 
             val userMap = if (existingUser != null) {
                 finalUserId = existingUser.id
-                // User đã tồn tại - cập nhật
                 mapOf(
                     "name" to (name ?: existingUser.name),
                     "email" to userEmail,
@@ -585,7 +633,6 @@ class FirestoreService {
                     "updatedAt" to System.currentTimeMillis()
                 )
             } else {
-                // User mới - tạo
                 mapOf(
                     "id" to userId,
                     "name" to (name ?: ""),
@@ -648,7 +695,6 @@ class FirestoreService {
 
     suspend fun migrateUserData(oldUserId: String, newUserId: String) {
         try {
-            // Cập nhật userId trong transactions
             val transactions = db.collection("transactions")
                 .whereEqualTo("userId", oldUserId)
                 .get()
@@ -658,7 +704,6 @@ class FirestoreService {
                 doc.reference.update("userId", newUserId).await()
             }
 
-            // Cập nhật userId trong savings_goals
             val savingsGoals = db.collection("savings_goals")
                 .whereEqualTo("userId", oldUserId)
                 .get()
@@ -669,7 +714,6 @@ class FirestoreService {
             }
 
         } catch (e: Exception) {
-            // Không crash nếu migration thất bại
         }
     }
 

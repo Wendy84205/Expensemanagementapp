@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,16 +25,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.ai.ChatMessage
-import kotlinx.coroutines.launch
+import com.example.financeapp.viewmodel.savings.SavingsViewModel
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatAIScreen(
     navController: NavController,
-    aiViewModel: AIViewModel = viewModel()
+    aiViewModel: AIViewModel = viewModel(),
+    savingsViewModel: SavingsViewModel
 ) {
-    val messages = aiViewModel.messages
+    val messages by aiViewModel.messages.collectAsState()
     val isAITyping by aiViewModel.isAITyping
     val lastError by aiViewModel.lastError
 
@@ -82,7 +82,7 @@ fun ChatAIScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                items(messages.size, key = { index -> messages[index].id }) { index ->
+                items(messages.size) { index ->
                     val message = messages[index]
                     if (message.text.isNotBlank()) {
                         ChatBubble(

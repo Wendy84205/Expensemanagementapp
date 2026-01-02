@@ -1,6 +1,7 @@
 package com.example.financeapp
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,7 +17,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.example.financeapp.components.theme.FinanceAppTheme
-import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.navigation.NavGraph
 import com.example.financeapp.screen.main.dashboard.UserSession
 import com.example.financeapp.utils.notification.NotificationHelper
@@ -24,6 +24,7 @@ import com.example.financeapp.utils.work.AIButlerWorker
 import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.auth.AuthViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
+import com.example.financeapp.viewmodel.savings.SavingsViewModel
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
@@ -38,7 +39,6 @@ import java.util.*
 
 class MainActivity : ComponentActivity() {
 
-    // ViewModels
     private val authViewModel: AuthViewModel by viewModels()
     private val transactionViewModel: TransactionViewModel by viewModels()
     private val languageViewModel: LanguageViewModel by viewModels()
@@ -46,27 +46,20 @@ class MainActivity : ComponentActivity() {
     private val budgetViewModel: BudgetViewModel by viewModels()
     private val categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel by viewModels()
     private val recurringExpenseViewModel: RecurringExpenseViewModel by viewModels()
+    private val savingsViewModel: SavingsViewModel by viewModels()
 
-    // DataStore
     private lateinit var userPrefs: UserPreferencesDataStore
+    private val notificationHelper by lazy { NotificationHelper }
 
-    // Permission launcher for Android 13+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Permission granted
-            println("Notification permission granted")
-
-            // ĐỢI 3 GIÂY trước khi schedule worker để đảm bảo app ổn định
             lifecycleScope.launch {
                 delay(3000)
                 startAIBackgroundMonitoring()
             }
         } else {
-            // Permission denied
-            println("Notification permission denied")
-            // Vẫn thử schedule worker nhưng có thể không gửi được notification
             lifecycleScope.launch {
                 delay(3000)
                 tryScheduleWorkerWithoutPermission()
@@ -77,38 +70,36 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Enable edge-to-edge display
         enableEdgeToEdge()
 
-        // Initialize DataStore
         userPrefs = UserPreferencesDataStore(this)
-
-        // Initialize notification system
         initializeNotificationSystem()
 
-        // Set Compose content
+        transactionViewModel.connectToSavingsViewModel(savingsViewModel)
+
         setContent {
             val navController = rememberNavController()
 
             var savedSession by remember { mutableStateOf<UserSession?>(null) }
             var isLoading by remember { mutableStateOf(true) }
 
-            // Load user data and settings
             LaunchedEffect(Unit) {
                 lifecycleScope.launch {
                     val user = userPrefs.userFlow.first()
                     savedSession = user
                     val savedLanguage = getSavedLanguage()
                     languageViewModel.setLanguageFromCode(savedLanguage)
-                    processRecurringExpenses()
 
-                    // ĐỢI THÊM 2 GIÂY để các ViewModel load xong dữ liệu
                     delay(2000)
 
-                    isLoading = false
+                    processRecurringExpensesOnAppStart()
+                    initializeSavingsViewModel()
 
-                    // Kiểm tra và khởi động AI Worker sau khi app đã load xong
+                    isLoading = false
                     checkAndStartAIWorker()
+
+                    delay(1000)
+                    checkNotificationIntent(intent)
                 }
             }
 
@@ -127,7 +118,8 @@ class MainActivity : ComponentActivity() {
                                 languageViewModel = languageViewModel,
                                 categoryViewModel = categoryViewModel,
                                 recurringExpenseViewModel = recurringExpenseViewModel,
-                                budgetViewModel = budgetViewModel
+                                budgetViewModel = budgetViewModel,
+                                savingsViewModel = savingsViewModel
                             )
                         }
                     }
@@ -136,54 +128,84 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Initialize the notification system
-     */
-    private fun initializeNotificationSystem() {
-        try {
-            println("Đang khởi tạo hệ thống notification...")
-
-            // 1. Create notification channel (required for Android 8.0+)
-            NotificationHelper.createChannel(this)
-            println("Đã tạo notification channel")
-
-            // 2. Request notification permission (Android 13+)
-            requestNotificationPermission()
-
-        } catch (e: Exception) {
-            println("Lỗi khi khởi tạo hệ thống notification: ${e.message}")
-            e.printStackTrace()
+    private fun initializeSavingsViewModel() {
+        lifecycleScope.launch {
+            try {
+                savingsViewModel.loadSavingsGoals()
+                delay(1000)
+                savingsViewModel.calculateAutoSavings()
+            } catch (e: Exception) {
+            }
         }
     }
 
-    /**
-     * Request notification permission for Android 13+
-     */
+    private fun initializeNotificationSystem() {
+        try {
+            NotificationHelper.createChannel(this)
+            requestNotificationPermission()
+            initializeFirebaseMessaging()
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun initializeFirebaseMessaging() {
+        try {
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun checkNotificationIntent(intent: Intent?) {
+        lifecycleScope.launch {
+            try {
+                if (intent?.hasExtra("from_notification") == true) {
+                    val notificationType = intent.getStringExtra("notification_type")
+                    val data = intent.getStringExtra("notification_data")
+
+                    when (notificationType) {
+                        "budget_alert" -> {
+                        }
+                        "savings_alert" -> {
+                        }
+                        "recurring_expense" -> {
+                        }
+                    }
+                }
+
+                intent?.extras?.let { extras ->
+                    if (extras.containsKey("gcm.notification.title") || extras.containsKey("title")) {
+                        val title = extras.getString("gcm.notification.title") ?: extras.getString("title") ?: ""
+                        val body = extras.getString("gcm.notification.body") ?: extras.getString("body") ?: ""
+
+                        if (title.isNotEmpty() && body.isNotEmpty()) {
+                            notificationHelper.showNotification(
+                                context = this@MainActivity,
+                                title = title,
+                                message = body
+                            )
+                        }
+                    }
+                }
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
     private fun requestNotificationPermission() {
-        // Only required for Android 13 (API 33) and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Check if permission is already granted
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) != android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
-                // Request the permission
-                println("📱 Android 13+ - Yêu cầu notification permission...")
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             } else {
-                // Permission already granted, schedule worker
-                println("Notification permission đã được cấp từ trước")
-                // Đợi một chút trước khi schedule
                 lifecycleScope.launch {
                     delay(2000)
                     startAIBackgroundMonitoring()
                 }
             }
         } else {
-            // For Android < 13, no runtime permission needed
-            println("📱 Android < 13 - Không cần runtime permission")
-            // Đợi một chút trước khi schedule
             lifecycleScope.launch {
                 delay(2000)
                 startAIBackgroundMonitoring()
@@ -191,126 +213,193 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Kiểm tra và khởi động AI Worker
-     */
+    private fun processRecurringExpensesOnAppStart() {
+        lifecycleScope.launch {
+            try {
+                delay(1000)
+
+                recurringExpenseViewModel.processDueRecurringExpenses(
+                    context = this@MainActivity,
+                    onTransactionCreated = { expense ->
+                        createAndAddTransactionFromRecurring(expense)
+                    }
+                )
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun createAndAddTransactionFromRecurring(expense: com.example.financeapp.data.models.RecurringExpense) {
+        lifecycleScope.launch {
+            try {
+                transactionViewModel.addTransactionFromRecurringExpense(expense, budgetViewModel)
+                sendRecurringExpenseNotification(expense)
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun processRecurringExpensesOnAppResume() {
+        lifecycleScope.launch {
+            try {
+                recurringExpenseViewModel.processDueRecurringExpenses(
+                    context = this@MainActivity,
+                    onTransactionCreated = { expense ->
+                        createAndAddTransactionFromRecurring(expense)
+                    }
+                )
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun sendRecurringExpenseNotification(expense: com.example.financeapp.data.models.RecurringExpense) {
+        lifecycleScope.launch {
+            try {
+                NotificationHelper.showNotification(
+                    context = this@MainActivity,
+                    title = "Đã tạo giao dịch định kỳ",
+                    message = "${expense.title}: ${formatCurrency(expense.amount)}\n" +
+                            "Ngày: ${getTodayDateForDisplay()}\n" +
+                            "Tần suất: ${getFrequencyDisplayName(expense.getFrequencyEnum())}"
+                )
+            } catch (e: Exception) {
+            }
+        }
+    }
+
     private fun checkAndStartAIWorker() {
         lifecycleScope.launch {
             try {
-                println("Đang kiểm tra và khởi động AI Worker...")
-
-                // Kiểm tra setting có cho phép background monitoring không
                 val allowBackground = shouldAllowAIBackground()
 
                 if (allowBackground) {
-                    println("Cho phép AI background monitoring")
                     startAIBackgroundMonitoring()
-                } else {
-                    println("AI background monitoring bị tắt trong setting")
                 }
 
             } catch (e: Exception) {
-                println("Lỗi khi khởi động AI Worker: ${e.message}")
             }
         }
     }
 
-    /**
-     * Bắt đầu AI Background Monitoring
-     */
     private fun startAIBackgroundMonitoring() {
         lifecycleScope.launch {
             try {
-                println("Đang bắt đầu AI Background Monitoring...")
-
-                // 1. Kiểm tra xem worker đã được schedule chưa
                 val isAlreadyScheduled = AIButlerWorker.isScheduled(this@MainActivity)
 
                 if (isAlreadyScheduled) {
-                    println("AI Worker đã được lên lịch từ trước")
                     return@launch
                 }
 
-                // 2. Schedule worker
                 val success = AIButlerWorker.schedule(this@MainActivity)
 
                 if (success) {
-                    println("Đã lên lịch AI Worker thành công")
-
-                    // 3. Chạy kiểm tra ngay lập tức lần đầu
                     runInitialAICheck()
-
-                    // 4. Lưu trạng thái
                     saveAIWorkerState(true)
-
-                } else {
-                    println("Không thể lên lịch AI Worker")
                 }
 
             } catch (e: Exception) {
-                println("Lỗi khi bắt đầu AI monitoring: ${e.message}")
-                e.printStackTrace()
             }
         }
     }
 
-    /**
-     * Chạy kiểm tra AI ngay lập tức (lần đầu)
-     */
     private fun runInitialAICheck() {
         lifecycleScope.launch {
             try {
-                println("Đang chạy kiểm tra AI lần đầu...")
-
-                // Đợi để đảm bảo dữ liệu đã load
                 delay(5000)
-
-                // Kiểm tra các điều kiện chính
                 checkInitialConditions()
-
-                println("Đã hoàn thành kiểm tra AI lần đầu")
-
+                checkSavingsConditions()
             } catch (e: Exception) {
-                println("Lỗi khi chạy kiểm tra AI lần đầu: ${e.message}")
             }
         }
     }
 
-    /**
-     * Kiểm tra các điều kiện ban đầu
-     */
     private suspend fun checkInitialConditions() {
         try {
-            // 1. Kiểm tra budget vượt quá
             val exceededBudgets = budgetViewModel.budgets.value.filter { it.isActive && it.isOverBudget }
-            println("Kiểm tra budget: ${exceededBudgets.size} budget vượt quá")
 
             if (exceededBudgets.isNotEmpty()) {
-                // Gửi notification ngay lập tức
                 sendImmediateBudgetNotification(exceededBudgets)
             }
 
-            // 2. Kiểm tra budget sắp vượt (>80%)
             val warningBudgets = budgetViewModel.budgets.value.filter { budget ->
                 budget.isActive &&
                         budget.amount > 0 &&
-                        budget.spent / budget.amount >= 0.8 &&
-                        budget.spent / budget.amount < 1.0
+                        budget.spentAmount / budget.amount >= 0.8 &&
+                        budget.spentAmount / budget.amount < 1.0
             }
-            println("Kiểm tra budget: ${warningBudgets.size} budget sắp vượt (>80%)")
 
             if (warningBudgets.isNotEmpty()) {
                 sendBudgetWarningNotification(warningBudgets)
             }
 
         } catch (e: Exception) {
-            println("Lỗi khi kiểm tra điều kiện ban đầu: ${e.message}")
         }
     }
 
-    /**
-     * Gửi notification budget vượt quá ngay lập tức
-     */
+    private suspend fun checkSavingsConditions() {
+        try {
+            val currentMonthIncome = transactionViewModel.getCurrentMonthIncome()
+            val savingsGoals = savingsViewModel.savingsGoals.value
+
+            if (currentMonthIncome > 0 && savingsGoals.isEmpty()) {
+                sendSavingsSuggestionNotification(currentMonthIncome)
+            }
+
+            val upcomingGoals = savingsViewModel.getActiveGoals().filter { goal ->
+                goal.deadline > 0 && goal.deadline - System.currentTimeMillis() < 30L * 24 * 60 * 60 * 1000
+            }
+
+            if (upcomingGoals.isNotEmpty()) {
+                sendUpcomingGoalNotification(upcomingGoals)
+            }
+
+            val autoGoals = savingsViewModel.getActiveGoals().filter { it.autoCalculate }
+            if (autoGoals.isNotEmpty() && currentMonthIncome > 0) {
+                savingsViewModel.calculateAutoSavings()
+            }
+
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun sendSavingsSuggestionNotification(income: Long) {
+        lifecycleScope.launch {
+            try {
+                NotificationHelper.showNotification(
+                    context = this@MainActivity,
+                    title = "Tạo mục tiêu tiết kiệm",
+                    message = "Bạn có ${formatCurrency(income.toDouble())} thu nhập tháng này.\n" +
+                            "Hãy tạo mục tiêu tiết kiệm đầu tiên!"
+                )
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun sendUpcomingGoalNotification(goals: List<com.example.financeapp.data.models.SavingsGoal>) {
+        lifecycleScope.launch {
+            try {
+                goals.forEach { goal ->
+                    val daysLeft = (goal.deadline - System.currentTimeMillis()) / (24 * 60 * 60 * 1000)
+                    val remainingAmount = goal.targetAmount - goal.currentAmount
+
+                    if (remainingAmount > 0 && daysLeft > 0) {
+                        NotificationHelper.showNotification(
+                            context = this@MainActivity,
+                            title = "${goal.name} sắp đến hạn",
+                            message = "Còn $daysLeft ngày\n" +
+                                    "Cần thêm ${formatCurrency(remainingAmount.toDouble())}\n" +
+                                    "Tiến độ: ${goal.progress.toInt()}%"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+            }
+        }
+    }
+
     private fun sendImmediateBudgetNotification(budgets: List<com.example.financeapp.data.models.Budget>) {
         lifecycleScope.launch {
             try {
@@ -319,7 +408,7 @@ class MainActivity : ComponentActivity() {
                 }.distinct().joinToString(", ")
 
                 if (categoryNames.isNotEmpty()) {
-                    val exceededAmount = budgets.first().spent - budgets.first().amount
+                    val exceededAmount = budgets.first().spentAmount - budgets.first().amount
 
                     NotificationHelper.showNotification(
                         context = this@MainActivity,
@@ -327,81 +416,52 @@ class MainActivity : ComponentActivity() {
                         message = "Bạn đã vượt ngân sách cho: $categoryNames\n" +
                                 "Vượt quá: ${formatCurrency(exceededAmount)}"
                     )
-
-                    println("Đã gửi notification vượt ngân sách: $categoryNames")
                 }
-
             } catch (e: Exception) {
-                println("Lỗi khi gửi notification vượt ngân sách: ${e.message}")
             }
         }
     }
 
-    /**
-     * Gửi notification budget sắp vượt
-     */
     private fun sendBudgetWarningNotification(budgets: List<com.example.financeapp.data.models.Budget>) {
         lifecycleScope.launch {
             try {
-                val topBudget = budgets.maxByOrNull { it.spent / it.amount }
+                val topBudget = budgets.maxByOrNull { it.spentAmount / it.amount }
                 topBudget?.let { budget ->
                     val categoryName = categoryViewModel.categories.value
                         .find { it.id == budget.categoryId }?.name ?: "Không xác định"
 
-                    val percentage = (budget.spent / budget.amount * 100).toInt()
+                    val percentage = (budget.spentAmount / budget.amount * 100).toInt()
 
                     NotificationHelper.showNotification(
                         context = this@MainActivity,
                         title = "Ngân sách sắp vượt!",
                         message = "$categoryName đã dùng $percentage% ngân sách\n" +
-                                "Đã chi: ${formatCurrency(budget.spent)} / ${formatCurrency(budget.amount)}"
+                                "Đã chi: ${formatCurrency(budget.spentAmount)} / ${formatCurrency(budget.amount)}"
                     )
-
-                    println("Đã gửi notification budget sắp vượt: $categoryName ($percentage%)")
                 }
-
             } catch (e: Exception) {
-                println("Lỗi khi gửi notification budget sắp vượt: ${e.message}")
             }
         }
     }
 
-    /**
-     * Thử schedule worker không cần permission
-     */
     private fun tryScheduleWorkerWithoutPermission() {
         lifecycleScope.launch {
             try {
-                println("Đang thử schedule worker không cần permission...")
                 val success = AIButlerWorker.schedule(this@MainActivity)
-
-                if (success) {
-                    println("Đã schedule worker (không có permission)")
-                } else {
-                    println("Không thể schedule worker (không có permission)")
-                }
-
             } catch (e: Exception) {
-                println("Lỗi khi schedule worker không permission: ${e.message}")
             }
         }
     }
 
-    /**
-     * Kiểm tra xem có nên cho phép AI background không
-     */
     private fun shouldAllowAIBackground(): Boolean {
         return try {
             val prefs = getSharedPreferences("ai_settings", MODE_PRIVATE)
-            prefs.getBoolean("allow_ai_background", true) // Mặc định là true
+            prefs.getBoolean("allow_ai_background", true)
         } catch (e: Exception) {
-            true // Mặc định cho phép
+            true
         }
     }
 
-    /**
-     * Lưu trạng thái AI Worker
-     */
     private fun saveAIWorkerState(isEnabled: Boolean) {
         try {
             val prefs = getSharedPreferences("ai_settings", MODE_PRIVATE)
@@ -409,56 +469,46 @@ class MainActivity : ComponentActivity() {
                 .putBoolean("ai_worker_enabled", isEnabled)
                 .putLong("ai_worker_last_start", System.currentTimeMillis())
                 .apply()
-
-            println("Đã lưu trạng thái AI Worker: $isEnabled")
         } catch (e: Exception) {
-            println("Lỗi khi lưu trạng thái AI Worker: ${e.message}")
         }
     }
 
     override fun onResume() {
         super.onResume()
-        println("📱 MainActivity onResume")
 
-        // Kiểm tra lại AI Worker khi app quay lại foreground
         lifecycleScope.launch {
-            delay(1000)
+            delay(1500)
+            processRecurringExpensesOnAppResume()
             checkAIWorkerStatus()
+            checkSavingsConditions()
+            savingsViewModel.calculateAutoSavings()
         }
     }
 
-    /**
-     * Kiểm tra trạng thái AI Worker
-     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        checkNotificationIntent(intent)
+    }
+
     private fun checkAIWorkerStatus() {
         lifecycleScope.launch {
             try {
                 val isScheduled = AIButlerWorker.isScheduled(this@MainActivity)
-                println("Trạng thái AI Worker: ${if (isScheduled) "ĐANG CHẠY" else "KHÔNG CHẠY"}")
 
                 if (!isScheduled && shouldAllowAIBackground()) {
-                    println("AI Worker không chạy, đang khởi động lại...")
                     startAIBackgroundMonitoring()
                 }
-
             } catch (e: Exception) {
-                println("Lỗi khi kiểm tra trạng thái AI Worker: ${e.message}")
             }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        println("📱 MainActivity onDestroy")
-
-        // KHÔNG cancel worker ở đây để nó tiếp tục chạy nền
-        // Chỉ lưu lại thời gian destroy
+        transactionViewModel.disconnectSavingsViewModel()
         saveLastDestroyTime()
     }
 
-    /**
-     * Lưu thời gian destroy
-     */
     private fun saveLastDestroyTime() {
         try {
             val prefs = getSharedPreferences("ai_settings", MODE_PRIVATE)
@@ -466,95 +516,9 @@ class MainActivity : ComponentActivity() {
                 .putLong("last_destroy_time", System.currentTimeMillis())
                 .apply()
         } catch (e: Exception) {
-            println("Lỗi khi lưu thời gian destroy: ${e.message}")
         }
     }
 
-    /**
-     * Process recurring expenses
-     */
-    private fun processRecurringExpenses() {
-        lifecycleScope.launch {
-            try {
-                recurringExpenseViewModel.processDueRecurringExpenses(
-                    context = this@MainActivity, // THÊM CONTEXT Ở ĐÂY
-                    onTransactionCreated = { expense ->
-                        createTransactionFromRecurring(expense)
-                    }
-                )
-                println("Đã kiểm tra và xử lý chi tiêu định kỳ")
-            } catch (e: Exception) {
-                println("Lỗi xử lý chi tiêu định kỳ: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Create transaction from recurring expense
-     */
-    private fun createTransactionFromRecurring(expense: com.example.financeapp.data.models.RecurringExpense) {
-        lifecycleScope.launch {
-            try {
-                val today = getTodayDate()
-                val dayOfWeek = getDayOfWeek(today)
-
-                val transaction = Transaction(
-                    id = UUID.randomUUID().toString(),
-                    title = expense.title,
-                    date = today,
-                    dayOfWeek = dayOfWeek,
-                    category = expense.category,
-                    categoryId = "",
-                    amount = expense.amount,
-                    isIncome = false,
-                    group = "Chi tiêu định kỳ",
-                    wallet = expense.wallet,
-                    description = expense.description
-                        ?: "Tự động từ chi tiêu định kỳ: ${expense.title}",
-                    categoryIcon = expense.categoryIcon,
-                    categoryColor = expense.categoryColor,
-                    isAutoGenerated = true,
-                    recurringSourceId = expense.id
-                )
-
-                transactionViewModel.addTransactionFromRecurring(
-                    transaction = transaction,
-                    budgetViewModel = budgetViewModel
-                )
-                println("Đã tạo và thêm transaction từ recurring: ${expense.title}")
-
-            } catch (e: Exception) {
-                println("Lỗi tạo transaction: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Get today's date in yyyy-MM-dd format
-     */
-    private fun getTodayDate(): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        return sdf.format(Date())
-    }
-
-    /**
-     * Get day of week from date string
-     */
-    private fun getDayOfWeek(date: String): String {
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val parsedDate = sdf.parse(date)
-            val calendar = Calendar.getInstance().apply { time = parsedDate!! }
-            val dayNames = arrayOf("Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7")
-            dayNames[calendar.get(Calendar.DAY_OF_WEEK) - 1]
-        } catch (e: Exception) {
-            ""
-        }
-    }
-
-    /**
-     * Format currency in VND format
-     */
     private fun formatCurrency(amount: Double): String {
         return try {
             val formatter = NumberFormat.getInstance(Locale.getDefault())
@@ -564,11 +528,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Get saved language preference from SharedPreferences
-     */
     private fun getSavedLanguage(): String {
         val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
         return prefs.getString("language_code", "vi") ?: "vi"
+    }
+
+    private fun getTodayDateForDisplay(): String {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        return sdf.format(Date())
+    }
+
+    private fun getFrequencyDisplayName(frequency: com.example.financeapp.data.models.RecurringFrequency): String {
+        return when (frequency) {
+            com.example.financeapp.data.models.RecurringFrequency.DAILY -> "Hàng ngày"
+            com.example.financeapp.data.models.RecurringFrequency.WEEKLY -> "Hàng tuần"
+            com.example.financeapp.data.models.RecurringFrequency.MONTHLY -> "Hàng tháng"
+            com.example.financeapp.data.models.RecurringFrequency.QUARTERLY -> "Hàng quý"
+            com.example.financeapp.data.models.RecurringFrequency.YEARLY -> "Hàng năm"
+        }
     }
 }

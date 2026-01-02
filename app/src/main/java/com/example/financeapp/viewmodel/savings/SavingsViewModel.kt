@@ -17,7 +17,6 @@ import java.util.Calendar
 import java.util.UUID
 
 class SavingsViewModel : ViewModel() {
-    // Firebase instances
     private val firestoreService = FirestoreService()
     private val auth: FirebaseAuth = Firebase.auth
     private val db = FirebaseFirestore.getInstance()
@@ -47,7 +46,6 @@ class SavingsViewModel : ViewModel() {
     private val _withdrawSuccess = MutableStateFlow(false)
     val withdrawSuccess: StateFlow<Boolean> = _withdrawSuccess.asStateFlow()
 
-    // Thêm state mới cho tính toán tự động
     private val _totalIncome = MutableStateFlow(0L)
     val totalIncome: StateFlow<Long> = _totalIncome.asStateFlow()
 
@@ -63,6 +61,12 @@ class SavingsViewModel : ViewModel() {
     private val _transactionHistory = MutableStateFlow<List<TransactionRecord>>(emptyList())
     val transactionHistory: StateFlow<List<TransactionRecord>> = _transactionHistory.asStateFlow()
 
+    private val _suggestedAllocation = MutableStateFlow<SuggestedAllocation?>(null)
+    val suggestedAllocation: StateFlow<SuggestedAllocation?> = _suggestedAllocation.asStateFlow()
+
+    private val _warningMessage = MutableStateFlow<String?>(null)
+    val warningMessage: StateFlow<String?> = _warningMessage.asStateFlow()
+
     // ========== SUPPORTING DATA CLASSES ==========
     data class MonthlyAnalysis(
         val income: Long = 0,
@@ -76,11 +80,22 @@ class SavingsViewModel : ViewModel() {
         val goalId: String = "",
         val goalName: String = "",
         val amount: Long = 0,
-        val type: String = "", // "deposit", "withdraw", "auto_allocation", "percentage_allocation"
+        val type: String = "",
         val timestamp: Long = System.currentTimeMillis(),
         val userId: String = "",
         val description: String = "",
         val balanceAfter: Long = 0
+    )
+
+    data class SuggestedAllocation(
+        val amount: Long,
+        val source: String,
+        val category: String = "",
+        val timestamp: Long = System.currentTimeMillis(),
+        val percentage: Int = 0,
+        val suggestedGoals: List<String> = emptyList(),
+        val originalAverage: Long = 0L,
+        val description: String = ""
     )
 
     // ========== PUBLIC PROPERTIES ==========
@@ -96,24 +111,20 @@ class SavingsViewModel : ViewModel() {
             _error.value = null
             try {
                 val userId = currentUserId
-                println("DEBUG: userId = $userId")
                 if (userId != null) {
                     val goals = firestoreService.getSavingsGoals(userId)
-                    println("DEBUG: Đã tải ${goals.size} mục tiêu")
                     _savingsGoals.value = goals
 
-                    // Tự động tính toán cho các goal có autoCalculate = true
                     goals.filter { it.isActive }.forEach { goal ->
                         calculateAutoSavings(goal)
                     }
 
-                    // Cập nhật phân tích tổng thể
                     updateMonthlyAnalysis(userId)
                 } else {
                     _error.value = "Vui lòng đăng nhập để xem mục tiêu tiết kiệm"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể tải mục tiêu tiết kiệm: ${e.message}"
+                _error.value = "Không thể tải mục tiêu tiết kiệm"
             } finally {
                 _isLoading.value = false
             }
@@ -137,23 +148,18 @@ class SavingsViewModel : ViewModel() {
                         updatedAt = System.currentTimeMillis()
                     )
 
-                    println("DEBUG: Thêm mục tiêu mới: $newGoal")
-
-                    // Thêm vào Firestore
                     firestoreService.addSavingsGoal(newGoal)
 
-                    // Cập nhật danh sách local
                     val currentList = _savingsGoals.value.toMutableList()
                     currentList.add(newGoal)
                     _savingsGoals.value = currentList
 
                     _addSuccess.value = true
-                    println("DEBUG: Đã thêm mục tiêu thành công")
                 } else {
                     _error.value = "Vui lòng đăng nhập để thêm mục tiêu"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể thêm mục tiêu: ${e.message}"
+                _error.value = "Không thể thêm mục tiêu"
             } finally {
                 _isLoading.value = false
             }
@@ -195,26 +201,20 @@ class SavingsViewModel : ViewModel() {
                         allocationPercentage = allocationPercentage
                     )
 
-                    println("DEBUG: Thêm mục tiêu tự động: $newGoal")
-
-                    // Thêm vào Firestore
                     firestoreService.addSavingsGoal(newGoal)
 
-                    // Cập nhật local state
                     val currentList = _savingsGoals.value.toMutableList()
                     currentList.add(newGoal)
                     _savingsGoals.value = currentList
 
-                    // Tính toán tự động ngay lập tức
                     calculateAutoSavings(newGoal)
 
                     _addSuccess.value = true
-                    println("DEBUG: Đã thêm mục tiêu tự động thành công")
                 } else {
                     _error.value = "Vui lòng đăng nhập"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể thêm mục tiêu tự động: ${e.message}"
+                _error.value = "Không thể thêm mục tiêu tự động"
             } finally {
                 _isLoading.value = false
             }
@@ -253,7 +253,7 @@ class SavingsViewModel : ViewModel() {
                     _error.value = "Không thể cập nhật mục tiêu"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể cập nhật mục tiêu: ${e.message}"
+                _error.value = "Không thể cập nhật mục tiêu"
             } finally {
                 _isLoading.value = false
             }
@@ -286,7 +286,7 @@ class SavingsViewModel : ViewModel() {
                     _error.value = "Không thể xoá mục tiêu"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể xoá mục tiêu: ${e.message}"
+                _error.value = "Không thể xoá mục tiêu"
             } finally {
                 _isLoading.value = false
             }
@@ -308,12 +308,8 @@ class SavingsViewModel : ViewModel() {
                 val goal = _savingsGoals.value.find { it.id == goalId }
 
                 if (userId != null && goal != null && goal.userId == userId) {
-                    println("DEBUG: Thêm $amount vào mục tiêu ID: $goalId")
-
-                    // Thêm tiền vào Firestore
                     firestoreService.addToSavings(goalId, amount)
 
-                    // Cập nhật local
                     val updatedGoal = goal.copy(
                         currentAmount = goal.currentAmount + amount,
                         progress = goal.calculateProgress(),
@@ -328,12 +324,10 @@ class SavingsViewModel : ViewModel() {
                         _savingsGoals.value = currentList
                     }
 
-                    // Cập nhật selected goal
                     if (_selectedGoal.value?.id == goalId) {
                         _selectedGoal.value = updatedGoal
                     }
 
-                    // Tạo transaction record
                     createTransactionRecord(
                         TransactionRecord(
                             goalId = goalId,
@@ -345,20 +339,18 @@ class SavingsViewModel : ViewModel() {
                             balanceAfter = goal.currentAmount + amount
                         )
                     )
-
-                    println("DEBUG: Đã thêm tiền thành công")
                 } else {
                     _error.value = "Không thể thêm tiền vào mục tiêu"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể thêm tiền vào mục tiêu: ${e.message}"
+                _error.value = "Không thể thêm tiền vào mục tiêu"
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // 8. TẠM DỪNG/KÍCH HOẠT MỤC TIÊU (THIẾU - BỔ SUNG)
+    // 8. TẠM DỪNG/KÍCH HOẠT MỤC TIÊU
     fun toggleGoalActive(goalId: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -373,10 +365,8 @@ class SavingsViewModel : ViewModel() {
                         updatedAt = System.currentTimeMillis()
                     )
 
-                    // Cập nhật trong Firestore
                     firestoreService.updateSavingsGoal(updatedGoal)
 
-                    // Cập nhật local
                     val currentList = _savingsGoals.value.toMutableList()
                     val index = currentList.indexOfFirst { it.id == goalId }
                     if (index != -1) {
@@ -384,7 +374,6 @@ class SavingsViewModel : ViewModel() {
                         _savingsGoals.value = currentList
                     }
 
-                    // Cập nhật selected goal
                     if (_selectedGoal.value?.id == goalId) {
                         _selectedGoal.value = updatedGoal
                     }
@@ -393,14 +382,14 @@ class SavingsViewModel : ViewModel() {
                     _error.value = "Đã $status mục tiêu '${goal.name}'"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể thay đổi trạng thái mục tiêu: ${e.message}"
+                _error.value = "Không thể thay đổi trạng thái mục tiêu"
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // 9. ĐÁNH DẤU HOÀN THÀNH/CHƯA HOÀN THÀNH (THIẾU - BỔ SUNG)
+    // 9. ĐÁNH DẤU HOÀN THÀNH/CHƯA HOÀN THÀNH
     fun toggleGoalCompletion(goalId: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -415,10 +404,8 @@ class SavingsViewModel : ViewModel() {
                         updatedAt = System.currentTimeMillis()
                     )
 
-                    // Cập nhật trong Firestore
                     firestoreService.updateSavingsGoal(updatedGoal)
 
-                    // Cập nhật local
                     val currentList = _savingsGoals.value.toMutableList()
                     val index = currentList.indexOfFirst { it.id == goalId }
                     if (index != -1) {
@@ -426,7 +413,6 @@ class SavingsViewModel : ViewModel() {
                         _savingsGoals.value = currentList
                     }
 
-                    // Cập nhật selected goal
                     if (_selectedGoal.value?.id == goalId) {
                         _selectedGoal.value = updatedGoal
                     }
@@ -435,14 +421,14 @@ class SavingsViewModel : ViewModel() {
                     _error.value = "Đã đánh dấu mục tiêu '${goal.name}' là $status"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể thay đổi trạng thái hoàn thành: ${e.message}"
+                _error.value = "Không thể thay đổi trạng thái hoàn thành"
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // 10. TẢI LỊCH SỬ GIAO DỊCH (THIẾU - BỔ SUNG)
+    // 10. TẢI LỊCH SỬ GIAO DỊCH
     fun loadTransactionHistory(goalId: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -454,7 +440,6 @@ class SavingsViewModel : ViewModel() {
                     .whereEqualTo("userId", userId)
                     .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
 
-                // Nếu có goalId, filter theo goal
                 if (goalId != null) {
                     query.whereEqualTo("goalId", goalId)
                 }
@@ -476,7 +461,7 @@ class SavingsViewModel : ViewModel() {
 
                 _transactionHistory.value = transactions
             } catch (e: Exception) {
-                _error.value = "Không thể tải lịch sử giao dịch: ${e.message}"
+                _error.value = "Không thể tải lịch sử giao dịch"
             } finally {
                 _isLoading.value = false
             }
@@ -497,7 +482,6 @@ class SavingsViewModel : ViewModel() {
                     return@launch
                 }
 
-                // 1. Lấy thời gian bắt đầu và kết thúc
                 val startDate = goal?.startDate ?: getStartOfCurrentMonth()
                 val endDate = if (goal?.deadline ?: 0L > 0) {
                     goal?.deadline ?: System.currentTimeMillis()
@@ -505,46 +489,34 @@ class SavingsViewModel : ViewModel() {
                     System.currentTimeMillis()
                 }
 
-                println("DEBUG: Tính toán từ $startDate đến $endDate")
-
-                // 2. Lấy tổng thu nhập trong khoảng thời gian
                 val incomeInPeriod = getTotalIncomeByPeriod(
                     userId = userId,
                     startDate = startDate,
                     endDate = endDate
                 )
-                println("DEBUG: Tổng thu nhập: $incomeInPeriod")
 
-                // 3. Lấy tổng chi tiêu trong khoảng thời gian
                 val expenseInPeriod = getTotalExpenseByPeriod(
                     userId = userId,
                     startDate = startDate,
                     endDate = endDate
                 )
-                println("DEBUG: Tổng chi tiêu: $expenseInPeriod")
 
-                // 4. Tính số tiền có thể tiết kiệm (thu - chi)
                 val potentialSavings = incomeInPeriod - expenseInPeriod
 
-                // 5. Cập nhật state
                 _totalIncome.value = incomeInPeriod
                 _totalExpense.value = expenseInPeriod
                 _availableSavings.value = potentialSavings.coerceAtLeast(0)
 
-                // 6. Nếu có goal, tự động phân bổ
                 goal?.let {
                     if (potentialSavings > 0 && it.isActive && it.autoCalculate) {
                         autoAllocateToGoal(it, potentialSavings)
                     }
                 }
 
-                // 7. Cập nhật phân tích hàng tháng
                 updateMonthlyAnalysis(userId)
 
             } catch (e: Exception) {
-                _error.value = "Không thể tính toán tiết kiệm tự động: ${e.message}"
-                println("DEBUG: Lỗi tính toán: ${e.message}")
-                e.printStackTrace()
+                _error.value = "Không thể tính toán tiết kiệm tự động"
             } finally {
                 _isLoading.value = false
             }
@@ -557,14 +529,10 @@ class SavingsViewModel : ViewModel() {
             try {
                 val userId = currentUserId ?: return@launch
 
-                // Lấy thu nhập tháng hiện tại
                 val monthlyIncome = _monthlyAnalysis.value.income
-
-                // Tính số tiền theo %
                 val amountByPercentage = (monthlyIncome * percentage) / 100
 
                 if (amountByPercentage > 0) {
-                    // Phân bổ vào các mục tiêu đang hoạt động
                     val activeGoals = getActiveGoals()
                     if (activeGoals.isNotEmpty()) {
                         val amountPerGoal = amountByPercentage / activeGoals.size
@@ -575,12 +543,12 @@ class SavingsViewModel : ViewModel() {
                     }
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể tính theo %: ${e.message}"
+                _error.value = "Không thể tính theo %"
             }
         }
     }
 
-    // ========== SERVICE FUNCTIONS (Gộp từ IncomeService và TransactionService) ==========
+    // ========== SERVICE FUNCTIONS ==========
     private suspend fun getTotalIncomeByPeriod(
         userId: String,
         startDate: Long,
@@ -598,7 +566,6 @@ class SavingsViewModel : ViewModel() {
                 document.getLong("amount") ?: 0L
             }
         } catch (e: Exception) {
-            println("DEBUG: Lỗi lấy thu nhập: ${e.message}")
             0L
         }
     }
@@ -621,7 +588,6 @@ class SavingsViewModel : ViewModel() {
                 document.getLong("amount") ?: 0L
             }
         } catch (e: Exception) {
-            println("DEBUG: Lỗi lấy chi tiêu: ${e.message}")
             0L
         }
     }
@@ -632,10 +598,8 @@ class SavingsViewModel : ViewModel() {
                 .add(record)
                 .await()
 
-            // Cập nhật lịch sử giao dịch
             loadTransactionHistory(record.goalId)
         } catch (e: Exception) {
-            println("DEBUG: Lỗi tạo transaction record: ${e.message}")
         }
     }
 
@@ -671,26 +635,18 @@ class SavingsViewModel : ViewModel() {
             )
 
         } catch (e: Exception) {
-            println("DEBUG: Lỗi phân tích hàng tháng: ${e.message}")
         }
     }
 
     private fun autoAllocateToGoal(goal: SavingsGoal, availableAmount: Long) {
         viewModelScope.launch {
             try {
-                // Tính số tiền còn lại cần cho goal
                 val remainingNeeded = goal.targetAmount - goal.currentAmount
-
-                // Số tiền thực tế có thể thêm (không vượt quá cần thiết)
                 val amountToAdd = minOf(availableAmount, remainingNeeded).coerceAtLeast(0)
 
                 if (amountToAdd > 0) {
-                    println("DEBUG: Tự động thêm $amountToAdd vào mục tiêu ${goal.name}")
-
-                    // Thêm tiền vào goal
                     addToSavingsGoal(goal.id, amountToAdd)
 
-                    // Tạo transaction record
                     createTransactionRecord(
                         TransactionRecord(
                             goalId = goal.id,
@@ -706,7 +662,7 @@ class SavingsViewModel : ViewModel() {
                     _error.value = "Đã tự động thêm ${formatCurrency(amountToAdd)} vào '${goal.name}'"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể phân bổ tự động: ${e.message}"
+                _error.value = "Không thể phân bổ tự động"
             }
         }
     }
@@ -714,7 +670,6 @@ class SavingsViewModel : ViewModel() {
     // ========== CÁC HÀM CƠ BẢN KHÁC ==========
     fun selectGoal(goal: SavingsGoal?) {
         _selectedGoal.value = goal
-        // Khi chọn goal, tải lịch sử giao dịch của nó
         goal?.id?.let { loadTransactionHistory(it) }
     }
 
@@ -753,7 +708,7 @@ class SavingsViewModel : ViewModel() {
                     _error.value = "Không tìm thấy mục tiêu"
                 }
             } catch (e: Exception) {
-                _error.value = "Không thể cập nhật mục tiêu: ${e.message}"
+                _error.value = "Không thể cập nhật mục tiêu"
             }
         }
     }
@@ -779,6 +734,247 @@ class SavingsViewModel : ViewModel() {
             allocationPercentage = 0
         )
         addSavingsGoal(goal)
+    }
+
+    // ========== HÀM XỬ LÝ TỪ TRANSACTIONVIEWMODEL ==========
+
+    /**
+     * Xử lý khi có thu nhập mới được thêm
+     */
+    fun onIncomeAdded(amount: Long, description: String, category: String) {
+        viewModelScope.launch {
+            try {
+                val currentIncome = _totalIncome.value
+                _totalIncome.value = currentIncome + amount
+
+                autoAllocateFromIncome(amount, description)
+
+                _availableSavings.value = _totalIncome.value - _totalExpense.value
+
+                _error.value = "Đã nhận thu nhập ${formatCurrency(amount)}"
+
+            } catch (e: Exception) {
+                _error.value = "Lỗi xử lý thu nhập"
+            }
+        }
+    }
+
+    /**
+     * Tự động phân bổ từ thu nhập vào các goal
+     */
+    private fun autoAllocateFromIncome(amount: Long, sourceDescription: String) {
+        viewModelScope.launch {
+            try {
+                val autoGoals = _savingsGoals.value.filter {
+                    it.isActive && it.autoCalculate && !it.isCompleted
+                }
+
+                if (autoGoals.isNotEmpty()) {
+                    var totalAllocated = 0L
+
+                    autoGoals.forEach { goal ->
+                        val allocatedAmount = (amount * goal.allocationPercentage) / 100
+
+                        if (allocatedAmount > 0) {
+                            addToSavingsGoal(goal.id, allocatedAmount)
+
+                            createTransactionRecord(
+                                TransactionRecord(
+                                    goalId = goal.id,
+                                    goalName = goal.name,
+                                    amount = allocatedAmount,
+                                    type = "auto_income_allocation",
+                                    userId = currentUserId ?: "",
+                                    description = "Tự động từ $sourceDescription",
+                                    balanceAfter = goal.currentAmount + allocatedAmount
+                                )
+                            )
+
+                            totalAllocated += allocatedAmount
+                        }
+                    }
+
+                    if (totalAllocated > 0) {
+                        _error.value = "Đã tự động phân bổ ${formatCurrency(totalAllocated)} vào ${autoGoals.size} mục tiêu"
+                    }
+                }
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Xử lý khi có chi tiêu mới
+     */
+    fun onExpenseAdded(amount: Long, category: String) {
+        viewModelScope.launch {
+            try {
+                val currentExpense = _totalExpense.value
+                _totalExpense.value = currentExpense + amount
+
+                _availableSavings.value = _totalIncome.value - _totalExpense.value
+
+                val income = _totalIncome.value
+                if (income > 0) {
+                    val expenseRate = (_totalExpense.value.toFloat() / income.toFloat()) * 100
+                    if (expenseRate > 80) {
+                        _warningMessage.value = "Chi tiêu đang cao (${expenseRate.toInt()}% thu nhập)"
+                    }
+                }
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Xử lý khi chi tiêu giảm (xóa hoặc sửa giảm)
+     */
+    fun onExpenseReduced(amount: Long, category: String) {
+        viewModelScope.launch {
+            try {
+                _totalExpense.value = _totalExpense.value - amount
+
+                _availableSavings.value = _availableSavings.value + amount
+
+                suggestAllocationFromSavings(amount, "Tiết kiệm từ giảm chi $category")
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Đề xuất phân bổ từ khoản tiết kiệm
+     */
+    private fun suggestAllocationFromSavings(amount: Long, reason: String) {
+        viewModelScope.launch {
+            try {
+                val activeGoals = getActiveGoals()
+
+                if (activeGoals.isNotEmpty() && amount > 0) {
+                    _suggestedAllocation.value = SuggestedAllocation(
+                        amount = amount,
+                        source = "expense_reduction",
+                        category = reason,
+                        timestamp = System.currentTimeMillis(),
+                        suggestedGoals = activeGoals.map { it.id }
+                    )
+
+                    _warningMessage.value = "Bạn có ${formatCurrency(amount)} có thể thêm vào tiết kiệm. " +
+                            "Từ: $reason"
+                }
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Xử lý khi thu nhập giảm (xóa hoặc sửa giảm)
+     */
+    fun onIncomeReduced(amount: Long, description: String) {
+        viewModelScope.launch {
+            try {
+                _totalIncome.value = _totalIncome.value - amount
+
+                _availableSavings.value = _totalIncome.value - _totalExpense.value
+
+                _warningMessage.value = "Thu nhập giảm ${formatCurrency(amount)}"
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Cập nhật thống kê tài chính từ TransactionViewModel
+     */
+    fun updateFinancialStats(monthlyIncome: Long, monthlyExpense: Long) {
+        viewModelScope.launch {
+            try {
+                _totalIncome.value = monthlyIncome
+                _totalExpense.value = monthlyExpense
+                _availableSavings.value = (monthlyIncome - monthlyExpense).coerceAtLeast(0)
+
+                val savingsRate = if (monthlyIncome > 0) {
+                    ((monthlyIncome - monthlyExpense).toFloat() / monthlyIncome.toFloat() * 100)
+                        .coerceAtLeast(0f)
+                } else 0f
+
+                _monthlyAnalysis.value = MonthlyAnalysis(
+                    income = monthlyIncome,
+                    expense = monthlyExpense,
+                    savings = (monthlyIncome - monthlyExpense).coerceAtLeast(0),
+                    savingsRate = savingsRate
+                )
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Đề xuất từ giảm chi tiêu (gọi từ TransactionViewModel)
+     */
+    fun suggestSavingsFromExpenseReduction(amount: Long, category: String, originalAverage: Long) {
+        viewModelScope.launch {
+            try {
+                if (amount > 0) {
+                    _suggestedAllocation.value = SuggestedAllocation(
+                        amount = amount,
+                        source = "expense_reduction",
+                        category = category,
+                        timestamp = System.currentTimeMillis(),
+                        originalAverage = originalAverage,
+                        description = "Bạn đã chi ít hơn ${formatCurrency(amount)} so với trung bình"
+                    )
+
+                    _warningMessage.value = "Đề xuất: Thêm ${formatCurrency(amount)} vào tiết kiệm " +
+                            "(tiết kiệm từ $category)"
+                }
+
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Đề xuất phân bổ thủ công (gọi từ UI)
+     */
+    fun suggestManualAllocation(amount: Long, percentage: Int) {
+        viewModelScope.launch {
+            try {
+                val activeGoals = getActiveGoals()
+
+                if (activeGoals.isNotEmpty() && amount > 0) {
+                    _suggestedAllocation.value = SuggestedAllocation(
+                        amount = amount,
+                        source = "manual_suggestion",
+                        category = "Thu nhập dư",
+                        timestamp = System.currentTimeMillis(),
+                        percentage = percentage,
+                        suggestedGoals = activeGoals.map { it.id }
+                    )
+
+                    _warningMessage.value = "Đề xuất phân bổ ${formatCurrency(amount)} " +
+                            "($percentage% thu nhập dư) vào ${activeGoals.size} mục tiêu"
+                }
+
+            } catch (e: Exception) {
+                _error.value = "Không thể tạo đề xuất"
+            }
+        }
+    }
+
+    // ========== HÀM CLEAR ==========
+    fun clearSuggestedAllocation() {
+        _suggestedAllocation.value = null
+    }
+
+    fun clearWarningMessage() {
+        _warningMessage.value = null
     }
 
     // ========== UTILITY FUNCTIONS ==========
