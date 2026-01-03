@@ -1,5 +1,6 @@
 package com.example.financeapp.screen.features
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.rememberLanguageText
-import com.example.financeapp.viewmodel.transaction.Category // Thêm import này
+import com.example.financeapp.viewmodel.transaction.Category
 import com.kizitonwose.calendar.compose.CalendarState
 import com.kizitonwose.calendar.compose.HorizontalCalendar
 import com.kizitonwose.calendar.compose.rememberCalendarState
@@ -48,20 +48,16 @@ fun CalendarScreen(
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Màu sắc theo gói chuyên nghiệp & tin cậy
-    val primaryColor = Color(0xFF0F4C75) // Xanh Navy
-    val secondaryColor = Color(0xFF2E8B57) // Xanh lá đậm
-    val backgroundColor = Color(0xFFF5F7FA) // Xám rất nhạt
+    // Màu sắc chủ đạo trắng sáng
+    val backgroundColor = Color(0xFFF8FAFC) // Xám rất nhạt
     val surfaceColor = Color.White // Trắng
-    val textPrimary = Color(0xFF2D3748) // Xám đen
-    val textSecondary = Color(0xFF718096) // Xám
-    val accentColor = Color(0xFFED8936) // Cam
-    val incomeColor = Color(0xFF2E8B57) // Xanh lá đậm
-    val expenseColor = Color(0xFFE53E3E) // Đỏ đậm
-
-    val gradient = Brush.verticalGradient(
-        colors = listOf(primaryColor, Color(0xFF1A365D))
-    )
+    val primaryColor = Color(0xFF3B82F6) // Xanh dương
+    val secondaryColor = Color(0xFF10B981) // Xanh lá
+    val textPrimary = Color(0xFF1F2937) // Xám đen
+    val textSecondary = Color(0xFF6B7280) // Xám
+    val accentColor = Color(0xFFF59E0B) // Cam
+    val incomeColor = Color(0xFF10B981) // Xanh lá
+    val expenseColor = Color(0xFFEF4444) // Đỏ
 
     // Lấy các text đa ngôn ngữ
     val calendarText = rememberLanguageText("calendar")
@@ -117,7 +113,7 @@ fun CalendarScreen(
                         calendarText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color.White
+                        color = textPrimary
                     )
                 },
                 navigationIcon = {
@@ -126,30 +122,30 @@ fun CalendarScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .background(
-                                Color.White.copy(alpha = 0.2f),
+                                Color(0xFFF1F5F9),
                                 CircleShape
                             )
                     ) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = textPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = primaryColor,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = Color.White,
+                    titleContentColor = textPrimary,
+                    navigationIconContentColor = textPrimary
                 )
             )
         }
     ) { padding ->
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(gradient)
+                .background(backgroundColor)
                 .padding(padding)
         ) {
             Column(
@@ -162,23 +158,23 @@ fun CalendarScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(20.dp),
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(16.dp),
                             clip = true
                         ),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = surfaceColor),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
                             text = thisMonthText,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = textPrimary,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                            modifier = Modifier.padding(bottom = 12.dp)
                         )
 
                         Row(
@@ -235,11 +231,11 @@ fun CalendarScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(20.dp),
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(16.dp),
                             clip = true
                         ),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = surfaceColor),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
@@ -344,11 +340,11 @@ fun CalendarScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(20.dp),
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(16.dp),
                             clip = true
                         ),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = surfaceColor),
                     elevation = CardDefaults.cardElevation(0.dp)
                 ) {
@@ -371,7 +367,8 @@ fun CalendarScreen(
                             Text(
                                 text = selectedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = textSecondary
+                                color = textSecondary,
+                                fontWeight = FontWeight.Medium
                             )
                         }
 
@@ -392,7 +389,7 @@ fun CalendarScreen(
                                 items(dayTransactions) { transaction ->
                                     CalendarTransactionItem(
                                         transaction = transaction,
-                                        categories = categories, // Truyền categories vào
+                                        categories = categories,
                                         incomeColor = incomeColor,
                                         expenseColor = expenseColor,
                                         textPrimary = textPrimary,
@@ -464,13 +461,13 @@ fun CalendarHeader(
             onClick = onPreviousClick,
             modifier = Modifier
                 .size(36.dp)
-                .background(primaryColor, CircleShape)
+                .background(Color(0xFFF1F5F9), CircleShape)
                 .clip(CircleShape)
         ) {
             Icon(
                 Icons.Default.KeyboardArrowLeft,
                 contentDescription = previousMonthText,
-                tint = Color.White
+                tint = primaryColor
             )
         }
 
@@ -487,13 +484,13 @@ fun CalendarHeader(
             onClick = onNextClick,
             modifier = Modifier
                 .size(36.dp)
-                .background(primaryColor, CircleShape)
+                .background(Color(0xFFF1F5F9), CircleShape)
                 .clip(CircleShape)
         ) {
             Icon(
                 Icons.Default.KeyboardArrowRight,
                 contentDescription = nextMonthText,
-                tint = Color.White
+                tint = primaryColor
             )
         }
     }
@@ -522,12 +519,14 @@ fun CalendarDayCell(
         isToday -> primaryColor.copy(alpha = 0.1f)
         else -> Color.Transparent
     }
+    val borderColor = if (isToday) primaryColor else Color.Transparent
 
     Box(
         modifier = Modifier
             .aspectRatio(1f)
             .padding(2.dp)
             .background(backgroundColor, CircleShape)
+            .clip(CircleShape)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -568,30 +567,26 @@ fun CalendarTransactionItem(
     textPrimary: Color,
     textSecondary: Color
 ) {
-    // Tìm category name - GIỐNG CÁCH CỦA TransactionListItem TRONG TRANSACTION SCREEN
     val categoryName = remember(transaction.category, categories) {
         categories.find {
             it.id == transaction.categoryId ||
-                    it.id == transaction.category ||  // Kiểm tra cả id
+                    it.id == transaction.category ||
                     it.name.equals(transaction.category, ignoreCase = true)
-        }?.name ?: transaction.category.ifBlank { "Không xác định" } // Thêm fallback
+        }?.name ?: transaction.category.ifBlank { "Không xác định" }
     }
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(12.dp),
-                clip = true
-            ),
+            .padding(vertical = 2.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(0.dp)
+        color = Color.White,
+        tonalElevation = 1.dp,
+        border = BorderStroke(0.5.dp, Color(0xFFE5E7EB))
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(12.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -600,7 +595,6 @@ fun CalendarTransactionItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Icon indicator - CÓ THỂ SỬA THEO HOME SCREEN NẾU CẦN
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -612,7 +606,6 @@ fun CalendarTransactionItem(
                         .clip(CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Có thể thay đổi icon nếu muốn giống HomeScreen
                     Text(
                         if (transaction.isIncome) "↑" else "↓",
                         color = if (transaction.isIncome) incomeColor else expenseColor,
@@ -624,11 +617,10 @@ fun CalendarTransactionItem(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column {
-                    // Hiển thị tên category
                     Text(
                         text = categoryName,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
+                        fontSize = 14.sp,
                         color = textPrimary
                     )
                     Row {
@@ -650,12 +642,11 @@ fun CalendarTransactionItem(
                 }
             }
 
-            // Số tiền - GIỮ NGUYÊN HOẶC SỬA THEO HOME SCREEN
             Text(
                 text = (if (transaction.isIncome) "+" else "-") + formatCurrency(transaction.amount),
                 fontWeight = FontWeight.Bold,
-                color = if (transaction.isIncome) incomeColor else expenseColor,
-                style = MaterialTheme.typography.bodyMedium
+                fontSize = 14.sp,
+                color = if (transaction.isIncome) incomeColor else expenseColor
             )
         }
     }
@@ -695,7 +686,6 @@ fun CalendarEmptyState(
     }
 }
 
-// Hàm lấy text cho các ngày trong tuần (không cần @Composable)
 private fun getDayOfWeekText(
     dayOfWeek: Int,
     mondayShort: String,
@@ -718,7 +708,6 @@ private fun getDayOfWeekText(
     }
 }
 
-// Hàm định dạng tiền tệ
 fun formatCurrency(amount: Double): String {
     return "%,.0fđ".format(amount)
 }

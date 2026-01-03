@@ -7,9 +7,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -18,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,9 +32,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -47,6 +50,7 @@ import com.example.financeapp.viewmodel.transaction.Category
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.cos
@@ -79,9 +83,6 @@ fun AddTransactionScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Thêm state để theo dõi category từ navigation
-    var receivedCategoryFromNav by remember { mutableStateOf(false) }
-
     // Animation states
     val transactionTypeTransition = updateTransition(targetState = isIncome, label = "transactionType")
     val saveButtonEnabled by remember { derivedStateOf { amount.isNotBlank() && categoryId.isNotBlank() } }
@@ -92,64 +93,10 @@ fun AddTransactionScreen(
         selectableCategoriesMap[transactionType] ?: emptyList()
     }
 
-    // Lấy danh mục chính cho hiển thị ban đầu
-    val categories by categoryViewModel.categories.collectAsState()
-    val mainCategories = remember(categories, transactionType) {
-        categoryViewModel.getMainCategories(transactionType).filter { it.name != "Khác" }
-    }
-
-    // Lấy 3 danh mục con đầu tiên từ mỗi danh mục cha
-    val displayCategories = remember(mainCategories, categories, transactionType) {
-        val subCategories = mutableListOf<Category>()
-        mainCategories.forEach { mainCategory ->
-            val firstSubCategory = categoryViewModel.getSubCategories(mainCategory.id).firstOrNull()
-            if (firstSubCategory != null) {
-                subCategories.add(firstSubCategory)
-            }
-        }
-        val limitedCategories = subCategories.take(3).toMutableList()
-        // Thêm "Khác" ở cuối
-        limitedCategories.add(
-            Category(
-                "other",
-                "Khác",
-                transactionType,
-                false,
-                null,
-                "📁",
-                "#9F7AEA"
-            )
-        )
-        limitedCategories
-    }
-
-    val selectedCategoryInfo = selectableCategories.find { it.id == categoryId } ?: displayCategories.find { it.id == categoryId }
-
     // Auto-focus on amount field
     val focusRequester = remember { FocusRequester() }
 
-    // Fetch selected category from navigation
-    LaunchedEffect(navController.currentBackStackEntry) {
-        navController.currentBackStackEntry?.savedStateHandle?.get<String>("selectedCategoryId")?.let { selectedId ->
-            categoryId = selectedId
-            receivedCategoryFromNav = true
-            navController.currentBackStackEntry?.savedStateHandle?.remove<String>("selectedCategoryId")
-        }
-    }
-
-    // Reset categoryId khi thay đổi loại giao dịch, trừ khi đang từ navigation trở về
-    LaunchedEffect(isIncome) {
-        if (!receivedCategoryFromNav && existingTransaction == null) {
-            categoryId = ""
-        }
-        // Reset flag sau khi xử lý
-        if (receivedCategoryFromNav) {
-            receivedCategoryFromNav = false
-        }
-    }
-
     // ============== XỬ LÝ GIAO DỊCH ĐÃ QUÉT ==============
-    // Lấy giao dịch đã quét từ màn hình trước
     val scannedTransaction by navController
         .previousBackStackEntry
         ?.savedStateHandle
@@ -159,8 +106,6 @@ fun AddTransactionScreen(
 
     LaunchedEffect(scannedTransaction) {
         scannedTransaction?.let { transaction ->
-            // Tự động điền form với dữ liệu đã quét
-            // Cập nhật các state với dữ liệu từ transaction đã quét
             amount = transaction.amount.toString()
             categoryId = transaction.category
             isIncome = transaction.isIncome
@@ -168,13 +113,6 @@ fun AddTransactionScreen(
             transactionDate = transaction.date
             transactionDayOfWeek = transaction.dayOfWeek
 
-            // Tìm danh mục khớp
-            val matchedCategory = categories.find { it.name == transaction.category }
-            matchedCategory?.let { cat ->
-                // Có thể lưu thêm thông tin về category nếu cần
-            }
-
-            // Xóa dữ liệu đã lưu để tránh điền lại nhiều lần
             navController.previousBackStackEntry
                 ?.savedStateHandle
                 ?.remove<Transaction>("scanned_transaction")
@@ -196,13 +134,6 @@ fun AddTransactionScreen(
         if (isIncome) Color(0xFF059669) else Color(0xFFDC2626)
     }
 
-    val lightColor by transactionTypeTransition.animateColor(
-        transitionSpec = { tween(durationMillis = 300) },
-        label = "lightColor"
-    ) { isIncome ->
-        if (isIncome) Color(0xFFD1FAE5) else Color(0xFFFEE2E2)
-    }
-
     // Gradient background
     val gradientBackground = Brush.verticalGradient(
         colors = listOf(
@@ -216,7 +147,6 @@ fun AddTransactionScreen(
 
     Scaffold(
         topBar = {
-            // TopBar đơn giản với back và title
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -232,7 +162,6 @@ fun AddTransactionScreen(
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Nút back bình thường
                     IconButton(
                         onClick = onBack,
                         modifier = Modifier.size(48.dp)
@@ -247,7 +176,6 @@ fun AddTransactionScreen(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    // Tiêu đề
                     Text(
                         if (existingTransaction != null) languageViewModel.getTranslation("edit_transaction")
                         else languageViewModel.getTranslation("add_new_transaction"),
@@ -330,20 +258,12 @@ fun AddTransactionScreen(
 
                             Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
 
-                            // Category selector với navController
-                            CategorySectionCompact(
-                                categories = displayCategories,
+                            // Category selector mới với horizontal scroll
+                            CategorySectionHorizontal(
+                                categories = selectableCategories,
                                 selectedCategoryId = categoryId,
                                 onCategorySelected = { selected ->
-                                    if (selected.id == "other") {
-                                        // Khi chọn "Khác", navigate đến CategorySelectionScreen
-                                        navController.navigate("categories?transactionType=$transactionType&returnTo=add_transaction")
-                                    } else {
-                                        categoryId = selected.id
-                                    }
-                                },
-                                onOtherCategoryClick = {
-                                    navController.navigate("categories?transactionType=$transactionType&returnTo=add_transaction")
+                                    categoryId = selected.id
                                 },
                                 languageViewModel = languageViewModel,
                                 primaryColor = primaryColor
@@ -379,11 +299,12 @@ fun AddTransactionScreen(
                                 primaryColor = primaryColor,
                                 secondaryColor = secondaryColor,
                                 onClick = {
+                                    val selectedCategoryInfo = selectableCategories.find { it.id == categoryId }
                                     val transaction = Transaction(
                                         id = existingTransaction?.id ?: generateTransactionId(),
                                         date = transactionDate,
                                         dayOfWeek = transactionDayOfWeek,
-                                        category = categoryId,
+                                        category = selectedCategoryInfo?.name ?: categoryId,
                                         amount = amount.toDoubleOrNull() ?: 0.0,
                                         isIncome = isIncome,
                                         group = if (isIncome) languageViewModel.getTranslation("income")
@@ -412,24 +333,6 @@ fun AddTransactionScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-
-                // Quick category suggestions (only when no category selected)
-                if (categoryId.isBlank()) {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn() + slideInVertically(),
-                        exit = fadeOut() + slideOutVertically()
-                    ) {
-                        QuickCategorySuggestions(
-                            transactionType = transactionType,
-                            categories = selectableCategories.take(4),
-                            primaryColor = primaryColor,
-                            onCategorySelected = { category ->
-                                categoryId = category.id
-                            }
-                        )
-                    }
-                }
 
                 // Warning messages
                 val warning by transactionViewModel.warningMessage.collectAsState()
@@ -818,17 +721,18 @@ private fun AmountInputField(
     }
 }
 
-// ============ CATEGORY SELECTOR ============
+// ============ CATEGORY SELECTOR HORIZONTAL ============
 
 @Composable
-private fun CategorySectionCompact(
+private fun CategorySectionHorizontal(
     categories: List<Category>,
     selectedCategoryId: String,
     onCategorySelected: (Category) -> Unit,
-    onOtherCategoryClick: () -> Unit,
     languageViewModel: LanguageViewModel,
     primaryColor: Color
 ) {
+    val scrollState = rememberScrollState()
+
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -844,8 +748,8 @@ private fun CategorySectionCompact(
 
             if (selectedCategoryId.isNotBlank()) {
                 Text(
-                    languageViewModel.getTranslation("selected"),
-                    fontSize = 13.sp,
+                    "${languageViewModel.getTranslation("selected")} • ${categories.count()}",
+                    fontSize = 12.sp,
                     color = primaryColor,
                     fontWeight = FontWeight.Medium
                 )
@@ -854,142 +758,270 @@ private fun CategorySectionCompact(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Hiển thị 3 danh mục đầu tiên + "Khác" trong grid 2x2
-        val gridItems = if (categories.size >= 4) categories.take(4) else categories
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        // Hiển thị tất cả danh mục trong horizontal scroll
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp)
         ) {
-            // Hàng đầu tiên
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                gridItems.take(2).forEach { category ->
-                    CategoryItemCompact(
-                        category = category,
-                        isSelected = selectedCategoryId == category.id,
-                        onClick = { onCategorySelected(category) },
-                        modifier = Modifier.weight(1f),
-                        primaryColor = primaryColor
-                    )
-                }
-            }
+            val containerWidth = maxWidth
 
-            // Hàng thứ hai
-            if (gridItems.size > 2) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    gridItems.drop(2).forEach { category ->
-                        CategoryItemCompact(
-                            category = category,
-                            isSelected = selectedCategoryId == category.id,
-                            onClick = { onCategorySelected(category) },
-                            modifier = Modifier.weight(1f),
-                            primaryColor = primaryColor
-                        )
-                    }
-                }
-            }
-        }
+            if (categories.isNotEmpty()) {
+                // Tính toán item width để vừa với màn hình
+                val itemWidth = containerWidth / 4.5f
 
-        // Nút chọn danh mục khác nếu cần
-        if (selectedCategoryId.isBlank()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onOtherCategoryClick() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = primaryColor.copy(alpha = 0.05f)
-                ),
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = primaryColor.copy(alpha = 0.3f)
+                HorizontalScrollableCategoryList(
+                    categories = categories,
+                    selectedCategoryId = selectedCategoryId,
+                    onCategorySelected = onCategorySelected,
+                    itemWidth = itemWidth,
+                    primaryColor = primaryColor,
+                    scrollState = scrollState
                 )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Tìm danh mục khác",
-                        tint = primaryColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        languageViewModel.getTranslation("choose_other_category"),
-                        color = primaryColor,
-                        fontWeight = FontWeight.Medium,
+                        languageViewModel.getTranslation("no_categories_available"),
+                        color = Color(0xFF94A3B8),
                         fontSize = 14.sp
                     )
                 }
             }
         }
+
+        // Scroll indicator
+        if (categories.size > 5) {
+            Spacer(modifier = Modifier.height(8.dp))
+            ScrollIndicator(
+                itemCount = categories.size,
+                selectedIndex = categories.indexOfFirst { it.id == selectedCategoryId },
+                scrollState = scrollState,
+                primaryColor = primaryColor
+            )
+        }
     }
 }
 
 @Composable
-private fun CategoryItemCompact(
+private fun HorizontalScrollableCategoryList(
+    categories: List<Category>,
+    selectedCategoryId: String,
+    onCategorySelected: (Category) -> Unit,
+    itemWidth: Dp,
+    primaryColor: Color,
+    scrollState: ScrollState
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Thêm padding bên trái
+        Spacer(modifier = Modifier.width(4.dp))
+
+        categories.forEachIndexed { index, category ->
+            HorizontalCategoryItem(
+                category = category,
+                isSelected = selectedCategoryId == category.id,
+                onClick = {
+                    onCategorySelected(category)
+                    // Auto scroll to center when selected
+                    coroutineScope.launch {
+                        // Tính toán vị trí item
+                        val itemWidthPx = with(density) { itemWidth.toPx() }
+                        val spacingPx = with(density) { 8.dp.toPx() }
+                        val itemPosition = index * (itemWidthPx + spacingPx)
+
+                        val containerCenter = scrollState.maxValue / 2f
+                        val targetScroll = (itemPosition - containerCenter).toInt()
+
+                        // Đảm bảo giá trị scroll nằm trong phạm vi hợp lệ
+                        val adjustedScroll = targetScroll.coerceIn(0, scrollState.maxValue)
+                        scrollState.animateScrollTo(
+                            value = adjustedScroll,
+                            animationSpec = tween(durationMillis = 300)
+                        )
+                    }
+                },
+                modifier = Modifier.width(itemWidth),
+                primaryColor = primaryColor,
+                index = index
+            )
+        }
+        // Thêm padding bên phải
+        Spacer(modifier = Modifier.width(4.dp))
+    }
+}
+@Composable
+private fun HorizontalCategoryItem(
     category: Category,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    primaryColor: Color
+    primaryColor: Color,
+    index: Int
 ) {
     val categoryColor = parseColor(category.color)
-    val backgroundColor = if (isSelected) primaryColor else Color(0xFFF9FAFB)
-    val textColor = if (isSelected) Color.White else Color(0xFF374151)
-    val iconColor = if (isSelected) Color.White else Color(0xFF374151)
+    val interactionSource = remember { MutableInteractionSource() }
 
-    Card(
-        modifier = modifier.height(80.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
-        ),
-        elevation = CardDefaults.cardElevation(if (isSelected) 3.dp else 1.dp),
-        border = BorderStroke(
-            width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) primaryColor else Color(0xFFE5E7EB)
-        ),
-        onClick = onClick
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) primaryColor.copy(alpha = 0.15f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 200),
+        label = "categoryBackground"
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) primaryColor else Color(0xFFE2E8F0),
+        animationSpec = tween(durationMillis = 200),
+        label = "categoryBorder"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1f,
+        animationSpec = tween(durationMillis = 200),
+        label = "categoryScale"
+    )
+
+    // Hiệu ứng click ripple
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = tween(durationMillis = 100),
+        label = "pressScale"
+    )
+
+    // Sử dụng Box với clickable đơn giản
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .scale(scale * pressScale)
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .background(backgroundColor, RoundedCornerShape(14.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                onClick = onClick
+            )
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Icon container với viền nhỏ
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) primaryColor.copy(alpha = 0.1f)
+                        else categoryColor.copy(alpha = 0.1f)
+                    )
+                    .border(
+                        width = 0.5.dp,
+                        color = if (isSelected) primaryColor.copy(alpha = 0.3f)
+                        else categoryColor.copy(alpha = 0.3f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     category.icon,
-                    fontSize = 20.sp,
-                    color = iconColor,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    fontSize = 18.sp,
+                    color = if (isSelected) primaryColor else categoryColor
                 )
-                Text(
-                    category.name,
-                    color = textColor,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    maxLines = 2,
-                    lineHeight = 14.sp
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Category name với ellipsis
+            Text(
+                category.name,
+                color = if (isSelected) primaryColor else Color(0xFF374151),
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                lineHeight = 12.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Selected indicator
+            AnimatedVisibility(
+                visible = isSelected,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(primaryColor)
                 )
             }
         }
     }
 }
+@Composable
+private fun ScrollIndicator(
+    itemCount: Int,
+    selectedIndex: Int,
+    scrollState: ScrollState,
+    primaryColor: Color
+) {
+    val maxScroll = scrollState.maxValue.toFloat()
+    val currentScroll = scrollState.value.toFloat()
+    val progress = if (maxScroll > 0) currentScroll / maxScroll else 0f
 
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(4.dp)
+            .background(Color(0xFFF1F5F9), RoundedCornerShape(2.dp)),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        // Progress indicator
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(maxOf(4.dp, (LocalConfiguration.current.screenWidthDp.dp * progress)))
+                .background(primaryColor.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+        )
+
+        // Selected indicator dot
+        if (selectedIndex >= 0 && itemCount > 0) {
+            val screenWidth = LocalConfiguration.current.screenWidthDp
+            val selectedPosition =
+                (selectedIndex.toFloat() / (itemCount - 1).toFloat()) * screenWidth
+            val currentPosition = progress * screenWidth
+            val dotOffset = (selectedPosition - currentPosition).dp
+
+            if (dotOffset.value >= 0 && dotOffset.value <= screenWidth) {
+                Spacer(modifier = Modifier.width(dotOffset))
+
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(primaryColor)
+                )
+            }
+        }
+    }
+}
 // ============ DATE SELECTOR ============
 
 @Composable
@@ -1332,112 +1364,6 @@ private fun AnimatedDeleteButton(
                 color = Color(0xFFDC2626),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp
-            )
-        }
-    }
-}
-
-// ============ QUICK CATEGORY SUGGESTIONS ============
-
-@Composable
-private fun QuickCategorySuggestions(
-    transactionType: String,
-    categories: List<Category>,
-    primaryColor: Color,
-    onCategorySelected: (Category) -> Unit
-) {
-    Column {
-        Text(
-            "Danh mục thường dùng",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF475569),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
-        ) {
-            items(categories) { category ->
-                QuickCategoryItem(
-                    category = category,
-                    primaryColor = primaryColor,
-                    onClick = { onCategorySelected(category) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickCategoryItem(
-    category: Category,
-    primaryColor: Color,
-    onClick: () -> Unit
-) {
-    var isPressed by remember { mutableStateOf(false) }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else 1f,
-        animationSpec = tween(durationMillis = 200),
-        label = "categoryItemScale"
-    )
-
-    Card(
-        modifier = Modifier
-            .width(120.dp)
-            .height(100.dp)
-            .scale(scale)
-            .clickable(
-                onClick = onClick,
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            )
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        isPressed = true
-                        tryAwaitRelease()
-                        isPressed = false
-                    }
-                )
-            },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        parseColor(category.color).copy(alpha = 0.1f),
-                        CircleShape
-                    )
-                    .clip(CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    category.icon,
-                    fontSize = 20.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                category.name,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF334155),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                maxLines = 2
             )
         }
     }
@@ -1841,5 +1767,12 @@ private fun parseColor(colorString: String): Color {
         Color(android.graphics.Color.parseColor(colorString))
     } catch (e: Exception) {
         Color(0xFF667EEA) // Default purple color
+    }
+}
+@Composable
+private fun Dp.toPx(): Float {
+    val density = LocalDensity.current
+    return density.run {
+        this@toPx.toPx()
     }
 }
