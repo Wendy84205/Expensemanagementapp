@@ -29,6 +29,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 
+
 class InvoiceScannerViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(InvoiceScannerState())
@@ -537,11 +538,10 @@ class InvoiceScannerViewModel : ViewModel() {
     }
 
     private fun getOutputDirectory(context: Context): File {
-        val mediaDir = context.externalMediaDirs.firstOrNull()?.let {
-            File(it, "FinanceApp/Invoices").apply { mkdirs() }
+        val mediaDir = context.getExternalFilesDir(null)?.let {
+            File(it, "Invoices").apply { mkdirs() }
         }
-        return if (mediaDir != null && mediaDir.exists())
-            mediaDir else File(context.filesDir, "Invoices").apply { mkdirs() }
+        return mediaDir ?: File(context.filesDir, "Invoices").apply { mkdirs() }
     }
 
     /**

@@ -2,38 +2,36 @@ package com.example.financeapp.viewmodel.ai
 
 import android.app.Application
 import android.util.Log
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financeapp.data.models.Budget
 import com.example.financeapp.data.models.BudgetPeriodType
 import com.example.financeapp.BuildConfig
 import com.example.financeapp.FinanceApp
 import com.example.financeapp.data.models.Transaction
-import kotlin.collections.mutableSetOf
 import com.example.financeapp.data.models.isOverBudget
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sqrt
 import kotlin.random.Random
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kotlin.math.sqrt
+import kotlin.math.max
+import kotlin.math.min
 
 // ==================== DATA CLASSES ====================
 
@@ -50,22 +48,58 @@ data class SpendingForecast(
 )
 
 /**
- * Data class cho mẫu chi tiêu
+ * Data class cho dự báo chi tiêu nâng cao
  */
-data class SpendingPattern(
-    val monthlyAverages: Double,
-    val seasonalTrend: String,
-    val topCategories: List<Pair<String, Pair<Int, Double>>>,
-    val consistencyScore: Int
+data class AdvancedSpendingForecast(
+    val estimatedSpending: Double,
+    val lowerBound: Double,
+    val upperBound: Double,
+    val confidenceLevel: Int,
+    val recommendations: List<String>,
+    val warning: String = "",
+    val categoryForecasts: List<CategoryForecast> = emptyList(),
+    val algorithmUsed: String = "linear_regression"
+)
+
+data class CategoryForecast(
+    val category: String,
+    val forecast: Double,
+    val confidence: Double,
+    val trend: String // up, down, stable
 )
 
 /**
- * Data class cho đề xuất ngân sách
+ * Data class cho phân tích chi tiêu chi tiết
  */
-data class BudgetRecommendations(
-    val allocation: List<String>,
-    val goals: List<String>,
-    val advice: List<String>
+data class DetailedSpendingAnalysis(
+    val totalSpending: Double,
+    val averageSpending: Double,
+    val transactionCount: Int,
+    val categoryBreakdown: Map<String, CategoryAnalysis>,
+    val dailySpending: Map<String, Double>,
+    val largestTransaction: Transaction?,
+    val unusualTransactions: List<Transaction>,
+    val savingsOpportunity: Double,
+    val hasUnusualSpending: Boolean
+)
+
+data class CategoryAnalysis(
+    val total: Double,
+    val count: Int,
+    val average: Double,
+    val percentage: Double
+)
+
+/**
+ * Data class cho phân tích xu hướng nâng cao
+ */
+data class AdvancedTrendAnalysis(
+    val mainTrends: List<String>,
+    val changes: List<String>,
+    val signals: List<String>,
+    val actions: List<String>,
+    val charts: Map<String, List<Double>> = emptyMap(),
+    val predictions: List<String> = emptyList()
 )
 
 /**
@@ -79,12 +113,45 @@ data class TrendAnalysis(
 )
 
 /**
+ * Data class cho đề xuất ngân sách cá nhân hóa
+ */
+data class PersonalizedBudgetRecommendations(
+    val allocation: List<String>,
+    val goals: List<String>,
+    val advice: List<String>,
+    val personalizedAllocation: Map<String, Double> = emptyMap(),
+    val riskAssessment: String = "medium"
+)
+
+/**
+ * Data class cho đề xuất ngân sách
+ */
+data class BudgetRecommendations(
+    val allocation: List<String>,
+    val goals: List<String>,
+    val advice: List<String>
+)
+
+/**
+ * Data class cho phân tích sức khỏe tài chính nâng cao
+ */
+data class AdvancedFinancialHealth(
+    val score: Int,
+    val level: String,
+    val components: Map<String, Double>,
+    val recommendations: List<String>,
+    val improvementAreas: List<String>,
+    val timeline: Map<String, String>
+)
+
+/**
  * Data class cho kết quả lệnh AI
  */
 data class AICommandResult(
     val success: Boolean,
     val message: String,
-    val data: Any? = null
+    val data: Any? = null,
+    val metadata: Map<String, Any> = emptyMap()
 )
 
 /**
@@ -168,16 +235,112 @@ data class RealTimeData(
 )
 
 /**
+ * Data class cho phát hiện bất thường
+ */
+data class AnomalyDetection(
+    val anomalies: List<TransactionAnomaly>,
+    val severity: String,
+    val recommendations: List<String>,
+    val confidence: Double
+)
+
+data class TransactionAnomaly(
+    val transaction: Transaction,
+    val anomalyType: String,
+    val severity: String,
+    val explanation: String,
+    val suggestedAction: String
+)
+
+/**
+ * Data class cho phân tích mẫu chi tiêu nâng cao
+ */
+data class AdvancedSpendingPattern(
+    val monthlyAverage: Double,
+    val weeklyPattern: Map<String, Double>, // Chi tiêu theo ngày trong tuần
+    val seasonalTrend: String,
+    val topCategories: List<Pair<String, Pair<Int, Double>>>,
+    val consistencyScore: Int,
+    val peakSpendingDays: List<LocalDate> = emptyList(),
+    val recurringTransactions: List<RecurringTransaction> = emptyList()
+)
+
+data class RecurringTransaction(
+    val title: String,
+    val amount: Double,
+    val category: String,
+    val frequency: String, // daily, weekly, monthly
+    val nextDate: LocalDate,
+    val confidence: Double
+)
+
+/**
+ * Data class cho kế hoạch tiết kiệm
+ */
+data class SavingsPlan(
+    val goalName: String,
+    val targetAmount: Double,
+    val currentAmount: Double,
+    val monthlyRequired: Double,
+    val timelineMonths: Int,
+    val riskLevel: String,
+    val investmentSuggestions: List<InvestmentSuggestion>
+)
+
+data class InvestmentSuggestion(
+    val type: String,
+    val name: String,
+    val expectedReturn: Double,
+    val risk: String,
+    val minAmount: Double,
+    val description: String
+)
+
+/**
+ * Data class cho cảnh báo chi tiêu
+ */
+data class SpendingAlert(
+    val type: String,
+    val message: String,
+    val severity: String, // info, warning, critical
+    val category: String?,
+    val amount: Double?,
+    val threshold: Double?,
+    val recommendation: String
+)
+
+/**
+ * Data class cho Regression Forecast
+ */
+data class RegressionForecast(
+    val forecast: Double,
+    val lowerBound: Double,
+    val upperBound: Double,
+    val rSquared: Double,
+    val hasSeasonality: Boolean
+)
+
+/**
  * Enum cho trạng thái AI
  */
 enum class AIState {
     IDLE, PROCESSING, ERROR, LEARNING
 }
 
+/**
+ * Data class cho mẫu chi tiêu
+ */
+data class SpendingPattern(
+    val monthlyAverages: Double,
+    val seasonalTrend: String,
+    val topCategories: List<Pair<String, Pair<Int, Double>>>,
+    val consistencyScore: Int
+)
+
 // ==================== AI COMMANDS ====================
 
 /**
- * Sealed class cho tất cả các lệnh AI
+ * Sealed class cho tất cả các lệnh AI (Mở rộng)
  */
 sealed class AICommand {
     // Lệnh giao dịch
@@ -261,13 +424,15 @@ sealed class AICommand {
         val categoryId: String? = null
     ) : AICommand()
 
-    // Lệnh phân tích nâng cao
+    // Lệnh phân tích nâng cao (MỚI)
     data class GetSpendingForecast(
-        val period: String = "month"
+        val period: String = "month",
+        val confidenceLevel: Double = 0.75
     ) : AICommand()
 
     data class GetBudgetRecommendations(
-        val income: Double? = null
+        val income: Double? = null,
+        val riskTolerance: String = "medium"
     ) : AICommand()
 
     data class GetCategoryInsights(
@@ -280,6 +445,21 @@ sealed class AICommand {
         val reportType: String = "summary"
     ) : AICommand()
 
+    data class GetSpendingAlerts(
+        val threshold: Double? = null,
+        val severity: String = "all"
+    ) : AICommand()
+
+    data class DetectAnomalies(
+        val sensitivity: Double = 2.0
+    ) : AICommand()
+
+    data class GetSavingsPlan(
+        val goalId: String? = null,
+        val monthlySavings: Double? = null
+    ) : AICommand()
+
+    // Lệnh cơ bản
     object GetFinancialHealthScore : AICommand()
     object ShowSummary : AICommand()
     object GetQuickTips : AICommand()
@@ -346,6 +526,18 @@ class NaturalLanguageParser(
             containsAny(lowerMessage, listOf("đầu tư", "investment", "đầu tư tiền")) -> {
                 Log.d(TAG, "Nhận diện: INVESTMENT TIPS")
                 AICommand.GetInvestmentTips
+            }
+            containsAny(lowerMessage, listOf("dự báo", "forecast", "dự đoán", "ước tính")) -> {
+                Log.d(TAG, "Nhận diện: SPENDING FORECAST")
+                AICommand.GetSpendingForecast(period = extractPeriod(lowerMessage))
+            }
+            containsAny(lowerMessage, listOf("cảnh báo", "alert", "warning", "thông báo")) -> {
+                Log.d(TAG, "Nhận diện: SPENDING ALERTS")
+                AICommand.GetSpendingAlerts()
+            }
+            containsAny(lowerMessage, listOf("bất thường", "anomaly", "phát hiện")) -> {
+                Log.d(TAG, "Nhận diện: DETECT ANOMALIES")
+                AICommand.DetectAnomalies()
             }
             else -> {
                 Log.d(TAG, "Nhận diện: UNKNOWN COMMAND")
@@ -594,99 +786,136 @@ class NaturalLanguageParser(
     }
 }
 
-// ==================== AI COMMAND EXECUTOR ====================
+// ==================== AI COMMAND EXECUTOR NÂNG CAO ====================
 
 /**
- * Class thực thi lệnh AI
+ * AI Command Executor với tất cả tính năng nâng cao (Gộp cũ + mới)
  */
-class AICommandExecutor(
+class AdvancedAICommandExecutor(
     private val transactionViewModel: TransactionViewModel,
     private val budgetViewModel: BudgetViewModel,
     private val categoryViewModel: CategoryViewModel,
-    private val recurringExpenseViewModel: RecurringExpenseViewModel
+    private val recurringExpenseViewModel: RecurringExpenseViewModel? = null
 ) {
-    private companion object {
-        private const val TAG = "AICommandExecutor"
+    companion object {
+        private const val TAG = "AdvancedAICommandExecutor"
+        private val DATE_FORMATTER = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        private val LOCAL_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy")
     }
 
-    private val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
     /**
-     * Thực thi lệnh AI
+     * Thực thi lệnh AI - Tích hợp tất cả tính năng
      */
     suspend fun executeCommand(command: AICommand): AICommandResult {
-        Log.d(TAG, "Thực thi lệnh: ${command::class.simpleName}")
+        Log.d(TAG, "Thực thi lệnh nâng cao: ${command::class.simpleName}")
 
         return try {
             when (command) {
-                is AICommand.AddTransaction -> addTransaction(command)
-                is AICommand.ListTransactions -> listTransactions(command)
-                is AICommand.GetDailySummary -> getDailySummary(command)
-                is AICommand.ExportTransactions -> exportTransactions(command)
-                is AICommand.ComparePeriods -> comparePeriods(command)
-                is AICommand.SearchTransactionsByKeyword -> searchTransactionsByKeyword(command)
-                is AICommand.CreateBudget -> createBudget(command)
-                is AICommand.UpdateBudget -> updateBudget(command)
-                is AICommand.DeleteBudget -> deleteBudget(command)
-                is AICommand.GetBudgetStatus -> getBudgetStatus(command)
-                is AICommand.SetBudget -> createBudgetFromSet(command)
-                is AICommand.GetSpendingForecast -> getSpendingForecast(command)
-                is AICommand.GetBudgetRecommendations -> getBudgetRecommendations(command)
-                is AICommand.GetFinancialHealthScore -> getFinancialHealthScore()
-                is AICommand.AnalyzeSpending -> analyzeSpending(command)
-                is AICommand.AnalyzeSpendingTrend -> analyzeSpendingTrend(command)
-                is AICommand.ShowSummary -> showSummary()
-                is AICommand.GetQuickTips -> getQuickTips()
-                is AICommand.GetWeeklyReport -> getWeeklyReport()
-                is AICommand.GetSavingsAdvice -> getSavingsAdvice()
-                is AICommand.GetInvestmentTips -> getInvestmentTips()
-                else -> AICommandResult(false, "Tính năng đang phát triển: ${command::class.simpleName}")
+                // === CƠ BẢN ===
+                is AICommand.AddTransaction -> addTransactionWithSmartFeatures(command)
+                is AICommand.ListTransactions -> listTransactionsWithInsights(command)
+                is AICommand.GetDailySummary -> getDailySummaryWithTrends(command)
+                is AICommand.ExportTransactions -> exportTransactionsWithFormat(command)
+                is AICommand.ComparePeriods -> comparePeriodsWithAnalysis(command)
+                is AICommand.SearchTransactionsByKeyword -> searchTransactionsWithAI(command)
+
+                // === NGÂN SÁCH ===
+                is AICommand.CreateBudget -> createBudgetWithOptimization(command)
+                is AICommand.UpdateBudget -> updateBudgetWithIntelligence(command)
+                is AICommand.DeleteBudget -> deleteBudgetWithSafeguard(command)
+                is AICommand.GetBudgetStatus -> getBudgetStatusWithPredictions(command)
+                is AICommand.SetBudget -> createBudgetWithAutoAdjust(command)
+
+                // === PHÂN TÍCH NÂNG CAO ===
+                is AICommand.GetSpendingForecast -> getAdvancedSpendingForecast(command)
+                is AICommand.GetBudgetRecommendations -> getPersonalizedBudgetRecommendations(command)
+                is AICommand.AnalyzeSpending -> analyzeSpendingWithML(command)
+                is AICommand.AnalyzeSpendingTrend -> analyzeSpendingTrendWithAI(command)
+                is AICommand.GetCategoryInsights -> getCategoryInsights(command)
+                is AICommand.GenerateReport -> generateReport(command)
+
+                // === TÍN HIỆU & CẢNH BÁO ===
+                is AICommand.GetSpendingAlerts -> getSmartSpendingAlerts(command)
+                is AICommand.DetectAnomalies -> detectAnomaliesWithML(command)
+
+                // === KẾ HOẠCH TÀI CHÍNH ===
+                is AICommand.GetSavingsPlan -> getPersonalizedSavingsPlan(command)
+
+                // === AI ADVICE ===
+                is AICommand.GetFinancialHealthScore -> getAdvancedFinancialHealthScore()
+                is AICommand.ShowSummary -> showSummaryWithInsights()
+                is AICommand.GetQuickTips -> getContextualQuickTips()
+                is AICommand.GetWeeklyReport -> getWeeklyReportWithPredictions()
+                is AICommand.GetSavingsAdvice -> getPersonalizedSavingsAdvice()
+                is AICommand.GetInvestmentTips -> getPersonalizedInvestmentTips()
+                is AICommand.GetMonthlyOverview -> getMonthlyOverview()
+                is AICommand.UnknownCommand -> AICommandResult(false, "Tôi chưa hiểu yêu cầu của bạn. Hãy thử:\n• 'Thêm chi tiêu 50k cho ăn uống'\n• 'Xem giao dịch hôm nay'\n• 'Phân tích chi tiêu tháng này'")
+
+                else -> AICommandResult(false, "Lệnh chưa được hỗ trợ")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi thực thi lệnh: ${e.message}", e)
+            Log.e(TAG, "Lỗi thực thi lệnh nâng cao: ${e.message}", e)
             AICommandResult(false, "Có lỗi xảy ra: ${e.message}")
         }
     }
 
+    // ==================== CÁC PHƯƠNG THỨC CƠ BẢN NÂNG CAO ====================
+
     /**
-     * Thêm giao dịch
+     * Thêm giao dịch với tính năng thông minh
      */
-    private suspend fun addTransaction(command: AICommand.AddTransaction): AICommandResult {
+    private suspend fun addTransactionWithSmartFeatures(command: AICommand.AddTransaction): AICommandResult {
         return try {
-            Log.d(TAG, "Thêm giao dịch: $command")
+            Log.d(TAG, "Thêm giao dịch thông minh: $command")
+
+            // Phân tích danh mục thông minh
+            val smartCategory = analyzeAndSuggestCategory(command.title, command.amount, command.isIncome)
+
+            // Kiểm tra ngân sách trước khi thêm
+            val budgetCheck = checkBudgetBeforeAdding(smartCategory, command.amount)
+
+            // Phát hiện bất thường
+            val anomalyCheck = detectTransactionAnomaly(command.title, command.amount, smartCategory)
 
             val transaction = Transaction(
                 id = UUID.randomUUID().toString(),
                 title = command.title,
                 amount = command.amount,
-                category = command.category,
+                category = smartCategory,
                 wallet = command.wallet,
                 isIncome = command.isIncome,
                 date = command.date ?: getCurrentDate(),
                 categoryId = "",
                 dayOfWeek = getDayOfWeek(),
                 group = if (command.isIncome) "Thu nhập" else "Chi tiêu",
-                description = "Tạo bởi AI Assistant",
-                categoryIcon = getCategoryIcon(command.category),
-                categoryColor = getCategoryColor(command.category),
+                description = "Tạo bởi AI Assistant - ${budgetCheck.message}",
+                categoryIcon = getCategoryIcon(smartCategory),
+                categoryColor = getCategoryColor(smartCategory),
                 isAutoGenerated = false,
                 recurringSourceId = ""
             )
 
             transactionViewModel.addTransactionFromAI(
                 transaction = transaction,
-                budgetViewModel = null
+                budgetViewModel = budgetViewModel
             )
 
             delay(500)
 
+            val message = buildTransactionAddedMessage(command, smartCategory, budgetCheck, anomalyCheck)
+
             AICommandResult(
                 success = true,
-                message = "Đã thêm ${if (command.isIncome) "thu nhập" else "chi tiêu"} ${formatCurrency(command.amount)} cho '${command.title}' vào danh mục ${command.category}"
+                message = message,
+                data = mapOf(
+                    "transaction" to transaction,
+                    "budget_check" to budgetCheck,
+                    "anomaly_check" to anomalyCheck
+                )
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi thêm giao dịch: ${e.message}", e)
+            Log.e(TAG, "Lỗi thêm giao dịch thông minh: ${e.message}", e)
             AICommandResult(
                 success = false,
                 message = "Lỗi thêm giao dịch: ${e.message}"
@@ -695,105 +924,267 @@ class AICommandExecutor(
     }
 
     /**
-     * Xem danh sách giao dịch
+     * Xem danh sách giao dịch với insights
      */
-    private suspend fun listTransactions(command: AICommand.ListTransactions): AICommandResult {
+    private suspend fun listTransactionsWithInsights(command: AICommand.ListTransactions): AICommandResult {
         return try {
             val transactions = getFilteredTransactions(command)
 
             if (transactions.isEmpty()) {
                 return AICommandResult(
                     success = true,
-                    message = "Không có giao dịch nào trong khoảng thời gian này!"
+                    message = "Không có giao dịch nào trong khoảng thời gian này!",
+                    data = emptyList<Transaction>()
                 )
             }
 
-            val message = buildTransactionsListMessage(transactions, command.period)
-            AICommandResult(success = true, message = message)
+            // Phân tích nâng cao
+            val spendingAnalysis = performDetailedSpendingAnalysis(transactions, command.period)
+            val anomalies = detectTransactionAnomalies(transactions)
+            val insights = detectSpendingInsights(spendingAnalysis)
+
+            val message = buildTransactionsListWithInsights(
+                transactions,
+                command.period,
+                spendingAnalysis,
+                anomalies,
+                insights
+            )
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = mapOf(
+                    "transactions" to transactions,
+                    "analysis" to spendingAnalysis,
+                    "anomalies" to anomalies,
+                    "insights" to insights
+                )
+            )
 
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi xem giao dịch: ${e.message}", e)
+            Log.e(TAG, "Lỗi xem giao dịch với insights: ${e.message}", e)
             AICommandResult(false, "Lỗi khi lấy danh sách giao dịch: ${e.message}")
         }
     }
 
     /**
-     * Xem tổng quan
+     * Xem tổng quan với insights
      */
-    private suspend fun showSummary(): AICommandResult {
+    private suspend fun showSummaryWithInsights(): AICommandResult {
         val totalBalance = transactionViewModel.getTotalIncome() - transactionViewModel.getTotalExpense()
         val totalIncome = transactionViewModel.getTotalIncome()
         val totalExpense = transactionViewModel.getTotalExpense()
+        val savings = totalIncome - totalExpense
+
+        // Phân tích chi tiết
+        val spendingPattern = analyzeSpendingPattern()
+        val budgetStatus = analyzeBudgetStatus()
+        val financialHealth = calculateComprehensiveFinancialHealth()
+        val predictions = generateShortTermPredictions()
 
         val message = """
-            TỔNG QUAN TÀI CHÍNH
+            📊 TỔNG QUAN TÀI CHÍNH THÔNG MINH
             
-            TỔNG SỐ:
-            • Số dư: ${formatCurrency(totalBalance)}
-            • Tổng thu: ${formatCurrency(totalIncome)}
-            • Tổng chi: ${formatCurrency(totalExpense)}
-            • Tiết kiệm: ${formatCurrency(totalIncome - totalExpense)}
+            💰 TỔNG SỐ:
+            • Số dư: ${formatCurrency(totalBalance)} ${getTrendIndicator(totalBalance)}
+            • Tổng thu: ${formatCurrency(totalIncome)} ${getMonthlyTrend("income")}
+            • Tổng chi: ${formatCurrency(totalExpense)} ${getMonthlyTrend("expense")}
+            • Tiết kiệm: ${formatCurrency(savings)} (${if (totalIncome > 0) "%.1f".format(savings/totalIncome*100) else "0"}%)
             
-            ${if (totalBalance < 0) "CẢNH BÁO: Chi tiêu đang vượt quá thu nhập!" else "Tài chính đang ổn định!"}
+            📈 PHÂN TÍCH:
+            • Sức khỏe tài chính: ${financialHealth.level} (${financialHealth.score}/100)
+            • Mẫu chi tiêu: ${spendingPattern.consistencyScore}/100 nhất quán
+            • Ngân sách: ${budgetStatus.activeBudgets} hoạt động, ${budgetStatus.overBudget} vượt
+            
+            🔮 DỰ BÁO 30 NGÀY:
+            ${predictions.joinToString("\n") { "• $it" }}
+            
+            ${if (totalBalance < 0) "⚠️ CẢNH BÁO: Chi tiêu đang vượt quá thu nhập!"
+        else if (financialHealth.score < 50) "💡 GỢI Ý: ${financialHealth.recommendations.firstOrNull()}"
+        else "✅ Tài chính đang ổn định!"}
         """.trimIndent()
 
-        return AICommandResult(success = true, message = message)
-    }
-
-    /**
-     * Lấy mẹo nhanh
-     */
-    private suspend fun getQuickTips(): AICommandResult {
-        val tips = listOf(
-            "Chi tiêu ít hơn 50% thu nhập cho nhu cầu thiết yếu",
-            "Tiết kiệm ít nhất 20% thu nhập mỗi tháng",
-            "Theo dõi chi tiêu hàng ngày để kiểm soát ngân sách",
-            "Đặt mục tiêu tài chính ngắn hạn và dài hạn",
-            "So sánh giá trước khi mua sắm lớn",
-            "Tránh nợ thẻ tín dụng lãi suất cao"
+        return AICommandResult(
+            success = true,
+            message = message,
+            data = mapOf(
+                "balance" to totalBalance,
+                "income" to totalIncome,
+                "expense" to totalExpense,
+                "health_score" to financialHealth.score
+            )
         )
-        val randomTip = tips.random()
-        return AICommandResult(success = true, message = randomTip)
     }
 
     /**
-     * Lấy điểm sức khỏe tài chính
+     * Lấy mẹo ngữ cảnh
      */
-    private suspend fun getFinancialHealthScore(): AICommandResult {
+    private suspend fun getContextualQuickTips(): AICommandResult {
+        val tips = listOf(
+            "💡 Chi tiêu ít hơn 50% thu nhập cho nhu cầu thiết yếu",
+            "💰 Tiết kiệm ít nhất 20% thu nhập mỗi tháng",
+            "📱 Theo dõi chi tiêu hàng ngày để kiểm soát ngân sách",
+            "🎯 Đặt mục tiêu tài chính ngắn hạn và dài hạn",
+            "🛒 So sánh giá trước khi mua sắm lớn",
+            "💳 Tránh nợ thẻ tín dụng lãi suất cao"
+        )
+
+        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val contextualTip = when {
+            currentHour in 6..9 -> "🌅 Buổi sáng: Kiểm tra ngân sách ngày mới!"
+            currentHour in 17..20 -> "🌇 Cuối ngày: Ghi lại chi tiêu hôm nay!"
+            else -> tips.random()
+        }
+
+        return AICommandResult(success = true, message = contextualTip)
+    }
+
+    /**
+     * Lấy báo cáo tuần với dự đoán
+     */
+    private suspend fun getWeeklyReportWithPredictions(): AICommandResult {
         return try {
-            val income = transactionViewModel.getTotalIncome()
-            val expense = transactionViewModel.getTotalExpense()
-            val balance = income - expense
+            Log.d(TAG, "Lấy báo cáo tuần")
 
-            val savingsRate = if (income > 0) ((income - expense) / income * 100) else 0.0
-            val expenseRatio = if (income > 0) (expense / income * 100) else 0.0
+            val weekTransactions = getTransactionsForPeriod("week")
+            val lastWeekTransactions = getTransactionsForPeriod("previous_week")
 
-            val score = calculateHealthScore(savingsRate, expenseRatio)
-            val healthLevel = getHealthLevel(score)
+            val weekIncome = weekTransactions.filter { it.isIncome }.sumOf { it.amount }
+            val weekExpense = weekTransactions.filter { !it.isIncome }.sumOf { it.amount }
+            val weekBalance = weekIncome - weekExpense
+
+            val lastWeekIncome = lastWeekTransactions.filter { it.isIncome }.sumOf { it.amount }
+            val lastWeekExpense = lastWeekTransactions.filter { !it.isIncome }.sumOf { it.amount }
+
+            val incomeChange = if (lastWeekIncome > 0) ((weekIncome - lastWeekIncome) / lastWeekIncome * 100) else 0.0
+            val expenseChange = if (lastWeekExpense > 0) ((weekExpense - lastWeekExpense) / lastWeekExpense * 100) else 0.0
+
+            val topCategories = weekTransactions
+                .filter { !it.isIncome }
+                .groupBy { it.category }
+                .mapValues { (_, trans) -> trans.sumOf { it.amount } }
+                .toList()
+                .sortedByDescending { it.second }
+                .take(5)
+
+            // Dự đoán tuần tới
+            val weeklyForecast = calculateWeeklyForecast(weekTransactions, lastWeekTransactions)
 
             val message = """
-                ĐIỂM SỨC KHỎE TÀI CHÍNH: $score/100
-                Mức độ: $healthLevel
+            📅 BÁO CÁO TUẦN
+            --------------------
+            
+            📊 TỔNG QUAN:
+            • Thu nhập: ${formatCurrency(weekIncome)} ${getChangeSymbol(incomeChange)}${"%.1f".format(abs(incomeChange))}%
+            • Chi tiêu: ${formatCurrency(weekExpense)} ${getChangeSymbol(expenseChange)}${"%.1f".format(abs(expenseChange))}%
+            • Số dư: ${formatCurrency(weekBalance)}
+            • Số giao dịch: ${weekTransactions.size}
+            
+            ${if (topCategories.isNotEmpty()) {
+                "🏆 TOP CHI TIÊU:\n" + topCategories.joinToString("\n") {
+                        (cat, amount) -> "• $cat: ${formatCurrency(amount)}"
+                }
+            } else ""}
+            
+            🔮 DỰ BÁO TUẦN TỚI:
+            • Ước tính chi tiêu: ${formatCurrency(weeklyForecast.forecast)}
+            • Khoảng dao động: ${formatCurrency(weeklyForecast.lowerBound)} - ${formatCurrency(weeklyForecast.upperBound)}
+            • Độ tin cậy: ${"%.0f".format(weeklyForecast.rSquared * 100)}%
+            
+            💡 ĐÁNH GIÁ:
+            ${getWeeklyAssessment(weekBalance, weekExpense, weekIncome)}
+            
+            🎯 MỤC TIÊU TUẦN TỚI:
+            ${getWeeklyGoals(weekExpense, weekIncome)}
+        """.trimIndent()
 
-                CHỈ SỐ:
-                • Tỷ lệ tiết kiệm: ${"%.1f".format(savingsRate)}%
-                • Tỷ lệ chi tiêu: ${"%.1f".format(expenseRatio)}%
-                • Số dư: ${formatCurrency(balance)}
+            AICommandResult(
+                success = true,
+                message = message,
+                data = mapOf(
+                    "weekly_income" to weekIncome,
+                    "weekly_expense" to weekExpense,
+                    "forecast" to weeklyForecast
+                )
+            )
 
-                ${getHealthRecommendation(score, savingsRate)}
-            """.trimIndent()
-
-            AICommandResult(success = true, message = message)
         } catch (e: Exception) {
-            AICommandResult(false, "Lỗi tính điểm sức khỏe: ${e.message}")
+            Log.e(TAG, "Lỗi lấy báo cáo tuần: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy báo cáo tuần: ${e.message}")
+        }
+    }
+
+    // ==================== PHÂN TÍCH NÂNG CAO ====================
+
+    /**
+     * Dự báo chi tiêu với ML
+     */
+    private suspend fun getAdvancedSpendingForecast(command: AICommand.GetSpendingForecast): AICommandResult {
+        return try {
+            Log.d(TAG, "Dự báo chi tiêu nâng cao: $command")
+
+            // Lấy dữ liệu lịch sử thực tế
+            val historicalData = getRealHistoricalSpendingData(command.period)
+
+            if (historicalData.size < 3) {
+                return AICommandResult(
+                    success = false,
+                    message = "Cần ít nhất 3 kỳ dữ liệu để dự báo chính xác"
+                )
+            }
+
+            // Sử dụng Linear Regression
+            val forecast = calculateLinearRegressionForecast(historicalData)
+
+            // Dự báo theo danh mục
+            val categoryForecasts = calculateCategoryBasedForecasts(command.period)
+
+            // Tạo khuyến nghị cá nhân hóa
+            val recommendations = generatePersonalizedForecastRecommendations(
+                forecast.forecast,
+                historicalData.last(),
+                command.confidenceLevel
+            )
+
+            val forecastResult = AdvancedSpendingForecast(
+                estimatedSpending = forecast.forecast,
+                lowerBound = forecast.lowerBound,
+                upperBound = forecast.upperBound,
+                confidenceLevel = (command.confidenceLevel * 100).toInt(),
+                recommendations = recommendations,
+                warning = if (forecast.forecast > historicalData.average() * 1.3)
+                    "⚠️ Dự báo chi tiêu cao hơn 30% so với trung bình" else "",
+                categoryForecasts = categoryForecasts,
+                algorithmUsed = "linear_regression_with_seasonality"
+            )
+
+            val message = buildForecastMessage(forecastResult, command.period)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = forecastResult,
+                metadata = mapOf(
+                    "historical_data_points" to historicalData.size,
+                    "r_squared" to forecast.rSquared,
+                    "seasonality_detected" to forecast.hasSeasonality
+                )
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi dự báo chi tiêu nâng cao: ${e.message}", e)
+            AICommandResult(false, "Lỗi dự báo chi tiêu: ${e.message}")
         }
     }
 
     /**
-     * Phân tích chi tiêu
+     * Phân tích chi tiêu với Machine Learning
      */
-    private suspend fun analyzeSpending(command: AICommand.AnalyzeSpending): AICommandResult {
+    private suspend fun analyzeSpendingWithML(command: AICommand.AnalyzeSpending): AICommandResult {
         return try {
+            Log.d(TAG, "Phân tích chi tiêu với ML: $command")
+
             val transactions = when (command.period.lowercase()) {
                 "week" -> getTransactionsForPeriod("week")
                 "month" -> getTransactionsForPeriod("month")
@@ -807,41 +1198,1618 @@ class AICommandExecutor(
                 transactions
             }
 
-            val totalSpending = filteredTransactions.sumOf { it.amount }
-            val averageSpending = if (filteredTransactions.isNotEmpty()) totalSpending / filteredTransactions.size else 0.0
+            if (filteredTransactions.isEmpty()) {
+                return AICommandResult(
+                    success = false,
+                    message = "Không có dữ liệu chi tiêu trong kỳ này"
+                )
+            }
 
-            val categoryBreakdown = filteredTransactions.groupBy { it.category }
-                .mapValues { (_, trans) -> trans.sumOf { it.amount } }
-                .toList()
-                .sortedByDescending { it.second }
+            // Phân tích chi tiết với ML
+            val detailedAnalysis = performDetailedSpendingAnalysis(filteredTransactions, command.period)
 
-            val analysis = SpendingAnalysis(
-                totalSpending = totalSpending,
-                averageSpending = averageSpending,
-                transactionCount = filteredTransactions.size,
-                categoryBreakdown = categoryBreakdown,
-                period = command.period
+            // Phát hiện insights
+            val insights = detectSpendingInsights(detailedAnalysis)
+
+            // So sánh với kỳ trước
+            val comparison = compareWithPreviousPeriod(command.period, detailedAnalysis.totalSpending)
+
+            // Tìm mẫu chi tiêu
+            val patterns = findSpendingPatterns(filteredTransactions)
+
+            val message = buildDetailedAnalysisMessage(detailedAnalysis, insights, comparison, patterns, command.period)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = detailedAnalysis,
+                metadata = mapOf(
+                    "insights_count" to insights.size,
+                    "has_unusual_spending" to detailedAnalysis.hasUnusualSpending,
+                    "savings_opportunity" to detailedAnalysis.savingsOpportunity,
+                    "patterns_found" to patterns.size
+                )
             )
-
-            val message = """
-            PHÂN TÍCH CHI TIÊU ${command.period.uppercase()}:
-            
-            Tổng chi tiêu: ${formatCurrency(analysis.totalSpending)}
-            Chi tiêu trung bình: ${formatCurrency(analysis.averageSpending)}
-            Số giao dịch: ${analysis.transactionCount}
-            
-            ${if (analysis.categoryBreakdown.isNotEmpty()) {
-                "TOP DANH MỤC:\n" + analysis.categoryBreakdown.take(5).joinToString("\n") {
-                        (cat, amount) -> "• $cat: ${formatCurrency(amount)}"
-                }
-            } else ""}
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
         } catch (e: Exception) {
+            Log.e(TAG, "Lỗi phân tích chi tiêu với ML: ${e.message}", e)
             AICommandResult(false, "Lỗi phân tích chi tiêu: ${e.message}")
         }
     }
+
+    /**
+     * Phân tích xu hướng với AI
+     */
+    private suspend fun analyzeSpendingTrendWithAI(command: AICommand.AnalyzeSpendingTrend): AICommandResult {
+        return try {
+            Log.d(TAG, "Phân tích xu hướng với AI: $command")
+
+            val currentData = getTransactionsForPeriod(command.period)
+            val previousData = getPreviousPeriodData(command.period)
+
+            // Phân tích xu hướng nâng cao
+            val trendAnalysis = performAdvancedTrendAnalysis(currentData, previousData, command.compareWithPrevious)
+
+            // Dự đoán tương lai
+            val predictions = generateTrendPredictions(currentData)
+
+            // Tạo biểu đồ dữ liệu
+            val charts = generateTrendCharts(currentData, previousData)
+
+            val message = buildAdvancedTrendAnalysisMessage(trendAnalysis, predictions, command.period)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = AdvancedTrendAnalysis(
+                    mainTrends = trendAnalysis.mainTrends,
+                    changes = trendAnalysis.changes,
+                    signals = trendAnalysis.signals,
+                    actions = trendAnalysis.actions,
+                    charts = charts,
+                    predictions = predictions
+                )
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi phân tích xu hướng với AI: ${e.message}", e)
+            AICommandResult(false, "Lỗi phân tích xu hướng: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy điểm sức khỏe tài chính nâng cao
+     */
+    private suspend fun getAdvancedFinancialHealthScore(): AICommandResult {
+        return try {
+            val financialHealth = calculateComprehensiveFinancialHealth()
+
+            val message = buildFinancialHealthMessage(financialHealth)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = financialHealth,
+                metadata = mapOf(
+                    "improvement_timeline" to financialHealth.timeline,
+                    "priority_areas" to financialHealth.improvementAreas
+                )
+            )
+        } catch (e: Exception) {
+            AICommandResult(false, "Lỗi tính điểm sức khỏe: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy đề xuất ngân sách cá nhân hóa
+     */
+    private suspend fun getPersonalizedBudgetRecommendations(command: AICommand.GetBudgetRecommendations): AICommandResult {
+        return try {
+            Log.d(TAG, "Đề xuất ngân sách cá nhân hóa: $command")
+
+            val income = command.income ?: transactionViewModel.getTotalIncome()
+            val spendingPattern = analyzeAdvancedSpendingPattern()
+            val riskTolerance = command.riskTolerance
+
+            val recommendations = generatePersonalizedBudgetRecommendations(income, spendingPattern, riskTolerance)
+
+            val message = buildPersonalizedBudgetMessage(recommendations, income)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = recommendations,
+                metadata = mapOf(
+                    "risk_assessment" to recommendations.riskAssessment,
+                    "personalized_categories" to recommendations.personalizedAllocation.keys.size
+                )
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi đề xuất ngân sách cá nhân hóa: ${e.message}", e)
+            AICommandResult(false, "Lỗi đề xuất ngân sách: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy insights danh mục
+     */
+    private suspend fun getCategoryInsights(command: AICommand.GetCategoryInsights): AICommandResult {
+        return try {
+            val transactions = getTransactionsForPeriod(command.period)
+                .filter { !it.isIncome && it.category.equals(command.category, ignoreCase = true) }
+
+            if (transactions.isEmpty()) {
+                return AICommandResult(false, "Không có dữ liệu cho danh mục '${command.category}'")
+            }
+
+            val analysis = performDetailedSpendingAnalysis(transactions, command.period)
+            val insights = generateCategoryInsights(analysis, command.category)
+
+            val message = """
+                📊 INSIGHTS DANH MỤC: ${command.category.uppercase()}
+                
+                TỔNG QUAN ${command.period.uppercase()}:
+                • Tổng chi tiêu: ${formatCurrency(analysis.totalSpending)}
+                • Số giao dịch: ${analysis.transactionCount}
+                • Chi tiêu trung bình: ${formatCurrency(analysis.averageSpending)}
+                
+                🔍 PHÂN TÍCH:
+                ${insights.joinToString("\n") { "• $it" }}
+                
+                💰 SO VỚI CÁC DANH MỤC KHÁC:
+                ${compareCategoryWithOthers(command.category, analysis.totalSpending, command.period)}
+            """.trimIndent()
+
+            AICommandResult(success = true, message = message, data = analysis)
+
+        } catch (e: Exception) {
+            AICommandResult(false, "Lỗi lấy insights danh mục: ${e.message}")
+        }
+    }
+
+    /**
+     * Tạo báo cáo
+     */
+    private suspend fun generateReport(command: AICommand.GenerateReport): AICommandResult {
+        return try {
+            val transactions = getTransactionsForPeriod(command.period)
+            val analysis = performDetailedSpendingAnalysis(transactions, command.period)
+
+            val report = when (command.reportType) {
+                "summary" -> generateSummaryReport(analysis, command.period)
+                "detailed" -> generateDetailedReport(analysis, command.period)
+                "export" -> generateExportReport(transactions, command.period)
+                else -> generateSummaryReport(analysis, command.period)
+            }
+
+            AICommandResult(success = true, message = report, data = analysis)
+
+        } catch (e: Exception) {
+            AICommandResult(false, "Lỗi tạo báo cáo: ${e.message}")
+        }
+    }
+
+    // ==================== TÍN HIỆU & CẢNH BÁO NÂNG CAO ====================
+
+    /**
+     * Lấy cảnh báo chi tiêu thông minh
+     */
+    private suspend fun getSmartSpendingAlerts(command: AICommand.GetSpendingAlerts): AICommandResult {
+        return try {
+            Log.d(TAG, "Lấy cảnh báo chi tiêu thông minh: $command")
+
+            val alerts = mutableListOf<SpendingAlert>()
+
+            // Kiểm tra ngân sách
+            alerts.addAll(checkBudgetAlerts(command.threshold))
+
+            // Kiểm tra chi tiêu bất thường
+            alerts.addAll(checkSpendingAnomalies())
+
+            // Kiểm cash flow
+            alerts.addAll(checkCashFlowAlerts())
+
+            // Kiểm tra cơ hội tiết kiệm
+            alerts.addAll(checkSavingsOpportunities())
+
+            val message = buildAlertsMessage(alerts)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = alerts,
+                metadata = mapOf(
+                    "total_alerts" to alerts.size,
+                    "critical_alerts" to alerts.count { it.severity == "critical" },
+                    "warning_alerts" to alerts.count { it.severity == "warning" }
+                )
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy cảnh báo: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy cảnh báo: ${e.message}")
+        }
+    }
+
+    /**
+     * Phát hiện bất thường với ML
+     */
+    private suspend fun detectAnomaliesWithML(command: AICommand.DetectAnomalies): AICommandResult {
+        return try {
+            Log.d(TAG, "Phát hiện bất thường với ML: $command")
+
+            val transactions = transactionViewModel.transactions.value
+            val anomalies = detectAdvancedAnomalies(transactions, command.sensitivity)
+
+            val message = buildAnomaliesMessage(anomalies)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = anomalies,
+                metadata = mapOf(
+                    "total_anomalies" to anomalies.anomalies.size,
+                    "severity" to anomalies.severity,
+                    "confidence" to anomalies.confidence
+                )
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi phát hiện bất thường: ${e.message}", e)
+            AICommandResult(false, "Lỗi phát hiện bất thường: ${e.message}")
+        }
+    }
+
+    // ==================== KẾ HOẠCH TÀI CHÍNH NÂNG CAO ====================
+
+    /**
+     * Lấy kế hoạch tiết kiệm cá nhân hóa
+     */
+    private suspend fun getPersonalizedSavingsPlan(command: AICommand.GetSavingsPlan): AICommandResult {
+        return try {
+            Log.d(TAG, "Lấy kế hoạch tiết kiệm cá nhân hóa: $command")
+
+            val monthlyIncome = transactionViewModel.getTotalIncome() / 12 // Ước tính thu nhập hàng tháng
+            val monthlyExpense = transactionViewModel.getTotalExpense() / 12 // Ước tính chi tiêu hàng tháng
+
+            val savingsCapacity = monthlyIncome - monthlyExpense
+            val goalAmount = command.monthlySavings ?: (savingsCapacity * 0.2) // Mặc định 20% tiết kiệm
+
+            val plan = createPersonalizedSavingsPlan(goalAmount, command.goalId)
+
+            val message = buildSavingsPlanMessage(plan, monthlyIncome, monthlyExpense)
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = plan,
+                metadata = mapOf(
+                    "monthly_income" to monthlyIncome,
+                    "monthly_expense" to monthlyExpense,
+                    "savings_capacity" to savingsCapacity,
+                    "target_achievable" to (savingsCapacity >= plan.monthlyRequired)
+                )
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy kế hoạch tiết kiệm: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy kế hoạch tiết kiệm: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy lời khuyên tiết kiệm cá nhân hóa
+     */
+    private suspend fun getPersonalizedSavingsAdvice(): AICommandResult {
+        return try {
+            Log.d(TAG, "Lấy lời khuyên tiết kiệm cá nhân hóa")
+
+            val totalIncome = transactionViewModel.getTotalIncome()
+            val totalExpense = transactionViewModel.getTotalExpense()
+            val savings = totalIncome - totalExpense
+            val savingsRate = if (totalIncome > 0) (savings / totalIncome * 100) else 0.0
+
+            val spendingPattern = analyzeAdvancedSpendingPattern()
+            val budgetStatus = analyzeBudgetStatus()
+
+            val advice = generatePersonalizedSavingsAdvice(savingsRate, spendingPattern, budgetStatus)
+
+            val message = buildPersonalizedSavingsAdviceMessage(advice, savingsRate, totalIncome, totalExpense)
+
+            AICommandResult(success = true, message = message, data = advice)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy lời khuyên tiết kiệm: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy lời khuyên tiết kiệm: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy mẹo đầu tư cá nhân hóa
+     */
+    private suspend fun getPersonalizedInvestmentTips(): AICommandResult {
+        return try {
+            Log.d(TAG, "Lấy mẹo đầu tư cá nhân hóa")
+
+            val totalIncome = transactionViewModel.getTotalIncome()
+            val totalExpense = transactionViewModel.getTotalExpense()
+            val availableForInvestment = totalIncome - totalExpense
+
+            val riskProfile = analyzeRiskProfile()
+            val investmentKnowledge = estimateInvestmentKnowledge()
+
+            val tips = generatePersonalizedInvestmentTips(availableForInvestment, riskProfile, investmentKnowledge)
+
+            val message = buildInvestmentTipsMessage(tips, availableForInvestment, riskProfile)
+
+            AICommandResult(success = true, message = message, data = tips)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy mẹo đầu tư: ${e.message}", e)
+            AICommandResult(false, "Lỗi lấy mẹo đầu tư: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy tổng quan tháng
+     */
+    private suspend fun getMonthlyOverview(): AICommandResult {
+        return try {
+            val monthTransactions = getTransactionsForPeriod("month")
+            val monthIncome = monthTransactions.filter { it.isIncome }.sumOf { it.amount }
+            val monthExpense = monthTransactions.filter { !it.isIncome }.sumOf { it.amount }
+            val monthBalance = monthIncome - monthExpense
+
+            val lastMonthTransactions = getTransactionsForPeriod("previous_month")
+            val lastMonthIncome = lastMonthTransactions.filter { it.isIncome }.sumOf { it.amount }
+            val lastMonthExpense = lastMonthTransactions.filter { !it.isIncome }.sumOf { it.amount }
+
+            val incomeChange = if (lastMonthIncome > 0) ((monthIncome - lastMonthIncome) / lastMonthIncome * 100) else 0.0
+            val expenseChange = if (lastMonthExpense > 0) ((monthExpense - lastMonthExpense) / lastMonthExpense * 100) else 0.0
+
+            val message = """
+                📅 TỔNG QUAN THÁNG
+                
+                📊 HIỆN TẠI:
+                • Thu nhập: ${formatCurrency(monthIncome)} ${getChangeSymbol(incomeChange)}${"%.1f".format(abs(incomeChange))}%
+                • Chi tiêu: ${formatCurrency(monthExpense)} ${getChangeSymbol(expenseChange)}${"%.1f".format(abs(expenseChange))}%
+                • Số dư: ${formatCurrency(monthBalance)}
+                • Số giao dịch: ${monthTransactions.size}
+                
+                🎯 MỤC TIÊU THÁNG:
+                • Tiết kiệm: ${formatCurrency(monthIncome * 0.2)} (20% thu nhập)
+                • Chi tiêu thiết yếu: < ${formatCurrency(monthIncome * 0.5)}
+                
+                ${if (monthExpense > monthIncome) "⚠️ CẢNH BÁO: Chi tiêu vượt thu nhập!"
+            else if (monthBalance < monthIncome * 0.1) "💡 LƯU Ý: Tiết kiệm thấp, cần cải thiện"
+            else "✅ Đang đi đúng hướng!"}
+            """.trimIndent()
+
+            AICommandResult(success = true, message = message)
+
+        } catch (e: Exception) {
+            AICommandResult(false, "Lỗi lấy tổng quan tháng: ${e.message}")
+        }
+    }
+
+    // ==================== CÁC PHƯƠNG THỨC HỖ TRỢ NÂNG CAO ====================
+
+    /**
+     * Phân tích và đề xuất danh mục thông minh
+     */
+    private suspend fun analyzeAndSuggestCategory(
+        title: String,
+        amount: Double,
+        isIncome: Boolean
+    ): String {
+        val lowerTitle = title.lowercase()
+
+        // Phân tích từ khóa
+        val categoryKeywords = mapOf(
+            "ăn uống" to listOf("ăn", "uống", "cafe", "nhà hàng", "food", "restaurant", "cơm"),
+            "mua sắm" to listOf("mua", "sắm", "shopping", "quần áo", "đồ", "tiệm"),
+            "giải trí" to listOf("xem phim", "game", "giải trí", "karaoke", "pub", "bar"),
+            "y tế" to listOf("bệnh viện", "thuốc", "sức khỏe", "khám"),
+            "giáo dục" to listOf("học", "trường", "sách", "khóa học"),
+            "nhà ở" to listOf("tiền nhà", "thuê", "điện", "nước", "internet"),
+            "đi lại" to listOf("xe", "xăng", "taxi", "grab", "bus")
+        )
+
+        // Tìm danh mục phù hợp nhất
+        var bestCategory = if (isIncome) "Lương" else "Chi phí phát sinh"
+        var bestScore = 0
+
+        for ((category, keywords) in categoryKeywords) {
+            val score = keywords.count { lowerTitle.contains(it) }
+            if (score > bestScore) {
+                bestScore = score
+                bestCategory = category
+            }
+        }
+
+        // Phân tích dựa trên số tiền
+        if (!isIncome) {
+            when {
+                amount > 1000000 -> {
+                    if (!listOf("nhà ở", "giáo dục", "y tế").contains(bestCategory)) {
+                        bestCategory = "Chi phí lớn"
+                    }
+                }
+                amount < 50000 -> {
+                    bestCategory = "Chi phí nhỏ"
+                }
+            }
+        }
+
+        return bestCategory
+    }
+
+    /**
+     * Kiểm tra ngân sách trước khi thêm giao dịch
+     */
+    private suspend fun checkBudgetBeforeAdding(category: String, amount: Double): BudgetCheckResult {
+        return try {
+            val budgets = budgetViewModel.budgets.value
+            val categoryId = categoryViewModel.findCategoryByName(category)?.id ?: ""
+
+            val relevantBudget = budgets.find { it.categoryId == categoryId && it.isActive }
+
+            return if (relevantBudget != null) {
+                val newSpent = relevantBudget.spentAmount + amount
+                val remaining = relevantBudget.amount - newSpent
+                val percentage = (newSpent / relevantBudget.amount) * 100
+
+                when {
+                    percentage > 100 -> BudgetCheckResult(
+                        isOverBudget = true,
+                        message = "⚠️ Vượt ngân sách ${formatCurrency(amount - remaining)}",
+                        severity = "critical",
+                        remaining = 0.0
+                    )
+                    percentage > 90 -> BudgetCheckResult(
+                        isOverBudget = false,
+                        message = "⚠️ Sắp vượt ngân sách! Còn ${formatCurrency(remaining)}",
+                        severity = "warning",
+                        remaining = remaining
+                    )
+                    percentage > 80 -> BudgetCheckResult(
+                        isOverBudget = false,
+                        message = "📊 Ngân sách còn ${formatCurrency(remaining)} (${"%.0f".format(100 - percentage)}%)",
+                        severity = "info",
+                        remaining = remaining
+                    )
+                    else -> BudgetCheckResult(
+                        isOverBudget = false,
+                        message = "✅ Ngân sách ổn định",
+                        severity = "success",
+                        remaining = remaining
+                    )
+                }
+            } else {
+                BudgetCheckResult(
+                    isOverBudget = false,
+                    message = "ℹ️ Chưa có ngân sách cho danh mục này",
+                    severity = "info",
+                    remaining = 0.0
+                )
+            }
+        } catch (e: Exception) {
+            BudgetCheckResult(
+                isOverBudget = false,
+                message = "Không thể kiểm tra ngân sách",
+                severity = "error",
+                remaining = 0.0
+            )
+        }
+    }
+
+    data class BudgetCheckResult(
+        val isOverBudget: Boolean,
+        val message: String,
+        val severity: String,
+        val remaining: Double
+    )
+
+    /**
+     * Phát hiện giao dịch bất thường
+     */
+    private suspend fun detectTransactionAnomaly(
+        title: String,
+        amount: Double,
+        category: String
+    ): AnomalyCheckResult {
+        val recentTransactions = getTransactionsForPeriod("month")
+            .filter { it.category == category && !it.isIncome }
+
+        if (recentTransactions.size < 5) {
+            return AnomalyCheckResult(
+                isAnomaly = false,
+                message = "Không đủ dữ liệu để phân tích",
+                severity = "normal"  // THÊM DÒNG NÀY
+            )
+        }
+
+        val amounts = recentTransactions.map { it.amount }
+        val mean = amounts.average()
+        val stdDev = sqrt(amounts.map { (it - mean).pow(2) }.average())
+
+        val zScore = if (stdDev > 0) abs(amount - mean) / stdDev else 0.0
+
+        return when {
+            zScore > 3.0 -> AnomalyCheckResult(
+                isAnomaly = true,
+                message = "🚨 BẤT THƯỜNG: Giao dịch này lớn hơn ${"%.1f".format(zScore)} lần so với trung bình",
+                severity = "critical",
+                zScore = zScore
+            )
+            zScore > 2.0 -> AnomalyCheckResult(
+                isAnomaly = true,
+                message = "⚠️ KHÁC BIỆT: Giao dịch này lớn hơn ${"%.1f".format(zScore)} lần so với trung bình",
+                severity = "warning",
+                zScore = zScore
+            )
+            else -> AnomalyCheckResult(
+                isAnomaly = false,
+                message = "✅ Bình thường",
+                severity = "normal",
+                zScore = zScore
+            )
+        }
+    }
+    data class AnomalyCheckResult(
+        val isAnomaly: Boolean,
+        val message: String,
+        val severity: String,
+        val zScore: Double = 0.0
+    )
+
+    /**
+     * Tính toán Linear Regression Forecast
+     */
+    private fun calculateLinearRegressionForecast(
+        data: List<Double>
+    ): RegressionForecast {
+        val n = data.size
+        val x = (1..n).map { it.toDouble() }
+        val y = data
+
+        // Tính mean
+        val xMean = x.average()
+        val yMean = y.average()
+
+        // Tính slope (b1) và intercept (b0)
+        var numerator = 0.0
+        var denominator = 0.0
+
+        for (i in 0 until n) {
+            numerator += (x[i] - xMean) * (y[i] - yMean)
+            denominator += (x[i] - xMean).pow(2)
+        }
+
+        val slope = numerator / denominator
+        val intercept = yMean - slope * xMean
+
+        // Dự báo cho kỳ tiếp theo
+        val nextX = n + 1
+        val forecast = intercept + slope * nextX
+
+        // Tính R-squared
+        var ssTotal = 0.0
+        var ssResidual = 0.0
+
+        for (i in 0 until n) {
+            val predicted = intercept + slope * x[i]
+            ssTotal += (y[i] - yMean).pow(2)
+            ssResidual += (y[i] - predicted).pow(2)
+        }
+
+        val rSquared = 1 - (ssResidual / ssTotal)
+
+        // Tính khoảng tin cậy
+        val standardError = sqrt(ssResidual / (n - 2))
+        val marginOfError = 1.96 * standardError * sqrt(1 + 1.0/n +
+                (nextX - xMean).pow(2) / denominator)
+
+        // Phát hiện tính mùa vụ
+        val hasSeasonality = detectSeasonality(data)
+
+        return RegressionForecast(
+            forecast = forecast,
+            lowerBound = forecast - marginOfError,
+            upperBound = forecast + marginOfError,
+            rSquared = rSquared,
+            hasSeasonality = hasSeasonality
+        )
+    }
+
+    /**
+     * Phát hiện tính mùa vụ
+     */
+    private fun detectSeasonality(data: List<Double>): Boolean {
+        if (data.size < 8) return false
+
+        // Kiểm tra sự lặp lại
+        val halfSize = data.size / 2
+        val firstHalf = data.take(halfSize)
+        val secondHalf = data.takeLast(halfSize)
+
+        val mean1 = firstHalf.average()
+        val mean2 = secondHalf.average()
+
+        val variance1 = firstHalf.map { (it - mean1).pow(2) }.average()
+        val variance2 = secondHalf.map { (it - mean2).pow(2) }.average()
+
+        return abs(variance1 - variance2) / max(variance1, variance2) > 0.3
+    }
+
+    /**
+     * Tính toán dự báo theo danh mục
+     */
+    private suspend fun calculateCategoryBasedForecasts(period: String): List<CategoryForecast> {
+        val transactions = getTransactionsForPeriod(period)
+        val categories = transactions
+            .filter { !it.isIncome }
+            .groupBy { it.category }
+
+        return categories.map { (category, catTransactions) ->
+            val amounts = catTransactions.map { it.amount }
+            val forecast = if (amounts.size >= 3) {
+                calculateLinearRegressionForecast(amounts).forecast
+            } else {
+                amounts.average()
+            }
+
+            // Phân tích xu hướng
+            val trend = analyzeAmountTrend(amounts)
+
+            CategoryForecast(
+                category = category,
+                forecast = forecast,
+                confidence = min(0.95, amounts.size.toDouble() / 10),
+                trend = trend
+            )
+        }.sortedByDescending { it.forecast }
+    }
+
+    /**
+     * Phân tích xu hướng số tiền
+     */
+    private fun analyzeAmountTrend(data: List<Double>): String {
+        if (data.size < 2) return "stable"
+
+        val recent = data.takeLast(3).average()
+        val previous = if (data.size >= 6) data.take(3).average() else data.first()
+
+        return when {
+            recent > previous * 1.2 -> "up"
+            recent < previous * 0.8 -> "down"
+            else -> "stable"
+        }
+    }
+
+    /**
+     * Tạo khuyến nghị dự báo cá nhân hóa
+     */
+    private fun generatePersonalizedForecastRecommendations(
+        forecast: Double,
+        lastPeriod: Double,
+        confidenceLevel: Double
+    ): List<String> {
+        val recommendations = mutableListOf<String>()
+
+        val change = ((forecast - lastPeriod) / lastPeriod * 100).toInt()
+
+        when {
+            change > 20 -> {
+                recommendations.add("Dự báo chi tiêu tăng ${abs(change)}%, cần kiểm soát chặt chẽ hơn")
+                recommendations.add("Xem xét cắt giảm chi phí không cần thiết")
+            }
+            change < -10 -> {
+                recommendations.add("Chi tiêu dự kiến giảm ${abs(change)}%, đây là dấu hiệu tốt")
+                recommendations.add("Có thể tăng tiết kiệm hoặc đầu tư thêm")
+            }
+            else -> {
+                recommendations.add("Chi tiêu ổn định, duy trì thói quen hiện tại")
+            }
+        }
+
+        if (confidenceLevel < 0.7) {
+            recommendations.add("Độ tin cậy dự báo thấp, cần thêm dữ liệu để chính xác hơn")
+        }
+
+        recommendations.add("Kiểm tra lại ngân sách hàng tháng để đảm bảo phù hợp")
+
+        return recommendations.take(5)
+    }
+
+    /**
+     * Phân tích chi tiêu chi tiết
+     */
+    private fun performDetailedSpendingAnalysis(
+        transactions: List<Transaction>,
+        period: String
+    ): DetailedSpendingAnalysis {
+        val totalSpending = transactions.sumOf { it.amount }
+        val averageSpending = if (transactions.isNotEmpty()) totalSpending / transactions.size else 0.0
+
+        // Phân phối theo danh mục chi tiết
+        val categoryBreakdown = transactions
+            .groupBy { it.category }
+            .mapValues { (_, trans) ->
+                CategoryAnalysis(
+                    total = trans.sumOf { it.amount },
+                    count = trans.size,
+                    average = trans.sumOf { it.amount } / trans.size,
+                    percentage = trans.sumOf { it.amount } / totalSpending * 100
+                )
+            }
+
+        // Phân phối theo thời gian
+        val dailySpending = transactions
+            .groupBy { it.date }
+            .mapValues { (_, trans) -> trans.sumOf { it.amount } }
+            .toSortedMap()
+
+        // Tìm giao dịch lớn nhất
+        val largestTransaction = transactions.maxByOrNull { it.amount }
+
+        // Phát hiện giao dịch bất thường bằng Z-score
+        val unusualTransactions = detectUnusualTransactions(transactions)
+
+        // Tính toán cơ hội tiết kiệm
+        val savingsOpportunity = calculateSavingsOpportunity(categoryBreakdown)
+
+        return DetailedSpendingAnalysis(
+            totalSpending = totalSpending,
+            averageSpending = averageSpending,
+            transactionCount = transactions.size,
+            categoryBreakdown = categoryBreakdown,
+            dailySpending = dailySpending,
+            largestTransaction = largestTransaction,
+            unusualTransactions = unusualTransactions,
+            savingsOpportunity = savingsOpportunity,
+            hasUnusualSpending = unusualTransactions.isNotEmpty()
+        )
+    }
+
+    /**
+     * Phát hiện giao dịch bất thường
+     */
+    private fun detectUnusualTransactions(transactions: List<Transaction>): List<Transaction> {
+        if (transactions.size < 5) return emptyList()
+
+        val amounts = transactions.map { it.amount }
+        val mean = amounts.average()
+        val stdDev = sqrt(amounts.map { (it - mean).pow(2) }.average())
+
+        if (stdDev == 0.0) return emptyList()
+
+        return transactions.filter { transaction ->
+            val zScore = abs(transaction.amount - mean) / stdDev
+            zScore > 2.0 // Ngưỡng Z-score cho bất thường
+        }
+    }
+
+    /**
+     * Tính cơ hội tiết kiệm
+     */
+    private fun calculateSavingsOpportunity(
+        categoryAnalysis: Map<String, CategoryAnalysis>
+    ): Double {
+        // Giả sử có thể cắt giảm 20% chi tiêu ở các danh mục không thiết yếu
+        val nonEssentialCategories = listOf("Giải trí", "Mua sắm", "Ăn ngoài", "Chi phí phát sinh")
+
+        return categoryAnalysis
+            .filter { (category, _) ->
+                nonEssentialCategories.any { cat ->
+                    category.contains(cat, ignoreCase = true)
+                }
+            }
+            .values
+            .sumOf { it.total } * 0.2 // 20% tiết kiệm tiềm năng
+    }
+
+    /**
+     * Phát hiện insights chi tiêu
+     */
+    private fun detectSpendingInsights(analysis: DetailedSpendingAnalysis): List<String> {
+        val insights = mutableListOf<String>()
+
+        // Insight 1: Danh mục chi tiêu lớn nhất
+        val topCategory = analysis.categoryBreakdown.maxByOrNull { it.value.total }
+        topCategory?.let { (category, data) ->
+            insights.add("${category} chiếm ${"%.1f".format(data.percentage)}% tổng chi tiêu")
+        }
+
+        // Insight 2: Chi tiêu bất thường
+        if (analysis.hasUnusualSpending) {
+            insights.add("Có ${analysis.unusualTransactions.size} giao dịch bất thường cần kiểm tra")
+        }
+
+        // Insight 3: Cơ hội tiết kiệm
+        if (analysis.savingsOpportunity > 100000) {
+            insights.add("Có thể tiết kiệm ${formatCurrency(analysis.savingsOpportunity)} bằng cách cắt giảm chi phí không cần thiết")
+        }
+
+        // Insight 4: Xu hướng hàng ngày
+        if (analysis.dailySpending.isNotEmpty()) {
+            val maxSpendingDay = analysis.dailySpending.maxByOrNull { it.value }
+            maxSpendingDay?.let { (date, amount) ->
+                insights.add("Ngày chi tiêu nhiều nhất: $date - ${formatCurrency(amount)}")
+            }
+        }
+
+        return insights
+    }
+
+    /**
+     * So sánh với kỳ trước
+     */
+    private suspend fun compareWithPreviousPeriod(period: String, currentSpending: Double): String {
+        val previousData = getPreviousPeriodData(period)
+        val previousSpending = previousData.filter { !it.isIncome }.sumOf { it.amount }
+
+        return if (previousSpending > 0) {
+            val change = ((currentSpending - previousSpending) / previousSpending * 100).toInt()
+            "So với kỳ trước: ${if (change >= 0) "tăng" else "giảm"} ${abs(change)}%"
+        } else {
+            "Không có dữ liệu để so sánh"
+        }
+    }
+
+    /**
+     * Tìm mẫu chi tiêu
+     */
+    private fun findSpendingPatterns(transactions: List<Transaction>): List<String> {
+        val patterns = mutableListOf<String>()
+
+        // Phân tích theo ngày trong tuần
+        val dayOfWeekPattern = transactions
+            .groupBy { it.dayOfWeek }
+            .mapValues { (_, trans) -> trans.sumOf { it.amount } }
+
+        val topDay = dayOfWeekPattern.maxByOrNull { it.value }
+        topDay?.let { (day, amount) ->
+            patterns.add("Chi tiêu nhiều nhất vào $day: ${formatCurrency(amount)}")
+        }
+
+        // Phân tích theo khoảng thời gian
+        val timePatterns = detectTimePatterns(transactions)
+        patterns.addAll(timePatterns)
+
+        return patterns
+    }
+
+    /**
+     * Phát hiện mẫu thời gian
+     */
+    private fun detectTimePatterns(transactions: List<Transaction>): List<String> {
+        val patterns = mutableListOf<String>()
+
+        // Giả sử có field time trong transaction
+        // Thực tế cần điều chỉnh theo data structure của bạn
+        val morningTransactions = transactions // Lọc theo thời gian
+        val eveningTransactions = transactions // Lọc theo thời gian
+
+        if (morningTransactions.size > eveningTransactions.size * 1.5) {
+            patterns.add("Bạn có xu hướng chi tiêu nhiều hơn vào buổi sáng")
+        } else if (eveningTransactions.size > morningTransactions.size * 1.5) {
+            patterns.add("Bạn có xu hướng chi tiêu nhiều hơn vào buổi tối")
+        }
+
+        return patterns
+    }
+
+    /**
+     * Lấy dữ liệu lịch sử thực tế
+     */
+    private suspend fun getRealHistoricalSpendingData(period: String): List<Double> {
+        val historicalPeriods = when (period) {
+            "week" -> 8
+            "month" -> 6
+            "year" -> 4
+            else -> 4
+        }
+
+        val historicalData = mutableListOf<Double>()
+
+        for (i in 0 until historicalPeriods) {
+            val periodData = when (period) {
+                "week" -> getTransactionsForPreviousWeek(i)
+                "month" -> getTransactionsForPreviousMonth(i)
+                "year" -> getTransactionsForPreviousYear(i)
+                else -> emptyList()
+            }
+
+            val spending = periodData
+                .filter { !it.isIncome }
+                .sumOf { it.amount }
+
+            historicalData.add(spending)
+        }
+
+        return historicalData
+    }
+
+    /**
+     * Tính toán sức khỏe tài chính toàn diện
+     */
+    private suspend fun calculateComprehensiveFinancialHealth(): AdvancedFinancialHealth {
+        val income = transactionViewModel.getTotalIncome()
+        val expense = transactionViewModel.getTotalExpense()
+        val savings = income - expense
+
+        // Tính các chỉ số thành phần
+        val savingsRate = if (income > 0) savings / income * 100 else 0.0
+        val expenseRatio = if (income > 0) expense / income * 100 else 0.0
+        val debtRatio = calculateDebtRatio()
+        val emergencyFundScore = calculateEmergencyFundScore()
+        val investmentDiversityScore = calculateInvestmentDiversityScore()
+        val budgetAdherenceScore = calculateBudgetAdherenceScore()
+
+        // Tính điểm tổng hợp (trọng số)
+        val components = mapOf(
+            "savings_rate" to savingsRate,
+            "expense_ratio" to expenseRatio,
+            "debt_ratio" to debtRatio,
+            "emergency_fund" to emergencyFundScore,
+            "investment_diversity" to investmentDiversityScore,
+            "budget_adherence" to budgetAdherenceScore
+        )
+
+        val weightedScore = (
+                savingsRate.coerceIn(0.0, 30.0) * 0.25 +
+                        (100 - expenseRatio).coerceIn(0.0, 25.0) * 0.25 +
+                        (100 - debtRatio).coerceIn(0.0, 15.0) * 0.15 +
+                        emergencyFundScore * 0.15 +
+                        investmentDiversityScore * 0.10 +
+                        budgetAdherenceScore * 0.10
+                ).toInt()
+
+        val level = when {
+            weightedScore >= 85 -> "Xuất sắc 🏆"
+            weightedScore >= 70 -> "Tốt 👍"
+            weightedScore >= 55 -> "Trung bình ⚖️"
+            weightedScore >= 40 -> "Cần cải thiện 📈"
+            else -> "Nguy hiểm ⚠️"
+        }
+
+        // Tạo khuyến nghị
+        val recommendations = generateHealthRecommendations(
+            weightedScore, savingsRate, expenseRatio, debtRatio
+        )
+
+        // Xác định khu vực cần cải thiện
+        val improvementAreas = identifyImprovementAreas(components)
+
+        // Timeline cải thiện
+        val timeline = createImprovementTimeline(weightedScore, improvementAreas)
+
+        return AdvancedFinancialHealth(
+            score = weightedScore,
+            level = level,
+            components = components,
+            recommendations = recommendations,
+            improvementAreas = improvementAreas,
+            timeline = timeline
+        )
+    }
+
+    /**
+     * Tính tỷ lệ nợ
+     */
+    private fun calculateDebtRatio(): Double {
+        // Giả sử tính toán dựa trên dữ liệu có sẵn
+        // Trong thực tế, cần tích hợp với dữ liệu nợ
+        return 0.0 // Mặc định 0%
+    }
+
+    /**
+     * Tính điểm quỹ khẩn cấp
+     */
+    private suspend fun calculateEmergencyFundScore(): Double {
+        val monthlyExpense = transactionViewModel.getTotalExpense() / 12
+        // Giả sử có dữ liệu về quỹ khẩn cấp
+        // Trong thực tế, cần lấy từ dữ liệu tài khoản tiết kiệm
+        val emergencyFund = 0.0
+
+        return when {
+            emergencyFund >= monthlyExpense * 6 -> 100.0
+            emergencyFund >= monthlyExpense * 3 -> 70.0
+            emergencyFund >= monthlyExpense -> 40.0
+            else -> 10.0
+        }
+    }
+
+    /**
+     * Tính điểm đa dạng đầu tư
+     */
+    private fun calculateInvestmentDiversityScore(): Double {
+        // Giả sử tính toán dựa trên danh mục đầu tư
+        // Trong thực tế, cần tích hợp với dữ liệu đầu tư
+        return 0.0 // Mặc định 0%
+    }
+
+    /**
+     * Tính điểm tuân thủ ngân sách
+     */
+    private suspend fun calculateBudgetAdherenceScore(): Double {
+        val budgets = budgetViewModel.budgets.value
+        val activeBudgets = budgets.filter { it.isActive }
+
+        if (activeBudgets.isEmpty()) return 0.0
+
+        val adherenceScores = activeBudgets.map { budget ->
+            if (budget.amount == 0.0) 100.0
+            else max(0.0, 100 - ((budget.spentAmount / budget.amount) * 100))
+        }
+
+        return adherenceScores.average()
+    }
+
+    /**
+     * Tạo khuyến nghị sức khỏe
+     */
+    private fun generateHealthRecommendations(
+        score: Int,
+        savingsRate: Double,
+        expenseRatio: Double,
+        debtRatio: Double
+    ): List<String> {
+        val recommendations = mutableListOf<String>()
+
+        when {
+            score >= 85 -> {
+                recommendations.add("Xuất sắc! Tiếp tục duy trì thói quen tài chính tốt")
+                recommendations.add("Xem xét đầu tư để tăng trưởng tài sản")
+            }
+            score >= 70 -> {
+                recommendations.add("Khá tốt! Mục tiêu tiếp theo: tăng tỷ lệ tiết kiệm lên 25%")
+                recommendations.add("Đa dạng hóa các kênh đầu tư")
+            }
+            score >= 55 -> {
+                recommendations.add("Cần cải thiện một số khu vực")
+                if (savingsRate < 10) recommendations.add("Ưu tiên tiết kiệm ít nhất 10% thu nhập")
+                if (expenseRatio > 90) recommendations.add("Giảm chi tiêu không cần thiết")
+            }
+            else -> {
+                recommendations.add("Cần hành động ngay lập tức")
+                recommendations.add("Tạo ngân sách và theo dõi chi tiêu hàng ngày")
+                recommendations.add("Ưu tiên trả nợ lãi suất cao")
+                recommendations.add("Xây dựng quỹ khẩn cấp cơ bản")
+            }
+        }
+
+        return recommendations.take(5)
+    }
+
+    /**
+     * Xác định khu vực cần cải thiện
+     */
+    private fun identifyImprovementAreas(components: Map<String, Double>): List<String> {
+        val areas = mutableListOf<String>()
+
+        components.forEach { (component, value) ->
+            when (component) {
+                "savings_rate" -> if (value < 10) areas.add("Tỷ lệ tiết kiệm thấp")
+                "expense_ratio" -> if (value > 90) areas.add("Tỷ lệ chi tiêu cao")
+                "debt_ratio" -> if (value > 30) areas.add("Tỷ lệ nợ cao")
+                "emergency_fund" -> if (value < 50) areas.add("Quỹ khẩn cấp yếu")
+                "investment_diversity" -> if (value < 30) areas.add("Đa dạng hóa đầu tư kém")
+                "budget_adherence" -> if (value < 60) areas.add("Tuân thủ ngân sách kém")
+            }
+        }
+
+        return areas.take(3)
+    }
+
+    /**
+     * Tạo timeline cải thiện
+     */
+    private fun createImprovementTimeline(score: Int, areas: List<String>): Map<String, String> {
+        val timeline = mutableMapOf<String, String>()
+
+        when {
+            score < 40 -> {
+                timeline["1 tuần"] = "Tạo ngân sách cơ bản"
+                timeline["1 tháng"] = "Theo dõi chi tiêu hàng ngày"
+                timeline["3 tháng"] = "Xây dựng quỹ khẩn cấp 1 tháng"
+            }
+            score < 55 -> {
+                timeline["1 tháng"] = "Cải thiện 1-2 khu vực yếu nhất"
+                timeline["3 tháng"] = "Đạt tỷ lệ tiết kiệm 10%"
+                timeline["6 tháng"] = "Quỹ khẩn cấp 3 tháng"
+            }
+            else -> {
+                timeline["3 tháng"] = "Duy trì điểm số hiện tại"
+                timeline["6 tháng"] = "Cải thiện thêm 10 điểm"
+                timeline["1 năm"] = "Đạt điểm sức khỏe > 80"
+            }
+        }
+
+        return timeline
+    }
+
+    // ==================== CÁC PHƯƠNG THỨC HỖ TRỢ ====================
+
+    /**
+     * Xây dựng tin nhắn đã thêm giao dịch
+     */
+    private fun buildTransactionAddedMessage(
+        command: AICommand.AddTransaction,
+        smartCategory: String,
+        budgetCheck: BudgetCheckResult,
+        anomalyCheck: AnomalyCheckResult
+    ): String {
+        return """
+            ✅ ĐÃ THÊM ${if (command.isIncome) "THU NHẬP" else "CHI TIÊU"} THÀNH CÔNG
+            
+            📝 Chi tiết:
+            • Mô tả: ${command.title}
+            • Số tiền: ${formatCurrency(command.amount)}
+            • Danh mục: $smartCategory (AI đề xuất)
+            • Loại: ${if (command.isIncome) "Thu nhập" else "Chi tiêu"}
+            
+            🔍 KIỂM TRA THÔNG MINH:
+            • Ngân sách: ${budgetCheck.message}
+            • Phân tích: ${anomalyCheck.message}
+            
+            ${if (budgetCheck.isOverBudget) "⚠️ LƯU Ý: Đã vượt ngân sách cho danh mục này!" else ""}
+            ${if (anomalyCheck.isAnomaly) "🔍 LƯU Ý: Giao dịch này có dấu hiệu bất thường!" else ""}
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn danh sách với insights
+     */
+    private fun buildTransactionsListWithInsights(
+        transactions: List<Transaction>,
+        period: String,
+        analysis: DetailedSpendingAnalysis,
+        anomalies: List<Transaction>,
+        insights: List<String>
+    ): String {
+        val totalIncome = transactions.filter { it.isIncome }.sumOf { it.amount }
+        val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.amount }
+        val net = totalIncome - totalExpense
+
+        val periodTitle = when (period) {
+            "today" -> "HÔM NAY"
+            "yesterday" -> "HÔM QUA"
+            "week" -> "TUẦN NÀY"
+            "month" -> "THÁNG NÀY"
+            else -> "GIAO DỊCH"
+        }
+
+        val header = """
+            📊 DANH SÁCH GIAO DỊCH $periodTitle
+            
+            💰 TỔNG SỐ:
+            • Tổng thu: ${formatCurrency(totalIncome)}
+            • Tổng chi: ${formatCurrency(totalExpense)}
+            • Số dư: ${formatCurrency(net)} ${if (net >= 0) "✅" else "⚠️"}
+            • Số giao dịch: ${transactions.size}
+        """.trimIndent()
+
+        val insightsSection = if (insights.isNotEmpty()) {
+            "\n\n🔍 INSIGHTS PHÂN TÍCH:\n" + insights.joinToString("\n") { "• $it" }
+        } else ""
+
+        val anomaliesSection = if (anomalies.isNotEmpty()) {
+            "\n\n🚨 GIAO DỊCH BẤT THƯỜNG:\n" + anomalies.take(3).joinToString("\n\n") { anomaly ->
+                "• ${anomaly.title}\n  ${formatCurrency(anomaly.amount)} - ${anomaly.category}"
+            }
+        } else ""
+
+        val topCategoriesSection = if (analysis.categoryBreakdown.isNotEmpty()) {
+            val topCategories = analysis.categoryBreakdown.toList()
+                .sortedByDescending { it.second.total }
+                .take(3)
+
+            "\n\n🏆 TOP DANH MỤC:\n" + topCategories.joinToString("\n") { (category, data) ->
+                "• $category: ${formatCurrency(data.total)} (${data.count} giao dịch)"
+            }
+        } else ""
+
+        val transactionsText = transactions.take(10).joinToString("\n\n") { transaction ->
+            buildTransactionItemText(transaction)
+        }
+
+        val footer = if (transactions.size > 10) {
+            "\n\n... và ${transactions.size - 10} giao dịch khác"
+        } else ""
+
+        return header + insightsSection + anomaliesSection + topCategoriesSection + "\n\n📋 CHI TIẾT:\n" + transactionsText + footer
+    }
+
+    /**
+     * Xây dựng text cho từng giao dịch
+     */
+    private fun buildTransactionItemText(transaction: Transaction): String {
+        val type = if (transaction.isIncome) "📥 THU" else "📤 CHI"
+        val walletInfo = if (transaction.wallet.isNotBlank()) " • Ví: ${transaction.wallet}" else ""
+
+        return """
+            $type ${transaction.title}
+            • Số tiền: ${formatCurrency(transaction.amount)}
+            • Danh mục: ${transaction.category}
+            • Ngày: ${transaction.date}$walletInfo
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn dự báo
+     */
+    private fun buildForecastMessage(
+        forecast: AdvancedSpendingForecast,
+        period: String
+    ): String {
+        val periodName = when (period) {
+            "week" -> "tuần tới"
+            "month" -> "tháng tới"
+            "year" -> "năm tới"
+            else -> "kỳ tới"
+        }
+
+        val categoryForecastsText = if (forecast.categoryForecasts.isNotEmpty()) {
+            "\n\n📈 DỰ BÁO THEO DANH MỤC:\n" +
+                    forecast.categoryForecasts.take(3).joinToString("\n") { category ->
+                        "• ${category.category}: ${formatCurrency(category.forecast)} (${category.trend} ${"%.0f".format(category.confidence*100)}%)"
+                    }
+        } else ""
+
+        return """
+            🔮 DỰ BÁO CHI TIÊU $periodName
+            
+            📊 ƯỚC TÍNH:
+            • Chi tiêu dự kiến: ${formatCurrency(forecast.estimatedSpending)}
+            • Khoảng dao động: ${formatCurrency(forecast.lowerBound)} - ${formatCurrency(forecast.upperBound)}
+            • Độ tin cậy: ${forecast.confidenceLevel}%
+            • Thuật toán: ${forecast.algorithmUsed}
+            $categoryForecastsText
+            
+            💡 KIẾN NGHỊ:
+            ${forecast.recommendations.joinToString("\n") { "• $it" }}
+            
+            ${if (forecast.warning.isNotEmpty()) "⚠️ ${forecast.warning}" else ""}
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn phân tích chi tiết
+     */
+    private fun buildDetailedAnalysisMessage(
+        analysis: DetailedSpendingAnalysis,
+        insights: List<String>,
+        comparison: String,
+        patterns: List<String>,
+        period: String
+    ): String {
+        val periodName = when (period) {
+            "week" -> "TUẦN"
+            "month" -> "THÁNG"
+            "year" -> "NĂM"
+            else -> period.uppercase()
+        }
+
+        val patternsText = if (patterns.isNotEmpty()) {
+            "\n\n🔄 MẪU CHI TIÊU:\n" + patterns.joinToString("\n") { "• $it" }
+        } else ""
+
+        return """
+            📊 PHÂN TÍCH CHI TIÊU $periodName
+            
+            📈 TỔNG QUAN:
+            • Tổng chi tiêu: ${formatCurrency(analysis.totalSpending)}
+            • Chi tiêu trung bình: ${formatCurrency(analysis.averageSpending)}
+            • Số giao dịch: ${analysis.transactionCount}
+            • $comparison
+            
+            🏆 DANH MỤC HÀNG ĐẦU:
+            ${analysis.categoryBreakdown.toList()
+            .sortedByDescending { it.second.total }
+            .take(3)
+            .joinToString("\n") { (category, data) ->
+                "• $category: ${formatCurrency(data.total)} (${"%.1f".format(data.percentage)}%)"
+            }}
+            
+            🔍 INSIGHTS:
+            ${insights.joinToString("\n") { "• $it" }}
+            $patternsText
+            
+            💰 CƠ HỘI TIẾT KIỆM:
+            • Có thể tiết kiệm: ${formatCurrency(analysis.savingsOpportunity)}
+            • Bằng cách: Cắt giảm 20% chi phí không thiết yếu
+            
+            ${if (analysis.hasUnusualSpending) "🚨 CẢNH BÁO: Có ${analysis.unusualTransactions.size} giao dịch bất thường" else ""}
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn phân tích xu hướng
+     */
+    private fun buildAdvancedTrendAnalysisMessage(
+        analysis: TrendAnalysis,
+        predictions: List<String>,
+        period: String
+    ): String {
+        return """
+            📈 PHÂN TÍCH XU HƯỚNG CHI TIÊU ${period.uppercase()}
+            
+            🔄 XU HƯỚNG CHÍNH:
+            ${analysis.mainTrends.joinToString("\n") { "• $it" }}
+            
+            📉 BIẾN ĐỘNG:
+            ${analysis.changes.joinToString("\n") { "• $it" }}
+            
+            ⚠️ DẤU HIỆU QUAN TRỌNG:
+            ${analysis.signals.joinToString("\n") { "• $it" }}
+            
+            🔮 DỰ ĐOÁN:
+            ${predictions.joinToString("\n") { "• $it" }}
+            
+            🎯 HÀNH ĐỘNG ĐỀ XUẤT:
+            ${analysis.actions.joinToString("\n") { "• $it" }}
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn sức khỏe tài chính
+     */
+    private fun buildFinancialHealthMessage(
+        health: AdvancedFinancialHealth
+    ): String {
+        val componentsText = health.components.entries.joinToString("\n") { (component, value) ->
+            when (component) {
+                "savings_rate" -> "• Tỷ lệ tiết kiệm: ${"%.1f".format(value)}%"
+                "expense_ratio" -> "• Tỷ lệ chi tiêu: ${"%.1f".format(value)}%"
+                "debt_ratio" -> "• Tỷ lệ nợ: ${"%.1f".format(value)}%"
+                "emergency_fund" -> "• Quỹ khẩn cấp: ${"%.0f".format(value)}/100"
+                "investment_diversity" -> "• Đa dạng đầu tư: ${"%.0f".format(value)}/100"
+                "budget_adherence" -> "• Tuân thủ ngân sách: ${"%.0f".format(value)}/100"
+                else -> "• $component: ${"%.1f".format(value)}"
+            }
+        }
+
+        val timelineText = if (health.timeline.isNotEmpty()) {
+            "\n\n📅 LỘ TRÌNH CẢI THIỆN:\n" +
+                    health.timeline.entries.joinToString("\n") { (time, action) ->
+                        "• $time: $action"
+                    }
+        } else ""
+
+        return """
+            💪 ĐIỂM SỨC KHỎE TÀI CHÍNH: ${health.score}/100
+            Mức độ: ${health.level}
+            
+            📊 CHỈ SỐ THÀNH PHẦN:
+            $componentsText
+            
+            💡 KHUYẾN NGHỊ:
+            ${health.recommendations.joinToString("\n") { "• $it" }}
+            
+            🎯 KHU VỰC CẦN CẢI THIỆN:
+            ${health.improvementAreas.joinToString("\n") { "• $it" }}
+            $timelineText
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn ngân sách cá nhân hóa
+     */
+    private fun buildPersonalizedBudgetMessage(
+        recommendations: PersonalizedBudgetRecommendations,
+        income: Double
+    ): String {
+        val personalizedAllocationText = if (recommendations.personalizedAllocation.isNotEmpty()) {
+            "\n\n🎯 PHÂN BỔ CÁ NHÂN HÓA:\n" +
+                    recommendations.personalizedAllocation.entries.joinToString("\n") { (category, amount) ->
+                        "• $category: ${formatCurrency(amount)} (${"%.0f".format(amount/income*100)}%)"
+                    }
+        } else ""
+
+        return """
+            💰 GỢI Ý NGÂN SÁCH CÁ NHÂN HÓA
+            
+            📊 PHÂN BỔ LÝ TƯỞNG (dựa trên thu nhập ${formatCurrency(income)}):
+            ${recommendations.allocation.joinToString("\n") { "• $it" }}
+            $personalizedAllocationText
+            
+            🎯 MỤC TIÊU:
+            ${recommendations.goals.joinToString("\n") { "• $it" }}
+            
+            💡 LỜI KHUYÊN:
+            ${recommendations.advice.joinToString("\n") { "• $it" }}
+            
+            ⚠️ ĐÁNH GIÁ RỦI RO: ${recommendations.riskAssessment.uppercase()}
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn cảnh báo
+     */
+    private fun buildAlertsMessage(alerts: List<SpendingAlert>): String {
+        if (alerts.isEmpty()) {
+            return "✅ KHÔNG CÓ CẢNH BÁO NÀO HIỆN TẠI"
+        }
+
+        val criticalAlerts = alerts.filter { it.severity == "critical" }
+        val warningAlerts = alerts.filter { it.severity == "warning" }
+        val infoAlerts = alerts.filter { it.severity == "info" }
+
+        val criticalSection = if (criticalAlerts.isNotEmpty()) {
+            "🔴 CẢNH BÁO NGUY HIỂM:\n" + criticalAlerts.joinToString("\n\n") { alert ->
+                "• ${alert.message}\n  ${alert.recommendation}"
+            } + "\n"
+        } else ""
+
+        val warningSection = if (warningAlerts.isNotEmpty()) {
+            "🟡 CẢNH BÁO CẦN LƯU Ý:\n" + warningAlerts.joinToString("\n\n") { alert ->
+                "• ${alert.message}\n  ${alert.recommendation}"
+            } + "\n"
+        } else ""
+
+        val infoSection = if (infoAlerts.isNotEmpty()) {
+            "🔵 THÔNG TIN:\n" + infoAlerts.joinToString("\n\n") { alert ->
+                "• ${alert.message}"
+            }
+        } else ""
+
+        return """
+        ⚠️ DANH SÁCH CẢNH BÁO CHI TIÊU
+        
+        $criticalSection
+        $warningSection
+        $infoSection
+        
+        Tổng cộng: ${alerts.size} cảnh báo (${criticalAlerts.size} nguy hiểm, ${warningAlerts.size} cần lưu ý)
+    """.trimIndent()
+    }
+    /**
+     * Xây dựng tin nhắn bất thường
+     */
+    private fun buildAnomaliesMessage(anomalies: AnomalyDetection): String {
+        if (anomalies.anomalies.isEmpty()) {
+            return "✅ KHÔNG PHÁT HIỆN GIAO DỊCH BẤT THƯỜNG"
+        }
+
+        return """
+            🔍 PHÁT HIỆN BẤT THƯỜNG
+            
+            Mức độ nghiêm trọng: ${anomalies.severity.uppercase()}
+            Độ tin cậy: ${"%.0f".format(anomalies.confidence * 100)}%
+            
+            📋 DANH SÁCH BẤT THƯỜNG:
+            ${anomalies.anomalies.take(5).joinToString("\n\n") { anomaly ->
+            """
+                • ${anomaly.transaction.title}
+                  Số tiền: ${formatCurrency(anomaly.transaction.amount)}
+                  Danh mục: ${anomaly.transaction.category}
+                  Loại: ${anomaly.anomalyType}
+                  Mức độ: ${anomaly.severity}
+                  Giải thích: ${anomaly.explanation}
+                  Hành động: ${anomaly.suggestedAction}
+                """.trimIndent()
+        }}
+            
+            ${if (anomalies.anomalies.size > 5) "... và ${anomalies.anomalies.size - 5} bất thường khác" else ""}
+            
+            💡 KIẾN NGHỊ:
+            ${anomalies.recommendations.joinToString("\n") { "• $it" }}
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn kế hoạch tiết kiệm
+     */
+    private fun buildSavingsPlanMessage(
+        plan: SavingsPlan,
+        monthlyIncome: Double,
+        monthlyExpense: Double
+    ): String {
+        val progress = if (plan.targetAmount > 0) (plan.currentAmount / plan.targetAmount * 100).toInt() else 0
+
+        return """
+            🎯 KẾ HOẠCH TIẾT KIỆM: ${plan.goalName}
+            
+            📊 TỔNG QUAN:
+            • Mục tiêu: ${formatCurrency(plan.targetAmount)}
+            • Hiện tại: ${formatCurrency(plan.currentAmount)} ($progress%)
+            • Cần thêm: ${formatCurrency(plan.targetAmount - plan.currentAmount)}
+            
+            💰 KẾ HOẠCH HÀNG THÁNG:
+            • Cần tiết kiệm: ${formatCurrency(plan.monthlyRequired)}/tháng
+            • Thời gian: ${plan.timelineMonths} tháng
+            • Tỷ lệ so với thu nhập: ${"%.1f".format(plan.monthlyRequired/monthlyIncome*100)}%
+            
+            📈 SO SÁNH VỚI HIỆN TẠI:
+            • Thu nhập/tháng: ${formatCurrency(monthlyIncome)}
+            • Chi tiêu/tháng: ${formatCurrency(monthlyExpense)}
+            • Tiết kiệm hiện tại: ${formatCurrency(monthlyIncome - monthlyExpense)}/tháng
+            • ${if (plan.monthlyRequired <= monthlyIncome - monthlyExpense) "✅ CÓ THỂ ĐẠT ĐƯỢC" else "⚠️ CẦN ĐIỀU CHỈNH"}
+            
+            💡 ĐỀ XUẤT ĐẦU TƯ:
+            ${plan.investmentSuggestions.take(3).joinToString("\n\n") { suggestion ->
+            """
+                • ${suggestion.name} (${suggestion.type})
+                  Lợi nhuận kỳ vọng: ${"%.1f".format(suggestion.expectedReturn)}%/năm
+                  Rủi ro: ${suggestion.risk}
+                  Số tiền tối thiểu: ${formatCurrency(suggestion.minAmount)}
+                  ${suggestion.description}
+                """.trimIndent()
+        }}
+            
+            🎯 MỨC ĐỘ RỦI RO: ${plan.riskLevel.uppercase()}
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn lời khuyên tiết kiệm
+     */
+    private fun buildPersonalizedSavingsAdviceMessage(
+        advice: List<String>,
+        savingsRate: Double,
+        totalIncome: Double,
+        totalExpense: Double
+    ): String {
+        return """
+            💰 LỜI KHUYÊN TIẾT KIỆM CÁ NHÂN HÓA
+            
+            📊 TÌNH HÌNH HIỆN TẠI:
+            • Tỷ lệ tiết kiệm: ${"%.1f".format(savingsRate)}%
+            • Thu nhập: ${formatCurrency(totalIncome)}
+            • Chi tiêu: ${formatCurrency(totalExpense)}
+            • Tiết kiệm thực tế: ${formatCurrency(totalIncome - totalExpense)}
+            
+            💡 KHUYẾN NGHỊ CÁ NHÂN HÓA:
+            ${advice.take(5).joinToString("\n") { "• $it" }}
+            
+            🎯 MỤC TIÊU ĐỀ XUẤT:
+            • Tiết kiệm ít nhất ${formatCurrency(totalIncome * 0.1)}/tháng (10% thu nhập)
+            • Xây dựng quỹ khẩn cấp 3-6 tháng chi phí sinh hoạt
+            • Tăng dần tỷ lệ tiết kiệm lên 20%
+            
+            ⚡ MẸO TIẾT KIỆM THÔNG MINH:
+            • Áp dụng quy tắc 24 giờ trước khi mua sắm lớn
+            • Sử dụng ứng dụng so sánh giá
+            • Tận dụng các chương trình giảm giá, khuyến mãi
+            • Học cách sửa chữa thay vì mua mới
+        """.trimIndent()
+    }
+
+    /**
+     * Xây dựng tin nhắn mẹo đầu tư
+     */
+    private fun buildInvestmentTipsMessage(
+        tips: List<String>,
+        availableForInvestment: Double,
+        riskProfile: String
+    ): String {
+        return """
+            📈 MẸO ĐẦU TƯ THÔNG MINH
+            
+            💰 TÌNH HÌNH TÀI CHÍNH:
+            • Tiền có thể đầu tư: ${formatCurrency(availableForInvestment)}
+            • Hồ sơ rủi ro: ${riskProfile.uppercase()}
+            
+            🎯 KHUYẾN NGHỊ PHÙ HỢP:
+            ${tips.take(6).joinToString("\n") { "• $it" }}
+            
+            ⚠️ NGUYÊN TẮC VÀNG:
+            • Luôn có kế hoạch đầu tư rõ ràng
+            • Kiểm soát cảm xúc khi thị trường biến động
+            • Tái đầu tư lợi nhuận để tăng trưởng vốn
+            • Cập nhật kiến thức tài chính thường xuyên
+            
+            🚨 LƯU Ý QUAN TRỌNG:
+            • Đầu tư luôn đi kèm rủi ro
+            • Hiệu quả trong quá khứ không đảm bảo tương lai
+            • Tham khảo ý kiến chuyên gia trước khi quyết định lớn
+            • Chỉ đầu tư số tiền bạn có thể chấp nhận mất
+        """.trimIndent()
+    }
+
+    // ==================== CÁC PHƯƠNG THỨC GETTER ====================
 
     /**
      * Lấy giao dịch theo khoảng thời gian
@@ -886,107 +2854,69 @@ class AICommandExecutor(
     }
 
     /**
-     * Xây dựng tin nhắn danh sách giao dịch
+     * Lấy giao dịch tuần trước
      */
-    private fun buildTransactionsListMessage(transactions: List<Transaction>, period: String): String {
-        val totalIncome = transactions.filter { it.isIncome }.sumOf { it.amount }
-        val totalExpense = transactions.filter { !it.isIncome }.sumOf { it.amount }
-
-        val periodTitle = when (period) {
-            "today" -> "HÔM NAY"
-            "yesterday" -> "HÔM QUA"
-            "week" -> "TUẦN NÀY"
-            "month" -> "THÁNG NÀY"
-            else -> "GIAO DỊCH"
-        }
-
-        val header = """
-            DANH SÁCH GIAO DỊCH $periodTitle
-            Tổng thu: ${formatCurrency(totalIncome)}
-            Tổng chi: ${formatCurrency(totalExpense)}
-            Số giao dịch: ${transactions.size}
-            
-        """.trimIndent()
-
-        val transactionsText = transactions.take(10).joinToString("\n\n") { transaction ->
-            buildTransactionItemText(transaction)
-        }
-
-        val footer = if (transactions.size > 10) {
-            "\n\n... và ${transactions.size - 10} giao dịch khác"
-        } else ""
-
-        return header + "\n\n" + transactionsText + footer
-    }
-
-    /**
-     * Xây dựng text cho từng giao dịch
-     */
-    private fun buildTransactionItemText(transaction: Transaction): String {
-        val type = if (transaction.isIncome) "THU" else "CHI"
-        val walletInfo = if (transaction.wallet.isNotBlank()) " • Ví: ${transaction.wallet}" else ""
-
-        return """
-            $type ${transaction.title}
-            • Số tiền: ${formatCurrency(transaction.amount)}
-            • Danh mục: ${transaction.category}
-            • Ngày: ${transaction.date}$walletInfo
-        """.trimIndent()
-    }
-
-    /**
-     * Lấy ngày hiện tại
-     */
-    private fun getCurrentDate(): String = dateFormatter.format(Date())
-
-    /**
-     * Lấy ngày hôm qua
-     */
-    private fun getYesterdayDate(): String {
+    private suspend fun getTransactionsForPreviousWeek(weeksAgo: Int = 1): List<Transaction> {
+        val allTransactions = transactionViewModel.transactions.value
         val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
-        return dateFormatter.format(calendar.time)
-    }
+        calendar.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
+        val targetWeek = calendar.get(Calendar.WEEK_OF_YEAR)
+        val targetYear = calendar.get(Calendar.YEAR)
 
-    /**
-     * Lấy thứ trong tuần
-     */
-    private fun getDayOfWeek(): String {
-        val days = arrayOf("Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7")
-        return days[Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1]
-    }
-
-    /**
-     * Lấy icon cho danh mục
-     */
-    private fun getCategoryIcon(category: String): String {
-        return when (category.lowercase()) {
-            "ăn uống", "food" -> "🍽️"
-            "mua sắm", "shopping" -> "🛍️"
-            "giải trí", "entertainment" -> "🎬"
-            "y tế", "health" -> "🏥"
-            "giáo dục", "education" -> "📚"
-            "nhà ở", "housing" -> "🏠"
-            "đi lại", "transport" -> "🚗"
-            else -> "💰"
+        return allTransactions.filter { transaction ->
+            val transactionDate = parseDate(transaction.date)
+            val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
+            transactionCalendar.get(Calendar.WEEK_OF_YEAR) == targetWeek &&
+                    transactionCalendar.get(Calendar.YEAR) == targetYear
         }
     }
 
     /**
-     * Lấy màu cho danh mục
+     * Lấy giao dịch tháng trước
      */
-    private fun getCategoryColor(category: String): String {
-        return when (category.lowercase()) {
-            "ăn uống" -> "#FF6B6B"
-            "mua sắm" -> "#4ECDC4"
-            "giải trí" -> "#45B7D1"
-            "y tế" -> "#96CEB4"
-            "giáo dục" -> "#FFEAA7"
-            "nhà ở" -> "#DDA0DD"
-            "đi lại" -> "#98D8C8"
-            else -> "#F7DC6F"
+    private suspend fun getTransactionsForPreviousMonth(monthsAgo: Int = 1): List<Transaction> {
+        val allTransactions = transactionViewModel.transactions.value
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.MONTH, -monthsAgo)
+        val targetMonth = calendar.get(Calendar.MONTH)
+        val targetYear = calendar.get(Calendar.YEAR)
+
+        return allTransactions.filter { transaction ->
+            val transactionDate = parseDate(transaction.date)
+            val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
+            transactionCalendar.get(Calendar.MONTH) == targetMonth &&
+                    transactionCalendar.get(Calendar.YEAR) == targetYear
         }
     }
+
+    /**
+     * Lấy giao dịch năm trước
+     */
+    private suspend fun getTransactionsForPreviousYear(yearsAgo: Int = 1): List<Transaction> {
+        val allTransactions = transactionViewModel.transactions.value
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.YEAR, -yearsAgo)
+        val targetYear = calendar.get(Calendar.YEAR)
+
+        return allTransactions.filter { transaction ->
+            val transactionDate = parseDate(transaction.date)
+            val transactionCalendar = Calendar.getInstance().apply { time = transactionDate }
+            transactionCalendar.get(Calendar.YEAR) == targetYear
+        }
+    }
+
+    /**
+     * Lấy dữ liệu kỳ trước
+     */
+    private suspend fun getPreviousPeriodData(period: String): List<Transaction> {
+        return when (period) {
+            "week" -> getTransactionsForPeriod("previous_week")
+            "month" -> getTransactionsForPeriod("previous_month")
+            else -> emptyList()
+        }
+    }
+
+    // ==================== CÁC PHƯƠNG THỨC TIỆN ÍCH ====================
 
     /**
      * Định dạng tiền tệ
@@ -1004,6 +2934,28 @@ class AICommandExecutor(
         } catch (e: Exception) {
             Date()
         }
+    }
+
+    /**
+     * Lấy ngày hiện tại
+     */
+    private fun getCurrentDate(): String = DATE_FORMATTER.format(Date())
+
+    /**
+     * Lấy ngày hôm qua
+     */
+    private fun getYesterdayDate(): String {
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+        return DATE_FORMATTER.format(calendar.time)
+    }
+
+    /**
+     * Lấy thứ trong tuần
+     */
+    private fun getDayOfWeek(): String {
+        val days = arrayOf("Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7")
+        return days[Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1]
     }
 
     /**
@@ -1041,6 +2993,24 @@ class AICommandExecutor(
             val transactionYear = calendar.get(Calendar.YEAR)
 
             currentMonth == transactionMonth && currentYear == transactionYear
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Kiểm tra có trong năm hiện tại không
+     */
+    private fun isInCurrentYear(dateString: String): Boolean {
+        return try {
+            val transactionDate = parseDate(dateString)
+            val calendar = Calendar.getInstance()
+            val currentYear = calendar.get(Calendar.YEAR)
+
+            calendar.time = transactionDate
+            val transactionYear = calendar.get(Calendar.YEAR)
+
+            currentYear == transactionYear
         } catch (e: Exception) {
             false
         }
@@ -1089,845 +3059,70 @@ class AICommandExecutor(
     }
 
     /**
-     * Tính điểm sức khỏe
+     * Lấy icon cho danh mục
      */
-    private fun calculateHealthScore(savingsRate: Double, expenseRatio: Double): Int {
+    private fun getCategoryIcon(category: String): String {
+        return when (category.lowercase()) {
+            "ăn uống", "food" -> "🍽️"
+            "mua sắm", "shopping" -> "🛍️"
+            "giải trí", "entertainment" -> "🎬"
+            "y tế", "health" -> "🏥"
+            "giáo dục", "education" -> "📚"
+            "nhà ở", "housing" -> "🏠"
+            "đi lại", "transport" -> "🚗"
+            else -> "💰"
+        }
+    }
+
+    /**
+     * Lấy màu cho danh mục
+     */
+    private fun getCategoryColor(category: String): String {
+        return when (category.lowercase()) {
+            "ăn uống" -> "#FF6B6B"
+            "mua sắm" -> "#4ECDC4"
+            "giải trí" -> "#45B7D1"
+            "y tế" -> "#96CEB4"
+            "giáo dục" -> "#FFEAA7"
+            "nhà ở" -> "#DDA0DD"
+            "đi lại" -> "#98D8C8"
+            else -> "#F7DC6F"
+        }
+    }
+
+    /**
+     * Tính ngày kết thúc ngân sách
+     */
+    private fun calculateBudgetEndDate(startDate: LocalDate, periodType: BudgetPeriodType): LocalDate {
+        return when (periodType) {
+            BudgetPeriodType.WEEK -> startDate.plusWeeks(1)
+            BudgetPeriodType.MONTH -> startDate.plusMonths(1)
+            BudgetPeriodType.QUARTER -> startDate.plusMonths(3)
+            BudgetPeriodType.YEAR -> startDate.plusYears(1)
+        }
+    }
+
+    /**
+     * Lấy tên chu kỳ
+     */
+    private fun getPeriodName(periodType: BudgetPeriodType): String {
+        return when (periodType) {
+            BudgetPeriodType.WEEK -> "tuần"
+            BudgetPeriodType.MONTH -> "tháng"
+            BudgetPeriodType.QUARTER -> "quý"
+            BudgetPeriodType.YEAR -> "năm"
+        }
+    }
+
+    /**
+     * Lấy chỉ báo xu hướng
+     */
+    private fun getTrendIndicator(value: Double): String {
         return when {
-            savingsRate >= 20 && expenseRatio <= 80 -> (90..100).random()
-            savingsRate >= 10 && expenseRatio <= 90 -> (70..89).random()
-            savingsRate > 0 && expenseRatio <= 100 -> (50..69).random()
-            else -> (0..49).random()
+            value > 0 -> "📈"
+            value < 0 -> "📉"
+            else -> "➡️"
         }
-    }
-
-    /**
-     * Lấy mức độ sức khỏe
-     */
-    private fun getHealthLevel(score: Int): String {
-        return when {
-            score >= 80 -> "Xuất sắc"
-            score >= 60 -> "Tốt"
-            score >= 40 -> "Trung bình"
-            else -> "Cần cải thiện"
-        }
-    }
-
-    /**
-     * Lấy khuyến nghị sức khỏe
-     */
-    private fun getHealthRecommendation(score: Int, savingsRate: Double): String {
-        return when {
-            score >= 80 -> "Tuyệt vời! Bạn đang quản lý tài chính rất tốt. Tiếp tục duy trì!"
-            score >= 60 -> "Khá tốt! Có thể cải thiện bằng cách tăng tỷ lệ tiết kiệm lên 20%"
-            score >= 40 -> "Cần quan tâm! Hãy xem xét giảm chi tiêu không cần thiết"
-            else -> "Cần hành động! Chi tiêu đang vượt quá thu nhập. Hãy lập ngân sách ngay!"
-        }
-    }
-
-    /**
-     * Lấy tổng quan hàng ngày
-     */
-    private suspend fun getDailySummary(command: AICommand.GetDailySummary): AICommandResult {
-        return try {
-            Log.d(TAG, "Lấy tổng quan hàng ngày: $command")
-
-            val targetDate = command.date ?: getCurrentDate()
-            val dailyTransactions = transactionViewModel.transactions.value
-                .filter { it.date == targetDate }
-
-            val dailyIncome = dailyTransactions.filter { it.isIncome }.sumOf { it.amount }
-            val dailyExpense = dailyTransactions.filter { !it.isIncome }.sumOf { it.amount }
-            val dailyBalance = dailyIncome - dailyExpense
-
-            val topCategories = dailyTransactions
-                .filter { !it.isIncome }
-                .groupBy { it.category }
-                .mapValues { (_, trans) -> trans.sumOf { it.amount } }
-                .toList()
-                .sortedByDescending { it.second }
-                .take(3)
-
-            val message = """
-            TỔNG QUAN NGÀY ${targetDate}
-            
-            TỔNG SỐ:
-            • Thu nhập: ${formatCurrency(dailyIncome)}
-            • Chi tiêu: ${formatCurrency(dailyExpense)}
-            • Số dư: ${formatCurrency(dailyBalance)}
-            • Số giao dịch: ${dailyTransactions.size}
-            
-            ${if (topCategories.isNotEmpty()) {
-                "TOP CHI TIÊU:\n" + topCategories.joinToString("\n") {
-                        (cat, amount) -> "• $cat: ${formatCurrency(amount)}"
-                }
-            } else ""}
-            
-            ${if (dailyBalance < 0) "CẢNH BÁO: Chi tiêu vượt quá thu nhập hôm nay!"
-            else if (dailyBalance > 0) "Tuyệt vời! Bạn đang có số dư dương."
-            else "Cân bằng thu chi."}
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi lấy tổng quan ngày: ${e.message}", e)
-            AICommandResult(false, "Lỗi lấy tổng quan ngày: ${e.message}")
-        }
-    }
-
-    /**
-     * Xuất giao dịch
-     */
-    private suspend fun exportTransactions(command: AICommand.ExportTransactions): AICommandResult {
-        return try {
-            Log.d(TAG, "Xuất giao dịch: $command")
-
-            val transactions = getTransactionsForPeriod(command.period)
-
-            if (transactions.isEmpty()) {
-                return AICommandResult(
-                    success = false,
-                    message = "Không có giao dịch nào để xuất trong khoảng thời gian này!"
-                )
-            }
-
-            val exportData = buildExportData(transactions, command.format)
-
-            AICommandResult(
-                success = true,
-                message = "ĐÃ XUẤT DỮ LIỆU ($command.period):\n\n$exportData",
-                data = exportData
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi xuất dữ liệu: ${e.message}", e)
-            AICommandResult(false, "Lỗi xuất dữ liệu: ${e.message}")
-        }
-    }
-
-    /**
-     * So sánh kỳ
-     */
-    private suspend fun comparePeriods(command: AICommand.ComparePeriods): AICommandResult {
-        return try {
-            Log.d(TAG, "So sánh kỳ: $command")
-
-            val currentPeriodTransactions = getTransactionsForPeriod(command.currentPeriod)
-            val previousPeriodTransactions = getTransactionsForPeriod(command.previousPeriod)
-
-            val currentIncome = currentPeriodTransactions.filter { it.isIncome }.sumOf { it.amount }
-            val currentExpense = currentPeriodTransactions.filter { !it.isIncome }.sumOf { it.amount }
-            val currentBalance = currentIncome - currentExpense
-
-            val previousIncome = previousPeriodTransactions.filter { it.isIncome }.sumOf { it.amount }
-            val previousExpense = previousPeriodTransactions.filter { !it.isIncome }.sumOf { it.amount }
-            val previousBalance = previousIncome - previousExpense
-
-            val incomeChange = if (previousIncome > 0) ((currentIncome - previousIncome) / previousIncome * 100) else 0.0
-            val expenseChange = if (previousExpense > 0) ((currentExpense - previousExpense) / previousExpense * 100) else 0.0
-            val balanceChange = if (previousBalance != 0.0) ((currentBalance - previousBalance) / abs(previousBalance) * 100) else 0.0
-
-            val message = """
-            SO SÁNH KỲ:
-            • Hiện tại: ${command.currentPeriod.uppercase()}
-            • Trước đó: ${command.previousPeriod.uppercase()}
-            
-            THU NHẬP:
-            • Hiện tại: ${formatCurrency(currentIncome)} ${getChangeSymbol(incomeChange)}${"%.1f".format(abs(incomeChange))}%
-            • Trước đó: ${formatCurrency(previousIncome)}
-            
-            CHI TIÊU:
-            • Hiện tại: ${formatCurrency(currentExpense)} ${getChangeSymbol(expenseChange)}${"%.1f".format(abs(expenseChange))}%
-            • Trước đó: ${formatCurrency(previousExpense)}
-            
-            SỐ DƯ:
-            • Hiện tại: ${formatCurrency(currentBalance)} ${getChangeSymbol(balanceChange)}${"%.1f".format(abs(balanceChange))}%
-            • Trước đó: ${formatCurrency(previousBalance)}
-            
-            ${getComparisonInsight(incomeChange, expenseChange, balanceChange)}
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi so sánh kỳ: ${e.message}", e)
-            AICommandResult(false, "Lỗi so sánh kỳ: ${e.message}")
-        }
-    }
-
-    /**
-     * Tìm kiếm giao dịch theo từ khóa
-     */
-    private suspend fun searchTransactionsByKeyword(command: AICommand.SearchTransactionsByKeyword): AICommandResult {
-        return try {
-            Log.d(TAG, "Tìm kiếm giao dịch: $command")
-
-            val allTransactions = transactionViewModel.transactions.value
-            val filteredTransactions = allTransactions.filter { transaction ->
-                val matchesKeyword = transaction.title.contains(command.keyword, ignoreCase = true) ||
-                        transaction.category.contains(command.keyword, ignoreCase = true) ||
-                        (transaction.description?.contains(command.keyword, ignoreCase = true) == true)
-
-                val matchesPeriod = if (command.period != null) {
-                    when (command.period) {
-                        "today" -> transaction.date == getCurrentDate()
-                        "week" -> isInCurrentWeek(transaction.date)
-                        "month" -> isInCurrentMonth(transaction.date)
-                        else -> true
-                    }
-                } else true
-
-                matchesKeyword && matchesPeriod
-            }.sortedByDescending { parseDate(it.date) }
-
-            if (filteredTransactions.isEmpty()) {
-                return AICommandResult(
-                    success = true,
-                    message = "Không tìm thấy giao dịch nào với từ khóa '${command.keyword}'${if (command.period != null) " trong ${command.period}" else ""}"
-                )
-            }
-
-            val message = buildSearchResultsMessage(filteredTransactions, command.keyword, command.period)
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi tìm kiếm giao dịch: ${e.message}", e)
-            AICommandResult(false, "Lỗi tìm kiếm giao dịch: ${e.message}")
-        }
-    }
-
-    /**
-     * Tạo ngân sách
-     */
-    private suspend fun createBudget(command: AICommand.CreateBudget): AICommandResult {
-        return try {
-            Log.d(TAG, "Tạo ngân sách: $command")
-
-            val category = categoryViewModel.getCategoryById(command.categoryId)
-            if (category == null) {
-                return AICommandResult(
-                    success = false,
-                    message = "Không tìm thấy danh mục với ID: ${command.categoryId}"
-                )
-            }
-
-            val periodType = when (command.periodType.lowercase()) {
-                "week", "tuần" -> BudgetPeriodType.WEEK
-                "month", "tháng" -> BudgetPeriodType.MONTH
-                "quarter", "quý" -> BudgetPeriodType.QUARTER
-                "year", "năm" -> BudgetPeriodType.YEAR
-                else -> BudgetPeriodType.MONTH
-            }
-
-            val startDate = LocalDate.now()
-            val endDate = calculateBudgetEndDate(startDate, periodType)
-
-            val budget = Budget(
-                id = UUID.randomUUID().toString(),
-                categoryId = command.categoryId,
-                amount = command.amount,
-                periodType = periodType,
-                startDate = startDate,
-                endDate = endDate,
-                note = command.note,
-                spentAmount = 0.0,
-                isActive = true
-            )
-
-            budgetViewModel.addBudget(budget)
-
-            delay(500)
-
-            AICommandResult(
-                success = true,
-                message = "Đã tạo ngân sách ${formatCurrency(command.amount)} ${getPeriodName(periodType)} cho '${category.name}'"
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi tạo ngân sách: ${e.message}", e)
-            AICommandResult(false, "Lỗi tạo ngân sách: ${e.message}")
-        }
-    }
-
-    /**
-     * Cập nhật ngân sách
-     */
-    private suspend fun updateBudget(command: AICommand.UpdateBudget): AICommandResult {
-        return try {
-            Log.d(TAG, "Cập nhật ngân sách: $command")
-
-            val budgets = budgetViewModel.budgets.value
-            val budgetToUpdate = if (command.budgetId != null) {
-                budgets.find { it.id == command.budgetId }
-            } else if (command.categoryId != null) {
-                budgets.find { it.categoryId == command.categoryId && it.isActive }
-            } else {
-                null
-            }
-
-            if (budgetToUpdate == null) {
-                return AICommandResult(
-                    success = false,
-                    message = "Không tìm thấy ngân sách để cập nhật!"
-                )
-            }
-
-            val updatedAmount = command.newAmount ?: budgetToUpdate.amount
-
-            budgetViewModel.updateFullBudget(
-                budgetToUpdate.copy(amount = updatedAmount)
-            )
-
-            delay(500)
-
-            val category = categoryViewModel.getCategoryById(budgetToUpdate.categoryId)
-            val categoryName = category?.name ?: budgetToUpdate.categoryId
-
-            AICommandResult(
-                success = true,
-                message = "Đã cập nhật ngân sách cho '$categoryName' thành ${formatCurrency(updatedAmount)}"
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi cập nhật ngân sách: ${e.message}", e)
-            AICommandResult(false, "Lỗi cập nhật ngân sách: ${e.message}")
-        }
-    }
-
-    /**
-     * Xóa ngân sách
-     */
-    private suspend fun deleteBudget(command: AICommand.DeleteBudget): AICommandResult {
-        return try {
-            Log.d(TAG, "Xóa ngân sách: $command")
-
-            val budgets = budgetViewModel.budgets.value
-            val budgetToDelete = if (command.budgetId != null) {
-                budgets.find { it.id == command.budgetId }
-            } else if (command.categoryId != null) {
-                budgets.find { it.categoryId == command.categoryId && it.isActive }
-            } else {
-                null
-            }
-
-            if (budgetToDelete == null) {
-                return AICommandResult(
-                    success = false,
-                    message = "Không tìm thấy ngân sách để xóa!"
-                )
-            }
-
-            budgetViewModel.deleteBudget(budgetToDelete.id)
-
-            delay(500)
-
-            val category = categoryViewModel.getCategoryById(budgetToDelete.categoryId)
-            val categoryName = category?.name ?: budgetToDelete.categoryId
-
-            AICommandResult(
-                success = true,
-                message = "Đã xóa ngân sách cho '$categoryName'"
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi xóa ngân sách: ${e.message}", e)
-            AICommandResult(false, "Lỗi xóa ngân sách: ${e.message}")
-        }
-    }
-
-    /**
-     * Tạo ngân sách từ lệnh set
-     */
-    private suspend fun createBudgetFromSet(command: AICommand.SetBudget): AICommandResult {
-        return try {
-            Log.d(TAG, "Tạo ngân sách từ set: $command")
-
-            val category = categoryViewModel.findCategoryByName(command.category)
-            if (category == null) {
-                return AICommandResult(
-                    success = false,
-                    message = "Không tìm thấy danh mục '${command.category}'. Hãy tạo danh mục trước!"
-                )
-            }
-
-            val periodType = when (command.period.lowercase()) {
-                "week", "tuần" -> BudgetPeriodType.WEEK
-                "month", "tháng" -> BudgetPeriodType.MONTH
-                "quarter", "quý" -> BudgetPeriodType.QUARTER
-                "year", "năm" -> BudgetPeriodType.YEAR
-                else -> BudgetPeriodType.MONTH
-            }
-
-            val startDate = LocalDate.now()
-            val endDate = calculateBudgetEndDate(startDate, periodType)
-
-            val budget = Budget(
-                id = UUID.randomUUID().toString(),
-                categoryId = category.id,
-                amount = command.amount,
-                periodType = periodType,
-                startDate = startDate,
-                endDate = endDate,
-                note = "Tạo bởi AI Assistant",
-                spentAmount = 0.0,
-                isActive = true
-            )
-
-            budgetViewModel.addBudget(budget)
-
-            delay(500)
-
-            AICommandResult(
-                success = true,
-                message = "Đã đặt ngân sách ${formatCurrency(command.amount)} ${getPeriodName(periodType)} cho '${command.category}'"
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi tạo ngân sách từ set: ${e.message}", e)
-            AICommandResult(false, "Lỗi đặt ngân sách: ${e.message}")
-        }
-    }
-
-    /**
-     * Lấy trạng thái ngân sách
-     */
-    private suspend fun getBudgetStatus(command: AICommand.GetBudgetStatus): AICommandResult {
-        return try {
-            Log.d(TAG, "Lấy trạng thái ngân sách: $command")
-
-            val budgets = budgetViewModel.budgets.value
-            val filteredBudgets = if (command.categoryId != null) {
-                budgets.filter { it.categoryId == command.categoryId }
-            } else {
-                budgets
-            }
-
-            if (filteredBudgets.isEmpty()) {
-                return AICommandResult(
-                    success = true,
-                    message = "Không có ngân sách nào để hiển thị!"
-                )
-            }
-
-            val message = buildBudgetStatusMessage(filteredBudgets)
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi lấy trạng thái ngân sách: ${e.message}", e)
-            AICommandResult(false, "Lỗi lấy trạng thái ngân sách: ${e.message}")
-        }
-    }
-
-    /**
-     * Lấy dự báo chi tiêu
-     */
-    private suspend fun getSpendingForecast(command: AICommand.GetSpendingForecast): AICommandResult {
-        return try {
-            Log.d(TAG, "Lấy dự báo chi tiêu: $command")
-
-            val historicalData = getHistoricalSpendingData(command.period)
-            val forecast = calculateSpendingForecast(historicalData)
-
-            val message = """
-            DỰ BÁO CHI TIÊU ${command.period.uppercase()}:
-            
-            ƯỚC TÍNH:
-            • Chi tiêu dự kiến: ${formatCurrency(forecast.estimatedSpending)}
-            • Khoảng dao động: ${formatCurrency(forecast.lowerBound)} - ${formatCurrency(forecast.upperBound)}
-            • Độ tin cậy: ${forecast.confidenceLevel}%
-            
-            KIẾN NGHỊ:
-            ${forecast.recommendations.joinToString("\n") { "• $it" }}
-            
-            ${if (forecast.warning.isNotEmpty()) "${forecast.warning}" else ""}
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi lấy dự báo chi tiêu: ${e.message}", e)
-            AICommandResult(false, "Lỗi lấy dự báo chi tiêu: ${e.message}")
-        }
-    }
-
-    /**
-     * Lấy đề xuất ngân sách
-     */
-    private suspend fun getBudgetRecommendations(command: AICommand.GetBudgetRecommendations): AICommandResult {
-        return try {
-            Log.d(TAG, "Lấy đề xuất ngân sách: $command")
-
-            val income = command.income ?: transactionViewModel.getTotalIncome()
-            val pattern = analyzeSpendingPatterns()
-            val recommendations = generateBudgetRecommendations(income, pattern)
-
-            val message = """
-            GỢI Ý NGÂN SÁCH:
-            
-            PHÂN BỔ LÝ TƯỚNG:
-            ${recommendations.allocation.joinToString("\n") { "• $it" }}
-            
-            MỤC TIÊU:
-            ${recommendations.goals.joinToString("\n") { "• $it" }}
-            
-            LỜI KHUYÊN:
-            ${recommendations.advice.joinToString("\n") { "• $it" }}
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi lấy gợi ý ngân sách: ${e.message}", e)
-            AICommandResult(false, "Lỗi lấy gợi ý ngân sách: ${e.message}")
-        }
-    }
-
-    /**
-     * Phân tích xu hướng chi tiêu
-     */
-    private suspend fun analyzeSpendingTrend(command: AICommand.AnalyzeSpendingTrend): AICommandResult {
-        return try {
-            Log.d(TAG, "Phân tích xu hướng chi tiêu: $command")
-
-            val currentData = getTransactionsForPeriod(command.period)
-            val previousData = getPreviousPeriodData(command.period)
-
-            val trendAnalysis = performTrendAnalysis(currentData, previousData, command.compareWithPrevious)
-
-            val message = """
-            PHÂN TÍCH XU HƯỚNG CHI TIÊU
-            
-            XU HƯỚNG CHÍNH:
-            ${trendAnalysis.mainTrends.joinToString("\n") { "• $it" }}
-            
-            BIẾN ĐỘNG:
-            ${trendAnalysis.changes.joinToString("\n") { "• $it" }}
-            
-            DẤU HIỆU:
-            ${trendAnalysis.signals.joinToString("\n") { "• $it" }}
-            
-            HÀNH ĐỘNG:
-            ${trendAnalysis.actions.joinToString("\n") { "• $it" }}
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi phân tích xu hướng: ${e.message}", e)
-            AICommandResult(false, "Lỗi phân tích xu hướng: ${e.message}")
-        }
-    }
-
-    /**
-     * Lấy báo cáo tuần
-     */
-    private suspend fun getWeeklyReport(): AICommandResult {
-        return try {
-            Log.d(TAG, "Lấy báo cáo tuần")
-
-            val weekTransactions = getTransactionsForPeriod("week")
-            val lastWeekTransactions = getTransactionsForPeriod("previous_week")
-
-            val weekIncome = weekTransactions.filter { it.isIncome }.sumOf { it.amount }
-            val weekExpense = weekTransactions.filter { !it.isIncome }.sumOf { it.amount }
-            val weekBalance = weekIncome - weekExpense
-
-            val lastWeekIncome = lastWeekTransactions.filter { it.isIncome }.sumOf { it.amount }
-            val lastWeekExpense = lastWeekTransactions.filter { !it.isIncome }.sumOf { it.amount }
-
-            val incomeChange = if (lastWeekIncome > 0) ((weekIncome - lastWeekIncome) / lastWeekIncome * 100) else 0.0
-            val expenseChange = if (lastWeekExpense > 0) ((weekExpense - lastWeekExpense) / lastWeekExpense * 100) else 0.0
-
-            val topCategories = weekTransactions
-                .filter { !it.isIncome }
-                .groupBy { it.category }
-                .mapValues { (_, trans) -> trans.sumOf { it.amount } }
-                .toList()
-                .sortedByDescending { it.second }
-                .take(5)
-
-            val message = """
-            BÁO CÁO TUẦN
-            --------------------
-            
-            TỔNG QUAN:
-            • Thu nhập: ${formatCurrency(weekIncome)} ${getChangeSymbol(incomeChange)}${"%.1f".format(abs(incomeChange))}%
-            • Chi tiêu: ${formatCurrency(weekExpense)} ${getChangeSymbol(expenseChange)}${"%.1f".format(abs(expenseChange))}%
-            • Số dư: ${formatCurrency(weekBalance)}
-            • Số giao dịch: ${weekTransactions.size}
-            
-            ${if (topCategories.isNotEmpty()) {
-                "TOP CHI TIÊU:\n" + topCategories.joinToString("\n") {
-                        (cat, amount) -> "• $cat: ${formatCurrency(amount)}"
-                }
-            } else ""}
-            
-            ĐÁNH GIÁ:
-            ${getWeeklyAssessment(weekBalance, weekExpense, weekIncome)}
-            
-            MỤC TIÊU TUẦN TỚI:
-            ${getWeeklyGoals(weekExpense, weekIncome)}
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi lấy báo cáo tuần: ${e.message}", e)
-            AICommandResult(false, "Lỗi lấy báo cáo tuần: ${e.message}")
-        }
-    }
-
-    /**
-     * Lấy lời khuyên tiết kiệm
-     */
-    private suspend fun getSavingsAdvice(): AICommandResult {
-        return try {
-            Log.d(TAG, "Lấy lời khuyên tiết kiệm")
-
-            val totalIncome = transactionViewModel.getTotalIncome()
-            val totalExpense = transactionViewModel.getTotalExpense()
-            val savingsRate = if (totalIncome > 0) ((totalIncome - totalExpense) / totalIncome * 100) else 0.0
-
-            val advice = mutableListOf<String>()
-
-            if (savingsRate < 10) {
-                advice.add("Hãy tiết kiệm ít nhất 10-15% thu nhập mỗi tháng")
-                advice.add("Xem xét cắt giảm chi tiêu không cần thiết")
-                advice.add("Tạo quỹ khẩn cấp với 3-6 tháng chi phí sinh hoạt")
-            } else if (savingsRate < 20) {
-                advice.add("Tuyệt vời! Bạn đang tiết kiệm tốt. Mục tiêu tiếp theo là 20%")
-                advice.add("Xem xét đầu tư một phần tiết kiệm để sinh lời")
-                advice.add("Đa dạng hóa các kênh tiết kiệm")
-            } else {
-                advice.add("Xuất sắc! Bạn là người quản lý tài chính rất giỏi")
-                advice.add("Cân nhắc đầu tư dài hạn để tăng trưởng tài sản")
-                advice.add("Lập kế hoạch tài chính cho các mục tiêu lớn")
-            }
-
-            // Thêm các mẹo chung
-            advice.addAll(listOf(
-                "Tự động hóa chuyển tiền tiết kiệm mỗi tháng",
-                "Đặt mục tiêu tiết kiệm cụ thể và theo dõi tiến độ",
-                "So sánh lãi suất tiết kiệm giữa các ngân hàng",
-                "Tận dụng các chương trình khuyến mãi tiết kiệm"
-            ))
-
-            val personalizedAdvice = advice.take(5)
-
-            val message = """
-            LỜI KHUYÊN TIẾT KIỆM
-            
-            TÌNH HÌNH HIỆN TẠI:
-            • Tỷ lệ tiết kiệm: ${"%.1f".format(savingsRate)}%
-            • Thu nhập: ${formatCurrency(totalIncome)}
-            • Chi tiêu: ${formatCurrency(totalExpense)}
-            
-            KHUYẾN NGHỊ CÁ NHÂN HÓA:
-            ${personalizedAdvice.joinToString("\n") { "• $it" }}
-            
-            MẸO TIẾT KIỆM THÔNG MINH:
-            • Áp dụng quy tắc 24 giờ trước khi mua sắm lớn
-            • Sử dụng ứng dụng so sánh giá
-            • Tận dụng các chương trình giảm giá, khuyến mãi
-            • Học cách sửa chữa thay vì mua mới
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi lấy lời khuyên tiết kiệm: ${e.message}", e)
-            AICommandResult(false, "Lỗi lấy lời khuyên tiết kiệm: ${e.message}")
-        }
-    }
-
-    /**
-     * Lấy mẹo đầu tư
-     */
-    private suspend fun getInvestmentTips(): AICommandResult {
-        return try {
-            Log.d(TAG, "Lấy mẹo đầu tư")
-
-            val totalIncome = transactionViewModel.getTotalIncome()
-            val totalExpense = transactionViewModel.getTotalExpense()
-            val savings = totalIncome - totalExpense
-
-            val tips = mutableListOf<String>()
-
-            if (savings < 1000000) {
-                tips.add("Tập trung tích lũy vốn trước khi đầu tư")
-                tips.add("Bắt đầu với các kênh an toàn như tiết kiệm ngân hàng")
-                tips.add("Đặt mục tiêu tiết kiệm ít nhất 10 triệu trước khi đầu tư")
-            } else if (savings < 5000000) {
-                tips.add("Cân nhắc đầu tư trái phiếu chính phủ")
-                tips.add("Tìm hiểu về quỹ mở với mức đầu tư thấp")
-                tips.add("Đa dạng hóa rủi ro bằng cách chia nhỏ vốn đầu tư")
-            } else {
-                tips.add("Cân bằng danh mục đầu tư giữa cổ phiếu, trái phiếu và bất động sản")
-                tips.add("Xem xét đầu tư dài hạn vào các công ty tiềm năng")
-                tips.add("Tham khảo ý kiến chuyên gia tài chính")
-            }
-
-            // Thêm nguyên tắc đầu tư cơ bản
-            val basicPrinciples = listOf(
-                "Không bỏ tất cả trứng vào một giỏ - đa dạng hóa đầu tư",
-                "Đầu tư dài hạn thường an toàn hơn đầu tư ngắn hạn",
-                "Chỉ đầu tư số tiền bạn có thể chấp nhận mất",
-                "Nghiên cứu kỹ trước khi đầu tư vào bất kỳ kênh nào",
-                "Theo dõi và đánh giá hiệu quả đầu tư định kỳ"
-            )
-
-            tips.addAll(basicPrinciples)
-
-            val message = """
-            MẸO ĐẦU TƯ THÔNG MINH
-            
-            TÌNH HÌNH TÀI CHÍNH:
-            • Tiền tiết kiệm có thể đầu tư: ${formatCurrency(savings)}
-            • Thu nhập hàng tháng: ${formatCurrency(totalIncome)}
-            
-            KHUYẾN NGHỊ PHÙ HỢP:
-            ${tips.take(6).joinToString("\n") { "• $it" }}
-            
-            NGUYÊN TẮC VÀNG:
-            • Luôn có kế hoạch đầu tư rõ ràng
-            • Kiểm soát cảm xúc khi thị trường biến động
-            • Tái đầu tư lợi nhuận để tăng trưởng vốn
-            • Cập nhật kiến thức tài chính thường xuyên
-            
-            LƯU Ý QUAN TRỌNG:
-            • Đầu tư luôn đi kèm rủi ro
-            • Hiệu quả trong quá khứ không đảm bảo tương lai
-            • Tham khảo ý kiến chuyên gia trước khi quyết định lớn
-        """.trimIndent()
-
-            AICommandResult(success = true, message = message)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi lấy mẹo đầu tư: ${e.message}", e)
-            AICommandResult(false, "Lỗi lấy mẹo đầu tư: ${e.message}")
-        }
-    }
-
-    // ==================== CÁC PHƯƠNG THỨC HỖ TRỢ ====================
-
-    /**
-     * Xây dựng dữ liệu export
-     */
-    private fun buildExportData(transactions: List<Transaction>, format: String): String {
-        return when (format.lowercase()) {
-            "csv" -> buildCSVExport(transactions)
-            "json" -> buildJSONExport(transactions)
-            else -> buildTextExport(transactions)
-        }
-    }
-
-    /**
-     * Xây dựng export CSV
-     */
-    private fun buildCSVExport(transactions: List<Transaction>): String {
-        val header = "Ngày,Loại,Danh mục,Số tiền,Mô tả,Ví"
-        val rows = transactions.joinToString("\n") { transaction ->
-            "${transaction.date},${if (transaction.isIncome) "Thu" else "Chi"},${transaction.category},${transaction.amount},${transaction.description ?: ""},${transaction.wallet}"
-        }
-        return "$header\n$rows"
-    }
-
-    /**
-     * Xây dựng export JSON
-     */
-    private fun buildJSONExport(transactions: List<Transaction>): String {
-        val jsonArray = transactions.joinToString(",\n    ") { transaction ->
-            """
-        {
-            "date": "${transaction.date}",
-            "type": "${if (transaction.isIncome) "income" else "expense"}",
-            "category": "${transaction.category}",
-            "amount": ${transaction.amount},
-            "description": "${transaction.description ?: ""}",
-            "wallet": "${transaction.wallet}"
-        }
-        """.trimIndent()
-        }
-        return "[\n    $jsonArray\n]"
-    }
-
-    /**
-     * Xây dựng export Text
-     */
-    private fun buildTextExport(transactions: List<Transaction>): String {
-        return transactions.joinToString("\n\n") { transaction ->
-            """
-            ${if (transaction.isIncome) "THU" else "CHI"} ${transaction.title}
-            • Số tiền: ${formatCurrency(transaction.amount)}
-            • Danh mục: ${transaction.category}
-            • Ngày: ${transaction.date}
-            • Ví: ${transaction.wallet}
-            ${if (transaction.description != null) "• Mô tả: ${transaction.description}" else ""}
-        """.trimIndent()
-        }
-    }
-
-    /**
-     * Xây dựng tin nhắn kết quả tìm kiếm
-     */
-    private fun buildSearchResultsMessage(transactions: List<Transaction>, keyword: String, period: String?): String {
-        val totalAmount = transactions.sumOf { it.amount }
-        val income = transactions.filter { it.isIncome }.sumOf { it.amount }
-        val expense = transactions.filter { !it.isIncome }.sumOf { it.amount }
-
-        val periodInfo = if (period != null) " trong $period" else ""
-
-        val header = """
-        KẾT QUẢ TÌM KIẾM: '$keyword'$periodInfo
-        Tổng số: ${transactions.size} giao dịch
-        Tổng tiền: ${formatCurrency(totalAmount)}
-        Thu: ${formatCurrency(income)} • Chi: ${formatCurrency(expense)}
-        
-    """.trimIndent()
-
-        val transactionsText = transactions.take(10).joinToString("\n\n") { transaction ->
-            buildTransactionItemText(transaction)
-        }
-
-        val footer = if (transactions.size > 10) {
-            "\n\n... và ${transactions.size - 10} giao dịch khác"
-        } else ""
-
-        return header + "\n\n" + transactionsText + footer
-    }
-
-    /**
-     * Xây dựng tin nhắn trạng thái ngân sách
-     */
-    private fun buildBudgetStatusMessage(budgets: List<Budget>): String {
-        val activeBudgets = budgets.filter { it.isActive }
-        val overBudget = activeBudgets.count { it.isOverBudget }
-        val nearBudget = activeBudgets.count { it.spentAmount / it.amount >= 0.8 && !it.isOverBudget }
-        val safeBudgets = activeBudgets.count { it.spentAmount / it.amount < 0.8 }
-
-        val criticalBudgets = activeBudgets
-            .filter { it.isOverBudget }
-            .joinToString("\n") { budget ->
-                val category = categoryViewModel.getCategoryById(budget.categoryId)
-                "• ${category?.name ?: budget.categoryId}: Vượt ${formatCurrency(budget.spentAmount - budget.amount)}"
-            }
-
-        return """
-        TRẠNG THÁI NGÂN SÁCH
-        
-        TỔNG QUAN:
-        • Tổng số: ${activeBudgets.size} ngân sách đang hoạt động
-        • Vượt ngân sách: $overBudget
-        • Sắp vượt: $nearBudget
-        • An toàn: $safeBudgets
-        
-        ${if (criticalBudgets.isNotEmpty()) "CẢNH BÁO VƯỢT NGÂN SÁCH:\n$criticalBudgets" else "Tất cả ngân sách đang trong tầm kiểm soát!"}
-        
-        KIẾN NGHỊ:
-        ${if (overBudget > 0) "• Xem xét điều chỉnh ngân sách cho các danh mục vượt" else ""}
-        ${if (nearBudget > 0) "• Theo dõi sát các danh mục sắp vượt ngân sách" else ""}
-        ${if (safeBudgets == activeBudgets.size) "• Tiếp tục duy trì thói quen chi tiêu tốt!" else ""}
-    """.trimIndent()
     }
 
     /**
@@ -1942,17 +3137,550 @@ class AICommandExecutor(
     }
 
     /**
-     * Lấy insight so sánh
+     * Lấy xu hướng tháng
      */
-    private fun getComparisonInsight(incomeChange: Double, expenseChange: Double, balanceChange: Double): String {
-        return when {
-            incomeChange > 10 && expenseChange < 5 -> "Xuất sắc! Thu nhập tăng mạnh trong khi chi tiêu được kiểm soát"
-            incomeChange > 0 && expenseChange < 0 -> "Tốt! Thu nhập tăng, chi tiêu giảm"
-            incomeChange < 0 && expenseChange > 0 -> "Cảnh báo! Thu nhập giảm, chi tiêu tăng"
-            balanceChange > 0 -> "Số dư được cải thiện"
-            balanceChange < 0 -> "Số dư giảm, cần xem xét"
-            else -> "Tình hình ổn định"
+    private suspend fun getMonthlyTrend(type: String): String {
+        val currentMonth = getTransactionsForPeriod("month")
+        val previousMonth = getTransactionsForPeriod("previous_month")
+
+        val currentAmount = if (type == "income") {
+            currentMonth.filter { it.isIncome }.sumOf { it.amount }
+        } else {
+            currentMonth.filter { !it.isIncome }.sumOf { it.amount }
         }
+
+        val previousAmount = if (type == "income") {
+            previousMonth.filter { it.isIncome }.sumOf { it.amount }
+        } else {
+            previousMonth.filter { !it.isIncome }.sumOf { it.amount }
+        }
+
+        return if (previousAmount > 0) {
+            val change = ((currentAmount - previousAmount) / previousAmount * 100).toInt()
+            "${if (change >= 0) "+" else ""}${change}%"
+        } else {
+            "N/A"
+        }
+    }
+
+    // ==================== CÁC PHƯƠNG THỨC CHƯA TRIỂN KHAI (cần implement) ====================
+
+    /**
+     * Tổng quan hàng ngày với xu hướng
+     */
+    private suspend fun getDailySummaryWithTrends(command: AICommand.GetDailySummary): AICommandResult {
+        return try {
+            val targetDate = command.date ?: getCurrentDate()
+            val allTransactions = transactionViewModel.transactions.value
+
+            val dayTransactions = allTransactions.filter { it.date == targetDate }
+            if (dayTransactions.isEmpty()) {
+                return AICommandResult(
+                    success = true,
+                    message = "Hôm nay ($targetDate) bạn chưa có giao dịch nào."
+                )
+            }
+
+            val income = dayTransactions.filter { it.isIncome }.sumOf { it.amount }
+            val expense = dayTransactions.filter { !it.isIncome }.sumOf { it.amount }
+            val balanceChange = income - expense
+
+            val topCategories = dayTransactions
+                .groupBy { it.category }
+                .mapValues { (_, list) -> list.sumOf { it.amount } }
+                .toList()
+                .sortedByDescending { it.second }
+                .take(3)
+
+            val message = buildString {
+                appendLine("📅 TỔNG KẾT NGÀY $targetDate")
+                appendLine()
+                appendLine("• Thu: ${formatCurrency(income)}")
+                appendLine("• Chi: ${formatCurrency(expense)}")
+                appendLine("• Thay đổi số dư: ${formatCurrency(balanceChange)}")
+                if (topCategories.isNotEmpty()) {
+                    appendLine()
+                    appendLine("Danh mục nổi bật:")
+                    topCategories.forEach { (cat, amount) ->
+                        appendLine("• $cat: ${formatCurrency(amount)}")
+                    }
+                }
+                appendLine()
+                append(
+                    when {
+                        expense == 0.0 && income > 0.0 ->
+                            "👏 Tuyệt vời! Hôm nay bạn chỉ có thu nhập, chưa chi tiêu gì."
+                        expense > income ->
+                            "⚠️ Hôm nay chi tiêu nhiều hơn thu nhập, hãy chú ý cân đối nhé."
+                        else ->
+                            "✅ Tài chính hôm nay khá ổn, hãy tiếp tục duy trì thói quen này."
+                    }
+                )
+            }
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = mapOf(
+                    "date" to targetDate,
+                    "income" to income,
+                    "expense" to expense,
+                    "balance_change" to balanceChange,
+                    "top_categories" to topCategories
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi tổng quan ngày: ${e.message}", e)
+            AICommandResult(false, "Không thể lấy tổng quan ngày: ${e.message}")
+        }
+    }
+
+    /**
+     * Xuất giao dịch với định dạng
+     */
+    private suspend fun exportTransactionsWithFormat(command: AICommand.ExportTransactions): AICommandResult {
+        return try {
+            val transactions = getTransactionsForPeriod(command.period)
+            if (transactions.isEmpty()) {
+                return AICommandResult(
+                    success = true,
+                    message = "Không có giao dịch nào trong kỳ được chọn để xuất."
+                )
+            }
+
+            // Hiện tại: xuất dạng văn bản xem trước trong chat
+            val previewLimit = 20
+            val preview = transactions.take(previewLimit)
+
+            val header = "📄 Xuất ${transactions.size} giao dịch ($previewLimit đầu tiên hiển thị bên dưới):"
+            val lines = preview.joinToString("\n") { t ->
+                val type = if (t.isIncome) "Thu" else "Chi"
+                "• [$type] ${t.date} - ${t.title} (${t.category}): ${formatCurrency(t.amount)}"
+            }
+
+            val message = "$header\n\n$lines"
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = transactions
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi xuất giao dịch: ${e.message}", e)
+            AICommandResult(false, "Không thể xuất giao dịch: ${e.message}")
+        }
+    }
+
+    /**
+     * So sánh kỳ với phân tích
+     */
+    private suspend fun comparePeriodsWithAnalysis(command: AICommand.ComparePeriods): AICommandResult {
+        return try {
+            val currentData = getTransactionsForPeriod(command.currentPeriod)
+            val previousData = getPreviousPeriodData(command.currentPeriod)
+
+            if (currentData.isEmpty() && previousData.isEmpty()) {
+                return AICommandResult(
+                    success = true,
+                    message = "Không có dữ liệu giao dịch để so sánh giữa các kỳ."
+                )
+            }
+
+            fun sumExpense(list: List<Transaction>) =
+                list.filter { !it.isIncome }.sumOf { it.amount }
+
+            val currentExpense = sumExpense(currentData)
+            val previousExpense = sumExpense(previousData)
+            val diff = currentExpense - previousExpense
+            val percentChange =
+                if (previousExpense > 0) (diff / previousExpense * 100).coerceIn(-500.0, 500.0) else null
+
+            val message = buildString {
+                appendLine("📊 So sánh chi tiêu giữa các kỳ")
+                appendLine("• Kỳ hiện tại (${command.currentPeriod}): ${formatCurrency(currentExpense)}")
+                appendLine("• Kỳ trước (${command.previousPeriod}): ${formatCurrency(previousExpense)}")
+                appendLine("• Chênh lệch tuyệt đối: ${formatCurrency(diff)}")
+                percentChange?.let {
+                    appendLine("• Thay đổi tương đối: ${"%.1f".format(it)}%")
+                }
+                appendLine()
+                append(
+                    when {
+                        percentChange == null ->
+                            "Hiện chưa có đủ dữ liệu kỳ trước để so sánh chi tiết."
+                        percentChange > 20 ->
+                            "⚠️ Chi tiêu đang tăng khá mạnh so với kỳ trước, hãy xem lại các khoản chi lớn."
+                        percentChange < -10 ->
+                            "✅ Chi tiêu đã giảm so với kỳ trước, bạn đang quản lý khá tốt!"
+                        else ->
+                            "💡 Chi tiêu không thay đổi quá nhiều so với kỳ trước."
+                    }
+                )
+            }
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = mapOf(
+                    "current_expense" to currentExpense,
+                    "previous_expense" to previousExpense,
+                    "diff" to diff,
+                    "percent_change" to (percentChange ?: 0.0)
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi so sánh kỳ: ${e.message}", e)
+            AICommandResult(false, "Không thể so sánh các kỳ: ${e.message}")
+        }
+    }
+
+    /**
+     * Tìm kiếm giao dịch với AI
+     */
+    private suspend fun searchTransactionsWithAI(command: AICommand.SearchTransactionsByKeyword): AICommandResult {
+        return try {
+            val keyword = command.keyword.trim()
+            if (keyword.isBlank()) {
+                return AICommandResult(false, "Từ khóa tìm kiếm không hợp lệ.")
+            }
+
+            val allTransactions = transactionViewModel.transactions.value
+            val filtered = allTransactions.filter { t ->
+                val inText = t.title.contains(keyword, ignoreCase = true) ||
+                        (t.description?.contains(keyword, ignoreCase = true) == true)
+                val inPeriod = when (command.period?.lowercase()) {
+                    "today" -> t.date == getCurrentDate()
+                    "week" -> isInCurrentWeek(t.date)
+                    "month" -> isInCurrentMonth(t.date)
+                    "year" -> isInCurrentYear(t.date)
+                    else -> true
+                }
+                inText && inPeriod
+            }
+
+            if (filtered.isEmpty()) {
+                return AICommandResult(
+                    success = true,
+                    message = "Không tìm thấy giao dịch nào với từ khóa '$keyword'."
+                )
+            }
+
+            val income = filtered.filter { it.isIncome }.sumOf { it.amount }
+            val expense = filtered.filter { !it.isIncome }.sumOf { it.amount }
+
+            val preview = filtered.take(15).joinToString("\n") { t ->
+                val type = if (t.isIncome) "Thu" else "Chi"
+                "• [$type] ${t.date} - ${t.title}: ${formatCurrency(t.amount)} (${t.category})"
+            }
+
+            val message = buildString {
+                appendLine("🔎 Kết quả tìm kiếm cho '$keyword': ${filtered.size} giao dịch")
+                appendLine("• Tổng thu: ${formatCurrency(income)}")
+                appendLine("• Tổng chi: ${formatCurrency(expense)}")
+                appendLine()
+                appendLine("Một số giao dịch:")
+                append(preview)
+            }
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = filtered
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi tìm kiếm giao dịch: ${e.message}", e)
+            AICommandResult(false, "Không thể tìm kiếm giao dịch: ${e.message}")
+        }
+    }
+
+    /**
+     * Tạo ngân sách với tối ưu hóa
+     */
+    private suspend fun createBudgetWithOptimization(command: AICommand.CreateBudget): AICommandResult {
+        return try {
+            val categoryId = command.categoryId
+            if (categoryId.isBlank()) {
+                return AICommandResult(false, "Danh mục để tạo ngân sách không hợp lệ.")
+            }
+
+            val periodType = when (command.periodType.lowercase()) {
+                "week", "weekly" -> BudgetPeriodType.WEEK
+                "year", "yearly" -> BudgetPeriodType.YEAR
+                else -> BudgetPeriodType.MONTH
+            }
+
+            val newBudget = budgetViewModel.createNewBudget(
+                categoryId = categoryId,
+                amount = command.amount,
+                periodType = periodType,
+                note = command.note
+            )
+
+            budgetViewModel.addBudget(newBudget)
+
+            val message = "🎯 Đã tạo ngân sách ${formatCurrency(command.amount)} cho danh mục $categoryId (${periodType.name.lowercase()})."
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = newBudget
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi tạo ngân sách từ AI: ${e.message}", e)
+            AICommandResult(false, "Không thể tạo ngân sách: ${e.message}")
+        }
+    }
+
+    /**
+     * Cập nhật ngân sách với thông minh
+     */
+    private suspend fun updateBudgetWithIntelligence(command: AICommand.UpdateBudget): AICommandResult {
+        return try {
+            val targetBudget = when {
+                !command.budgetId.isNullOrBlank() ->
+                    budgetViewModel.getBudgetById(command.budgetId)
+                !command.categoryId.isNullOrBlank() ->
+                    budgetViewModel.getBudgetForCategory(command.categoryId)
+                else -> null
+            }
+
+            if (targetBudget == null) {
+                return AICommandResult(false, "Không tìm thấy ngân sách để cập nhật.")
+            }
+
+            val newAmount = command.newAmount ?: targetBudget.amount
+            val updated = targetBudget.copy(amount = newAmount)
+
+            budgetViewModel.updateFullBudget(updated)
+
+            val message = "✅ Đã cập nhật ngân sách danh mục ${targetBudget.categoryId} từ ${formatCurrency(targetBudget.amount)} lên ${formatCurrency(newAmount)}."
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = updated
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi cập nhật ngân sách từ AI: ${e.message}", e)
+            AICommandResult(false, "Không thể cập nhật ngân sách: ${e.message}")
+        }
+    }
+
+    /**
+     * Xóa ngân sách với bảo vệ
+     */
+    private suspend fun deleteBudgetWithSafeguard(command: AICommand.DeleteBudget): AICommandResult {
+        return try {
+            val targetBudget = when {
+                !command.budgetId.isNullOrBlank() ->
+                    budgetViewModel.getBudgetById(command.budgetId)
+                !command.categoryId.isNullOrBlank() ->
+                    budgetViewModel.getBudgetForCategory(command.categoryId)
+                else -> null
+            }
+
+            if (targetBudget == null) {
+                return AICommandResult(false, "Không tìm thấy ngân sách để xóa.")
+            }
+
+            budgetViewModel.deleteBudget(targetBudget.id)
+
+            val message = "🗑️ Đã xóa ngân sách cho danh mục ${targetBudget.categoryId} với hạn mức ${formatCurrency(targetBudget.amount)}."
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = targetBudget
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi xóa ngân sách từ AI: ${e.message}", e)
+            AICommandResult(false, "Không thể xóa ngân sách: ${e.message}")
+        }
+    }
+
+    /**
+     * Lấy trạng thái ngân sách với dự đoán
+     */
+    private suspend fun getBudgetStatusWithPredictions(command: AICommand.GetBudgetStatus): AICommandResult {
+        return try {
+            val budgets = if (command.categoryId != null) {
+                val b = budgetViewModel.getBudgetForCategory(command.categoryId)
+                if (b != null) listOf(b) else emptyList()
+            } else {
+                budgetViewModel.getActiveBudgets()
+            }
+
+            if (budgets.isEmpty()) {
+                return AICommandResult(
+                    success = true,
+                    message = "Hiện tại bạn chưa có ngân sách nào đang hoạt động cho yêu cầu này."
+                )
+            }
+
+            val totalBudget = budgets.sumOf { it.amount }
+            val totalSpent = budgets.sumOf { it.spentAmount }
+            val usageRate = if (totalBudget > 0) (totalSpent / totalBudget * 100) else 0.0
+
+            val nearExceeded = budgetViewModel.getNearExceededBudgets()
+            val exceeded = budgets.filter { it.isOverBudget }
+
+            val message = buildString {
+                if (command.categoryId != null) {
+                    appendLine("📊 Trạng thái ngân sách cho danh mục ${command.categoryId}:")
+                } else {
+                    appendLine("📊 Tổng quan ngân sách hiện tại:")
+                }
+                appendLine("• Tổng hạn mức: ${formatCurrency(totalBudget)}")
+                appendLine("• Đã chi: ${formatCurrency(totalSpent)} (${String.format(Locale.getDefault(), "%.1f", usageRate)}%)")
+                appendLine("• Ngân sách đang vượt: ${exceeded.size}")
+                appendLine("• Ngân sách sắp vượt (>80%): ${nearExceeded.size}")
+                appendLine()
+                append(
+                    when {
+                        exceeded.isNotEmpty() ->
+                            "⚠️ Một số ngân sách đã vượt hạn mức, bạn nên xem lại chi tiêu các danh mục này."
+                        nearExceeded.isNotEmpty() ->
+                            "⚠️ Một số ngân sách sắp vượt, hãy hạn chế chi thêm vào các danh mục đó."
+                        else ->
+                            "✅ Các ngân sách hiện tại vẫn trong vùng an toàn."
+                    }
+                )
+            }
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = budgets
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi lấy trạng thái ngân sách: ${e.message}", e)
+            AICommandResult(false, "Không thể lấy trạng thái ngân sách: ${e.message}")
+        }
+    }
+
+    /**
+     * Tạo ngân sách với tự động điều chỉnh
+     */
+    private suspend fun createBudgetWithAutoAdjust(command: AICommand.SetBudget): AICommandResult {
+        return try {
+            // Từ tên category (tiếng Việt) -> categoryId
+            val categories = categoryViewModel.categories.value
+            val matchedCategory = categories.firstOrNull { cat ->
+                cat.name.equals(command.category, ignoreCase = true)
+            }
+
+            if (matchedCategory == null) {
+                return AICommandResult(
+                    success = false,
+                    message = "Không tìm thấy danh mục '${command.category}' để đặt ngân sách."
+                )
+            }
+
+            val periodType = when (command.period.lowercase()) {
+                "week", "weekly" -> BudgetPeriodType.WEEK
+                "year", "yearly" -> BudgetPeriodType.YEAR
+                else -> BudgetPeriodType.MONTH
+            }
+
+            val newBudget = budgetViewModel.createNewBudget(
+                categoryId = matchedCategory.id,
+                amount = command.amount,
+                periodType = periodType,
+                note = "Tạo bởi Wendy AI"
+            )
+
+            budgetViewModel.addBudget(newBudget)
+
+            val message =
+                "🎯 Đã đặt ngân sách ${formatCurrency(command.amount)} cho danh mục '${matchedCategory.name}' theo chu kỳ ${periodType.name.lowercase()}."
+
+            AICommandResult(
+                success = true,
+                message = message,
+                data = newBudget
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi tạo ngân sách tự động: ${e.message}", e)
+            AICommandResult(false, "Không thể đặt ngân sách: ${e.message}")
+        }
+    }
+
+    /**
+     * Phân tích mẫu chi tiêu nâng cao
+     */
+    private suspend fun analyzeAdvancedSpendingPattern(): AdvancedSpendingPattern {
+        // TODO: Implement
+        return AdvancedSpendingPattern(
+            monthlyAverage = 0.0,
+            weeklyPattern = emptyMap(),
+            seasonalTrend = "stable",
+            topCategories = emptyList(),
+            consistencyScore = 0,
+            peakSpendingDays = emptyList(),
+            recurringTransactions = emptyList()
+        )
+    }
+
+    /**
+     * Phân tích trạng thái ngân sách
+     */
+    private suspend fun analyzeBudgetStatus(): BudgetStatus {
+        return try {
+            val active = budgetViewModel.getActiveBudgets()
+            val over = active.count { it.isOverBudget }
+            val near = budgetViewModel.getNearExceededBudgets().size
+            val safe = active.size - over - near
+
+            BudgetStatus(
+                activeBudgets = active.size,
+                overBudget = over,
+                nearBudget = near,
+                safeBudgets = safe.coerceAtLeast(0)
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi phân tích trạng thái ngân sách: ${e.message}", e)
+            BudgetStatus(
+                activeBudgets = 0,
+                overBudget = 0,
+                nearBudget = 0,
+                safeBudgets = 0
+            )
+        }
+    }
+
+    data class BudgetStatus(
+        val activeBudgets: Int,
+        val overBudget: Int,
+        val nearBudget: Int,
+        val safeBudgets: Int
+    )
+
+    /**
+     * Tạo dự đoán ngắn hạn
+     */
+    private fun generateShortTermPredictions(): List<String> {
+        // TODO: Implement
+        return listOf(
+            "Dự kiến chi tiêu ổn định trong 30 ngày tới",
+            "Tiếp tục theo dõi các danh mục chi tiêu lớn"
+        )
+    }
+
+    /**
+     * Tính dự báo tuần
+     */
+    private fun calculateWeeklyForecast(
+        currentWeek: List<Transaction>,
+        lastWeek: List<Transaction>
+    ): RegressionForecast {
+        // TODO: Implement
+        return RegressionForecast(
+            forecast = 0.0,
+            lowerBound = 0.0,
+            upperBound = 0.0,
+            rSquared = 0.0,
+            hasSeasonality = false
+        )
     }
 
     /**
@@ -1988,183 +3716,334 @@ class AICommandExecutor(
     }
 
     /**
-     * Lấy dữ liệu chi tiêu lịch sử
+     * Phân tích xu hướng nâng cao
      */
-    private fun getHistoricalSpendingData(period: String): List<Double> {
-        val periods = when (period) {
-            "week" -> 8
-            "month" -> 6
-            "year" -> 3
-            else -> 4
-        }
-
-        return List(periods) { index ->
-            Random.nextDouble(1000000.0, 5000000.0)
-        }
+    private fun performAdvancedTrendAnalysis(
+        currentData: List<Transaction>,
+        previousData: List<Transaction>,
+        compare: Boolean
+    ): TrendAnalysis {
+        // TODO: Implement
+        return TrendAnalysis(
+            mainTrends = emptyList(),
+            changes = emptyList(),
+            signals = emptyList(),
+            actions = emptyList()
+        )
     }
 
     /**
-     * Tính dự báo chi tiêu
+     * Tạo dự đoán xu hướng
      */
-    private fun calculateSpendingForecast(historicalData: List<Double>): SpendingForecast {
-        val avg = historicalData.average()
-        val stdDev = calculateStandardDeviation(historicalData)
+    private fun generateTrendPredictions(currentData: List<Transaction>): List<String> {
+        // TODO: Implement
+        return emptyList()
+    }
 
-        return SpendingForecast(
-            estimatedSpending = avg,
-            lowerBound = avg - stdDev,
-            upperBound = avg + stdDev,
-            confidenceLevel = 75,
-            recommendations = listOf(
-                "Dự trữ thêm 10-15% cho chi phí phát sinh",
-                "Theo dõi các danh mục chi tiêu lớn",
-                "Xem xét cắt giảm chi phí không cần thiết"
-            ),
-            warning = if (stdDev / avg > 0.3) "Chi tiêu có biến động lớn, cần thận trọng" else ""
+    /**
+     * Tạo biểu đồ xu hướng
+     */
+    private fun generateTrendCharts(
+        currentData: List<Transaction>,
+        previousData: List<Transaction>
+    ): Map<String, List<Double>> {
+        // TODO: Implement
+        return emptyMap()
+    }
+
+    /**
+     * Tạo đề xuất ngân sách cá nhân hóa
+     */
+    private fun generatePersonalizedBudgetRecommendations(
+        income: Double,
+        pattern: AdvancedSpendingPattern,
+        riskTolerance: String
+    ): PersonalizedBudgetRecommendations {
+        // TODO: Implement
+        return PersonalizedBudgetRecommendations(
+            allocation = emptyList(),
+            goals = emptyList(),
+            advice = emptyList(),
+            personalizedAllocation = emptyMap(),
+            riskAssessment = "medium"
         )
+    }
+
+    /**
+     * Kiểm tra cảnh báo ngân sách
+     */
+    private suspend fun checkBudgetAlerts(threshold: Double?): List<SpendingAlert> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * Kiểm tra chi tiêu bất thường
+     */
+    private suspend fun checkSpendingAnomalies(): List<SpendingAlert> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * Kiểm tra cảnh báo cash flow
+     */
+    private suspend fun checkCashFlowAlerts(): List<SpendingAlert> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * Kiểm tra cơ hội tiết kiệm
+     */
+    private suspend fun checkSavingsOpportunities(): List<SpendingAlert> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * Phát hiện bất thường nâng cao
+     */
+    private suspend fun detectAdvancedAnomalies(
+        transactions: List<Transaction>,
+        sensitivity: Double
+    ): AnomalyDetection {
+        // TODO: Implement
+        return AnomalyDetection(
+            anomalies = emptyList(),
+            severity = "low",
+            recommendations = emptyList(),
+            confidence = 0.0
+        )
+    }
+
+    /**
+     * Phát hiện bất thường trong giao dịch
+     */
+    private suspend fun detectTransactionAnomalies(transactions: List<Transaction>): List<Transaction> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * Tạo kế hoạch tiết kiệm cá nhân hóa
+     */
+    private suspend fun createPersonalizedSavingsPlan(
+        goalAmount: Double,
+        goalId: String?
+    ): SavingsPlan {
+        // TODO: Implement
+        return SavingsPlan(
+            goalName = "Tiết kiệm mục tiêu",
+            targetAmount = goalAmount,
+            currentAmount = 0.0,
+            monthlyRequired = goalAmount / 12,
+            timelineMonths = 12,
+            riskLevel = "medium",
+            investmentSuggestions = emptyList()
+        )
+    }
+
+    /**
+     * Tạo lời khuyên tiết kiệm cá nhân hóa
+     */
+    private suspend fun generatePersonalizedSavingsAdvice(
+        savingsRate: Double,
+        pattern: AdvancedSpendingPattern,
+        budgetStatus: BudgetStatus
+    ): List<String> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * Phân tích hồ sơ rủi ro
+     */
+    private suspend fun analyzeRiskProfile(): String {
+        // TODO: Implement
+        return "medium"
+    }
+
+    /**
+     * Ước tính kiến thức đầu tư
+     */
+    private suspend fun estimateInvestmentKnowledge(): String {
+        // TODO: Implement
+        return "beginner"
+    }
+
+    /**
+     * Tạo mẹo đầu tư cá nhân hóa
+     */
+    private suspend fun generatePersonalizedInvestmentTips(
+        availableForInvestment: Double,
+        riskProfile: String,
+        investmentKnowledge: String
+    ): List<String> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * Tạo insights danh mục
+     */
+    private suspend fun generateCategoryInsights(
+        analysis: DetailedSpendingAnalysis,
+        category: String
+    ): List<String> {
+        // TODO: Implement
+        return emptyList()
+    }
+
+    /**
+     * So sánh danh mục với các danh mục khác
+     */
+    private suspend fun compareCategoryWithOthers(
+        category: String,
+        categorySpending: Double,
+        period: String
+    ): String {
+        // TODO: Implement
+        return "Không có dữ liệu so sánh"
+    }
+
+    /**
+     * Tạo báo cáo tóm tắt
+     */
+    private suspend fun generateSummaryReport(
+        analysis: DetailedSpendingAnalysis,
+        period: String
+    ): String {
+        // TODO: Implement
+        return "Báo cáo tóm tắt"
+    }
+
+    /**
+     * Tạo báo cáo chi tiết
+     */
+    private suspend fun generateDetailedReport(
+        analysis: DetailedSpendingAnalysis,
+        period: String
+    ): String {
+        // TODO: Implement
+        return "Báo cáo chi tiết"
+    }
+
+    /**
+     * Tạo báo cáo xuất
+     */
+    private suspend fun generateExportReport(
+        transactions: List<Transaction>,
+        period: String
+    ): String {
+        // TODO: Implement
+        return "Báo cáo xuất"
     }
 
     /**
      * Phân tích mẫu chi tiêu
      */
-    private fun analyzeSpendingPatterns(): SpendingPattern {
-        val transactions = transactionViewModel.transactions.value
-        val monthlySpending = transactions
-            .filter { !it.isIncome }
-            .groupBy { it.date.substring(3) }
-            .mapValues { (_, trans) -> trans.sumOf { it.amount } }
+    private suspend fun analyzeSpendingPattern(): SpendingPattern {
+        return try {
+            // Lấy dữ liệu chi tiêu 6 tháng gần nhất
+            val allTransactions = transactionViewModel.transactions.value
+            if (allTransactions.isEmpty()) {
+                return SpendingPattern(
+                    monthlyAverages = 0.0,
+                    seasonalTrend = "stable",
+                    topCategories = emptyList(),
+                    consistencyScore = 0
+                )
+            }
 
-        val categoryPattern = transactions
-            .filter { !it.isIncome }
-            .groupBy { it.category }
-            .mapValues { (_, trans) -> trans.size to trans.sumOf { it.amount } }
+            val calendar = Calendar.getInstance()
+            val currentMonth = calendar.get(Calendar.MONTH)
+            val currentYear = calendar.get(Calendar.YEAR)
 
-        return SpendingPattern(
-            monthlyAverages = monthlySpending.values.average(),
-            seasonalTrend = detectSeasonalTrend(monthlySpending),
-            topCategories = categoryPattern.toList().sortedByDescending { it.second.second }.take(5),
-            consistencyScore = calculateConsistencyScore(monthlySpending.values.toList())
-        )
-    }
+            val monthlyTotals = mutableMapOf<Pair<Int, Int>, Double>() // (year, month) -> totalExpense
 
-    /**
-     * Tạo đề xuất ngân sách
-     */
-    private fun generateBudgetRecommendations(income: Double, pattern: SpendingPattern): BudgetRecommendations {
-        val essentialPercent = 0.5
-        val wantsPercent = 0.3
-        val savingsPercent = 0.2
+            allTransactions
+                .filter { !it.isIncome }
+                .forEach { t ->
+                    val date = parseDate(t.date)
+                    val c = Calendar.getInstance().apply { time = date }
+                    val y = c.get(Calendar.YEAR)
+                    val m = c.get(Calendar.MONTH)
+                    monthlyTotals[y to m] = (monthlyTotals[y to m] ?: 0.0) + t.amount
+                }
 
-        return BudgetRecommendations(
-            allocation = listOf(
-                "Nhu cầu thiết yếu (50%): ${formatCurrency(income * essentialPercent)}",
-                "Mong muốn cá nhân (30%): ${formatCurrency(income * wantsPercent)}",
-                "Tiết kiệm & Đầu tư (20%): ${formatCurrency(income * savingsPercent)}"
-            ),
-            goals = listOf(
-                "Xây dựng quỹ khẩn cấp 3-6 tháng",
-                "Tối ưu hóa chi tiêu cho ${pattern.topCategories.first().first}",
-                "Tăng tỷ lệ tiết kiệm lên 25%"
-            ),
-            advice = listOf(
-                "Tập trung vào các danh mục chi tiêu lớn nhất",
-                "Tự động hóa tiết kiệm mỗi tháng",
-                "Đánh giá lại ngân sách hàng quý"
+            // Tập trung vào 6 tháng gần nhất
+            val lastSixKeys = generateSequence(0) { it + 1 }
+                .map { offset ->
+                    val c = Calendar.getInstance().apply {
+                        set(Calendar.YEAR, currentYear)
+                        set(Calendar.MONTH, currentMonth)
+                        add(Calendar.MONTH, -offset)
+                    }
+                    c.get(Calendar.YEAR) to c.get(Calendar.MONTH)
+                }
+                .take(6)
+                .toList()
+
+            val lastSixValues = lastSixKeys.map { key -> monthlyTotals[key] ?: 0.0 }
+            val avg = if (lastSixValues.isNotEmpty()) lastSixValues.average() else 0.0
+
+            // Xác định xu hướng đơn giản
+            val seasonalTrend = when {
+                lastSixValues.size < 2 -> "stable"
+                lastSixValues.last() > lastSixValues.first() * 1.2 -> "up"
+                lastSixValues.last() < lastSixValues.first() * 0.8 -> "down"
+                else -> "stable"
+            }
+
+            // Top danh mục theo tổng chi và số lần trong 3 tháng gần nhất
+            val threeMonthsAgo = Calendar.getInstance().apply {
+                add(Calendar.MONTH, -2)
+            }
+
+            val categoryStats = allTransactions
+                .filter { !it.isIncome }
+                .filter { t ->
+                    val d = parseDate(t.date)
+                    d.after(threeMonthsAgo.time) || d == threeMonthsAgo.time
+                }
+                .groupBy { it.category }
+                .mapValues { (_, list) ->
+                    val count = list.size
+                    val total = list.sumOf { it.amount }
+                    count to total
+                }
+                .toList()
+                .sortedByDescending { it.second.second }
+                .take(5)
+
+            // Độ nhất quán: độ lệch chuẩn so với trung bình (càng thấp càng nhất quán)
+            val consistencyScore = if (lastSixValues.size >= 2 && avg > 0) {
+                val variance = lastSixValues
+                    .map { (it - avg) * (it - avg) }
+                    .average()
+                val stdDev = kotlin.math.sqrt(variance)
+                // Chuyển stdDev thành điểm 0-100 (ít dao động => điểm cao)
+                val ratio = (stdDev / avg).coerceAtLeast(0.0)
+                (100 - (ratio * 100)).coerceIn(0.0, 100.0).toInt()
+            } else {
+                0
+            }
+
+            SpendingPattern(
+                monthlyAverages = avg,
+                seasonalTrend = seasonalTrend,
+                topCategories = categoryStats,
+                consistencyScore = consistencyScore
             )
-        )
-    }
-
-    /**
-     * Thực hiện phân tích xu hướng
-     */
-    private fun performTrendAnalysis(currentData: List<Transaction>, previousData: List<Transaction>, compare: Boolean): TrendAnalysis {
-        val currentSpending = currentData.filter { !it.isIncome }.sumOf { it.amount }
-        val previousSpending = previousData.filter { !it.isIncome }.sumOf { it.amount }
-
-        val change = if (previousSpending > 0) (currentSpending - previousSpending) / previousSpending * 100 else 0.0
-
-        return TrendAnalysis(
-            mainTrends = listOf(
-                if (change > 0) "Chi tiêu tăng ${"%.1f".format(change)}%" else "Chi tiêu giảm ${"%.1f".format(abs(change))}%",
-                "Xu hướng ${if (change > 5) "tăng mạnh" else if (change < -5) "giảm rõ rệt" else "ổn định"}"
-            ),
-            changes = listOf(
-                "Chi tiêu hiện tại: ${formatCurrency(currentSpending)}",
-                if (compare) "Chi tiêu trước: ${formatCurrency(previousSpending)}" else "Không có dữ liệu so sánh"
-            ),
-            signals = listOf(
-                if (change > 10) "Cần kiểm soát chi tiêu" else "Chi tiêu trong tầm kiểm soát",
-                if (currentData.size > previousData.size * 1.2) "Số giao dịch tăng đáng kể" else "Tần suất giao dịch ổn định"
-            ),
-            actions = listOf(
-                "Theo dõi các danh mục có xu hướng tăng",
-                "Điều chỉnh ngân sách nếu cần",
-                "Duy trì thói quen chi tiêu tốt"
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi phân tích mẫu chi tiêu: ${e.message}", e)
+            SpendingPattern(
+                monthlyAverages = 0.0,
+                seasonalTrend = "stable",
+                topCategories = emptyList(),
+                consistencyScore = 0
             )
-        )
-    }
-
-    // ==================== CÁC PHƯƠNG THỨC TOÁN HỌC ====================
-
-    /**
-     * Tính độ lệch chuẩn
-     */
-    private fun calculateStandardDeviation(data: List<Double>): Double {
-        if (data.isEmpty()) return 0.0
-        val mean = data.average()
-        val variance = data.map { (it - mean) * (it - mean) }.average()
-        return sqrt(variance)
-    }
-
-    /**
-     * Phát hiện xu hướng theo mùa
-     */
-    private fun detectSeasonalTrend(monthlySpending: Map<String, Double>): String {
-        return "Ổn định"
-    }
-
-    /**
-     * Tính điểm nhất quán
-     */
-    private fun calculateConsistencyScore(monthlyValues: List<Double>): Int {
-        if (monthlyValues.size < 2) return 100
-        val avg = monthlyValues.average()
-        val variance = monthlyValues.map { abs(it - avg) }.average()
-        return (100 - (variance / avg * 100).toInt()).coerceIn(0, 100)
-    }
-
-    /**
-     * Lấy dữ liệu kỳ trước
-     */
-    private suspend fun getPreviousPeriodData(period: String): List<Transaction> {
-        return when (period) {
-            "week" -> getTransactionsForPeriod("previous_week")
-            "month" -> getTransactionsForPeriod("previous_month")
-            else -> emptyList()
-        }
-    }
-
-    /**
-     * Tính ngày kết thúc ngân sách
-     */
-    private fun calculateBudgetEndDate(startDate: LocalDate, periodType: BudgetPeriodType): LocalDate {
-        return when (periodType) {
-            BudgetPeriodType.WEEK -> startDate.plusWeeks(1)
-            BudgetPeriodType.MONTH -> startDate.plusMonths(1)
-            BudgetPeriodType.QUARTER -> startDate.plusMonths(3)
-            BudgetPeriodType.YEAR -> startDate.plusYears(1)
-        }
-    }
-
-    /**
-     * Lấy tên chu kỳ
-     */
-    private fun getPeriodName(periodType: BudgetPeriodType): String {
-        return when (periodType) {
-            BudgetPeriodType.WEEK -> "tuần"
-            BudgetPeriodType.MONTH -> "tháng"
-            BudgetPeriodType.QUARTER -> "quý"
-            BudgetPeriodType.YEAR -> "năm"
         }
     }
 }
@@ -2172,7 +4051,7 @@ class AICommandExecutor(
 // ==================== AI VIEWMODEL CHÍNH ====================
 
 /**
- * ViewModel chính cho AI Assistant
+ * ViewModel chính cho AI Assistant với tất cả tính năng nâng cao
  */
 class AIViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -2233,7 +4112,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val commandExecutor by lazy {
-        AICommandExecutor(
+        AdvancedAICommandExecutor(
             transactionViewModel,
             budgetViewModel,
             categoryViewModel,
@@ -3020,57 +4899,9 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
                         command
                     )
 
-                    when (command) {
-                        is AICommand.AddTransaction -> {
-                            Log.d(TAG, "Xử lý AddTransaction command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.ListTransactions -> {
-                            Log.d(TAG, "Xử lý ListTransactions command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.ShowSummary -> {
-                            Log.d(TAG, "Xử lý ShowSummary command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.GetQuickTips -> {
-                            Log.d(TAG, "Xử lý GetQuickTips command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.AnalyzeSpending -> {
-                            Log.d(TAG, "Xử lý AnalyzeSpending command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.GetFinancialHealthScore -> {
-                            Log.d(TAG, "Xử lý GetFinancialHealthScore command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.GetWeeklyReport -> {
-                            Log.d(TAG, "Xử lý GetWeeklyReport command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.GetSavingsAdvice -> {
-                            Log.d(TAG, "Xử lý GetSavingsAdvice command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        is AICommand.GetInvestmentTips -> {
-                            Log.d(TAG, "Xử lý GetInvestmentTips command")
-                            val result = commandExecutor.executeCommand(command)
-                            handleCommandResult(result, userText)
-                        }
-                        else -> {
-                            Log.w(TAG, "Command chưa được hỗ trợ")
-                            handleAIResponse("Tôi hiểu bạn muốn thực hiện lệnh này, nhưng tính năng đang được phát triển. Hãy thử các lệnh khác như:\n\n• Thêm chi tiêu/thu nhập\n• Xem giao dịch\n• Phân tích chi tiêu\n• Xem tổng quan tài chính")
-                        }
-                    }
+                    val result = commandExecutor.executeCommand(command)
+                    handleCommandResult(result, userText)
+
                 } else {
                     Log.d(TAG, "Nhận diện là QUESTION/CONVERSATION")
                     processWithGeminiAPI(userText)
@@ -3207,7 +5038,10 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             "điểm sức khỏe", "diem suc khoe", "health score", "financial health",
             "báo cáo", "report", "báo cáo tuần", "weekly",
             "tiết kiệm", "savings", "tiết kiệm tiền",
-            "đầu tư", "investment", "đầu tư tiền"
+            "đầu tư", "investment", "đầu tư tiền",
+            "dự báo", "forecast", "dự đoán", "ước tính",
+            "cảnh báo", "alert", "warning", "thông báo",
+            "bất thường", "anomaly", "phát hiện"
         )
 
         val questionKeywords = listOf(
@@ -3251,16 +5085,18 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
             listOf(
                 ChatMessage(
                     text = """
-                WENDY AI - TRỢ LÝ TÀI CHÍNH THÔNG MINH
+                🤖 WENDY AI - TRỢ LÝ TÀI CHÍNH THÔNG MINH
                 
                 Chào bạn! Tôi là WendyAI, trợ lý tài chính thông minh của bạn. 
                 Tôi có thể giúp bạn:
                 
-                Quản lý chi tiêu & thu nhập
-                Phân tích tài chính
-                Đặt ngân sách
-                Đưa ra lời khuyên tài chính
-                Học hỏi từ thói quen của bạn
+                💰 Quản lý chi tiêu & thu nhập
+                📊 Phân tích tài chính nâng cao
+                🎯 Đặt ngân sách thông minh
+                🔮 Dự báo chi tiêu
+                ⚠️ Cảnh báo chi tiêu bất thường
+                📈 Lập kế hoạch tiết kiệm & đầu tư
+                🧠 Học hỏi từ thói quen của bạn
                 
                 Hãy thử nói: "Thêm chi tiêu 50k cho ăn uống" hoặc "Xem giao dịch hôm nay"
                 """.trimIndent(),
@@ -3295,10 +5131,10 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun getQuickFinancialTips(): List<String> {
         return listOf(
-            "Chi tiêu ít hơn 50% thu nhập cho nhu cầu thiết yếu",
-            "Tiết kiệm ít nhất 20% thu nhập mỗi tháng",
-            "Theo dõi chi tiêu hàng ngày để kiểm soát ngân sách",
-            "Đặt mục tiêu tài chính ngắn hạn và dài hạn"
+            "💡 Chi tiêu ít hơn 50% thu nhập cho nhu cầu thiết yếu",
+            "💰 Tiết kiệm ít nhất 20% thu nhập mỗi tháng",
+            "📱 Theo dõi chi tiêu hàng ngày để kiểm soát ngân sách",
+            "🎯 Đặt mục tiêu tài chính ngắn hạn và dài hạn"
         )
     }
 
@@ -3441,7 +5277,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
 
             _messages.update { currentMessages ->
                 currentMessages + ChatMessage(
-                    text = "Mẹo nhanh: $quickTips\n\nHãy thử nhập: 'Thêm chi tiêu 50k cho ăn uống' hoặc 'Xem giao dịch hôm nay'",
+                    text = "💡 Mẹo nhanh: $quickTips\n\nHãy thử nhập: 'Thêm chi tiêu 50k cho ăn uống' hoặc 'Xem giao dịch hôm nay'",
                     isUser = false,
                     timestamp = System.currentTimeMillis()
                 )
@@ -3536,15 +5372,15 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
                         val category = categoryViewModel.getCategoryById(budget.categoryId)
                         category?.name ?: budget.categoryId
                     }
-                return "CẢNH BÁO: Bạn đã vượt ngân sách cho: $overBudgetCategories. Hãy xem xét điều chỉnh chi tiêu!"
+                return "⚠️ CẢNH BÁO: Bạn đã vượt ngân sách cho: $overBudgetCategories. Hãy xem xét điều chỉnh chi tiêu!"
             }
 
             if (context.balance < 0) {
-                return "CHÚ Ý: Chi tiêu của bạn đang vượt quá thu nhập. Cần xem xét lại ngân sách!"
+                return "📉 CHÚ Ý: Chi tiêu của bạn đang vượt quá thu nhập. Cần xem xét lại ngân sách!"
             }
 
             if (context.monthExpense > context.monthIncome * 0.8 && context.monthIncome > 0) {
-                return "LƯU Ý: Bạn đang chi tiêu ${(context.monthExpense/context.monthIncome*100).toInt()}% thu nhập. Mục tiêu lý tưởng là dưới 80%!"
+                return "💡 LƯU Ý: Bạn đang chi tiêu ${(context.monthExpense/context.monthIncome*100).toInt()}% thu nhập. Mục tiêu lý tưởng là dưới 80%!"
             }
 
             null
@@ -3559,10 +5395,10 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun generateTimeBasedMessage(context: ProactiveContext): String? {
         return when (context.currentHour) {
-            in 6..9 -> "Chào buổi sáng! Bạn đã sẵn sàng cho một ngày tài chính thông minh chưa?"
-            in 11..13 -> "Đến giờ ăn trưa! Đây là thời điểm tốt để kiểm tra ngân sách ăn uống."
-            in 17..19 -> "Cuối ngày rồi! Bạn có muốn xem tổng kết chi tiêu hôm nay không?"
-            in 20..23 -> "Buổi tối yên tĩnh là thời điểm hoàn hảo để lên kế hoạch tài chính!"
+            in 6..9 -> "🌅 Chào buổi sáng! Bạn đã sẵn sàng cho một ngày tài chính thông minh chưa?"
+            in 11..13 -> "🍽️ Đến giờ ăn trưa! Đây là thời điểm tốt để kiểm tra ngân sách ăn uống."
+            in 17..19 -> "🌇 Cuối ngày rồi! Bạn có muốn xem tổng kết chi tiêu hôm nay không?"
+            in 20..23 -> "🌙 Buổi tối yên tĩnh là thời điểm hoàn hảo để lên kế hoạch tài chính!"
             else -> null
         }
     }
@@ -3572,11 +5408,11 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun generateEducationalMessage(): String? {
         val tips = listOf(
-            "Mẹo hay: Luôn theo dõi chi tiêu nhỏ - chúng có thể chiếm tới 30% ngân sách!",
-            "Nguyên tắc 50/30/20: 50% cho nhu cầu, 30% cho muốn, 20% cho tiết kiệm!",
-            "Nhắc nhở: Đặt ngân sách cho từng danh mục giúp kiểm soát chi tiêu tốt hơn!",
-            "Chiến lược: Xem lại chi tiêu cuối tuần giúp bạn điều chỉnh kịp thời!",
-            "Bí quyết: Sử dụng tính năng phân tích để hiểu rõ thói quen chi tiêu!"
+            "💡 Mẹo hay: Luôn theo dõi chi tiêu nhỏ - chúng có thể chiếm tới 30% ngân sách!",
+            "📊 Nguyên tắc 50/30/20: 50% cho nhu cầu, 30% cho muốn, 20% cho tiết kiệm!",
+            "⏰ Nhắc nhở: Đặt ngân sách cho từng danh mục giúp kiểm soát chi tiêu tốt hơn!",
+            "📈 Chiến lược: Xem lại chi tiêu cuối tuần giúp bạn điều chỉnh kịp thời!",
+            "🧠 Bí quyết: Sử dụng tính năng phân tích để hiểu rõ thói quen chi tiêu!"
         )
         return tips.random()
     }
@@ -3586,11 +5422,11 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun generateRandomTip(): String? {
         val tips = listOf(
-            "Bạn có biết: Ghi chép chi tiêu hàng ngày giúp tiết kiệm thêm 15-20% ngân sách?",
-            "Mẹo hay: Đặt ngân sách riêng cho từng danh mục giúp kiểm soát chi tiêu tốt hơn!",
-            "Hãy thử: Xem lại chi tiêu cuối tuần để điều chỉnh kịp thời!",
-            "Bí quyết: Tự động hóa tiết kiệm giúp bạn không quên mục tiêu tài chính!",
-            "Nguyên tắc 50/30/20: 50% nhu cầu, 30% mong muốn, 20% tiết kiệm!"
+            "🤔 Bạn có biết: Ghi chép chi tiêu hàng ngày giúp tiết kiệm thêm 15-20% ngân sách?",
+            "🎯 Mẹo hay: Đặt ngân sách riêng cho từng danh mục giúp kiểm soát chi tiêu tốt hơn!",
+            "📅 Hãy thử: Xem lại chi tiêu cuối tuần để điều chỉnh kịp thời!",
+            "💰 Bí quyết: Tự động hóa tiết kiệm giúp bạn không quên mục tiêu tài chính!",
+            "📊 Nguyên tắc 50/30/20: 50% nhu cầu, 30% mong muốn, 20% tiết kiệm!"
         )
         return tips.random()
     }
@@ -3609,7 +5445,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
         // Cuối tháng (25-31)
         if (dayOfMonth in 25..31 && currentHour == 9) {
             if (!hasSentEventToday("end_of_month_$today")) {
-                pushProactiveMessage("Sắp kết thúc tháng! Đây là thời điểm tốt để xem xét lại ngân sách và lập kế hoạch cho tháng tới.")
+                pushProactiveMessage("📅 Sắp kết thúc tháng! Đây là thời điểm tốt để xem xét lại ngân sách và lập kế hoạch cho tháng tới.")
                 markEventSent("end_of_month_$today")
             }
         }
@@ -3617,7 +5453,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
         // Đầu tháng (1-3)
         if (dayOfMonth in 1..3 && currentHour == 10) {
             if (!hasSentEventToday("start_of_month_$today")) {
-                pushProactiveMessage("Đầu tháng mới! Hãy cùng thiết lập ngân sách và mục tiêu tài chính cho tháng này nhé!")
+                pushProactiveMessage("🎯 Đầu tháng mới! Hãy cùng thiết lập ngân sách và mục tiêu tài chính cho tháng này nhé!")
                 markEventSent("start_of_month_$today")
             }
         }
@@ -3625,7 +5461,7 @@ class AIViewModel(application: Application) : AndroidViewModel(application) {
         // Cuối tuần
         if (dayOfWeek == Calendar.SUNDAY && currentHour in 15..17) {
             if (!hasSentEventToday("weekend_review_$today")) {
-                pushProactiveMessage("Chủ nhật rồi! Hãy xem lại chi tiêu tuần vừa qua và lên kế hoạch cho tuần mới!")
+                pushProactiveMessage("📊 Chủ nhật rồi! Hãy xem lại chi tiêu tuần vừa qua và lên kế hoạch cho tuần mới!")
                 markEventSent("weekend_review_$today")
             }
         }

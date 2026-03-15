@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,7 +31,7 @@ import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.components.ui.BottomNavBar
-import com.example.financeapp.screen.features.formatCurrency
+import com.example.financeapp.components.utils.formatCurrency
 import com.example.financeapp.viewmodel.transaction.Category
 import java.text.SimpleDateFormat
 import java.util.*
@@ -44,6 +45,7 @@ import kotlin.math.atan2
 import kotlin.math.min
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.animation.AnimatedVisibility
@@ -57,6 +59,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
+import com.example.financeapp.components.theme.getAppColors
 import com.example.financeapp.viewmodel.savings.SavingsViewModel
 
 
@@ -76,17 +79,18 @@ fun StatisticsScreen(
     val timeRanges = listOf("weekly", "monthly", "yearly")
     val dataTypes = listOf("income", "expense", "difference")
 
-    // Màu sắc theo UI trong ảnh
-    val backgroundColor = Color(0xFFF5F7FA)
-    val cardColor = Color.White
-    val primaryColor = Color(0xFF4A6FA5)
-    val textPrimary = Color(0xFF333333)
-    val textSecondary = Color(0xFF666666)
-    val gridLineColor = Color(0xFFE0E0E0)
-    val chartBarColor = Color(0xFF4A6FA5)
-    val selectedBarColor = Color(0xFF2E8B57)
-    val redColor = Color(0xFFE74C3C)
-    val greenColor = Color(0xFF2ECC71)
+    // Áp dụng màu sắc đồng bộ từ AppColors
+    val appColors = getAppColors()
+    val backgroundColor = appColors.background
+    val cardColor = appColors.surface
+    val primaryColor = appColors.primary
+    val textPrimary = appColors.textPrimary
+    val textSecondary = appColors.textSecondary
+    val gridLineColor = appColors.divider
+    val chartBarColor = appColors.primary
+    val selectedBarColor = appColors.secondary
+    val redColor = appColors.expense
+    val greenColor = appColors.income
 
     // Lấy danh mục từ ViewModel
     val categories by categoryViewModel.categories.collectAsState()
@@ -99,7 +103,7 @@ fun StatisticsScreen(
                         languageViewModel.getTranslation("statistics"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White
+                        color = cardColor
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -408,7 +412,7 @@ private fun TotalOverviewCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                formatCurrency(totalAmount),
+                formatCurrency(totalAmount.toFloat()),
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = primaryColor
@@ -566,6 +570,18 @@ fun DynamicChartVisualization(
     // Làm tròn LÊN đến số đẹp (như 25K, 50K, 75K, 100K, 200K, etc)
     val roundedMaxAmount = calculateRoundedMaxValue(maxNonZeroAmount)
 
+    // Animation mượt mà khi biểu đồ hiển thị
+    var animationTriggered by remember { mutableStateOf(false) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = if (animationTriggered) 1f else 0f,
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+        label = "statisticsChartAnim"
+    )
+
+    LaunchedEffect(Unit) {
+        animationTriggered = true
+    }
+
     // Tạo 5 bước đều nhau từ 0 đến roundedMaxAmount
     val ySteps = createYAxisSteps(roundedMaxAmount)
 
@@ -573,23 +589,25 @@ fun DynamicChartVisualization(
         modifier = Modifier
             .fillMaxWidth()
             .height(260.dp)
+            .padding(8.dp)
     ) {
         // Trục Y với các giá trị tự động - SỐ LỚN ở TRÊN, 0 ở DƯỚI
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .width(40.dp),
+                .width(45.dp)
+                .padding(bottom = 32.dp, top = 8.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Hiển thị ĐẢO NGƯỢC: số lớn ở trên, 0 ở dưới
             ySteps.reversed().forEach { value ->
-                Text(
-                    text = formatYAxisLabel(value),
-                    fontSize = 12.sp,
-                    color = textSecondary,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(end = 4.dp)
-                )
+                    Text(
+                        text = formatYAxisLabel(value),
+                        fontSize = 10.sp,
+                        color = textSecondary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                    )
             }
         }
 
@@ -597,88 +615,57 @@ fun DynamicChartVisualization(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 40.dp, top = 8.dp, bottom = 32.dp, end = 8.dp)
+                .padding(start = 50.dp, top = 8.dp, bottom = 32.dp, end = 8.dp)
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val chartHeight = size.height
                 val chartWidth = size.width
 
-                // Tính toán kích thước cột dựa trên số lượng dữ liệu
                 val columnWidth = chartWidth / chartData.size
                 val spacing = columnWidth * 0.2f
                 val actualColumnWidth = columnWidth - spacing
 
                 // Vẽ đường lưới ngang
                 ySteps.forEach { step ->
-                    // Tính yPosition: 0 ở ĐÁY biểu đồ (chartHeight), roundedMaxAmount ở ĐỈNH (0)
-                    // Sử dụng tỷ lệ ngược: step càng lớn, yPosition càng cao trên canvas
                     val yPosition = chartHeight * (1 - step.toFloat() / roundedMaxAmount.toFloat())
-
-                    // Vẽ đường lưới ngang
                     drawLine(
-                        color = gridLineColor,
+                        color = gridLineColor.copy(alpha = 0.5f),
                         start = Offset(0f, yPosition),
                         end = Offset(chartWidth, yPosition),
                         strokeWidth = 1f
                     )
                 }
 
-                // Vẽ các cột biểu đồ - CỘT MỌC TỪ DƯỚI LÊN
+                // Vẽ các cột biểu đồ
                 chartData.forEachIndexed { index, data ->
-                    // Tính chiều cao cột: dựa trên tỷ lệ với roundedMaxAmount
                     val columnHeight = if (roundedMaxAmount > 0) {
-                        (data.amount.toFloat() / roundedMaxAmount.toFloat()) * chartHeight
-                    } else {
-                        0f
-                    }
+                        (data.amount.toFloat() / roundedMaxAmount.toFloat()) * chartHeight * animatedProgress
+                    } else 0f
 
-                    // Vị trí x của cột
                     val xPosition = index * columnWidth + spacing / 2
-
-                    // Vị trí y BẮT ĐẦU của cột (tính từ TRÊN xuống)
-                    // chartHeight - columnHeight: 0 ở đỉnh, cột mọc xuống
                     val yStartPosition = chartHeight - columnHeight
-
-                    // Màu cột: highlight cột cuối cùng
                     val barColor = if (index == chartData.size - 1) selectedBarColor else chartBarColor
 
-                    // Vẽ cột với bo góc trên
                     if (columnHeight > 0) {
                         drawRoundRect(
                             color = barColor,
                             topLeft = Offset(xPosition, yStartPosition),
                             size = Size(actualColumnWidth, columnHeight),
-                            cornerRadius = CornerRadius(4f, 4f)
+                            cornerRadius = CornerRadius(12f, 12f)
                         )
                     }
 
-                    // Vẽ nhãn dưới cột (ngày/tháng)
+                    // Vẽ nhãn dưới cột
                     drawContext.canvas.nativeCanvas.drawText(
                         data.label,
                         xPosition + actualColumnWidth / 2,
-                        chartHeight + 20f, // Dưới đáy biểu đồ
+                        chartHeight + 25f,
                         Paint().apply {
-                            color = android.graphics.Color.parseColor("#666666")
-                            textSize = 12f
+                            color = android.graphics.Color.GRAY
+                            textSize = 30f
                             textAlign = Paint.Align.CENTER
-                            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
                         }
                     )
-
-                    // Vẽ giá trị trên đầu cột nếu có dữ liệu
-                    if (data.amount > 0 && columnHeight > 20f) {
-                        drawContext.canvas.nativeCanvas.drawText(
-                            formatCurrencyCompact(data.amount),
-                            xPosition + actualColumnWidth / 2,
-                            yStartPosition - 8f, // Giá trị ở trên đầu cột
-                            Paint().apply {
-                                color = android.graphics.Color.parseColor("#4A6FA5")
-                                textSize = 10f
-                                textAlign = Paint.Align.CENTER
-                                typeface = Typeface.create("sans-serif", Typeface.BOLD)
-                            }
-                        )
-                    }
                 }
             }
         }
@@ -720,9 +707,9 @@ private fun createYAxisSteps(maxValue: Double): List<Double> {
 // Format nhãn trục Y
 private fun formatYAxisLabel(value: Double): String {
     return when {
-        value >= 1000000 -> String.format("%.1fM", value / 1000000)
-        value >= 1000 -> String.format("%.0fK", value / 1000)
-        else -> String.format("%.0f", value)
+        value >= 1000000 -> String.format("%.1ftr đ", value / 1000000)
+        value >= 1000 -> String.format("%.0fđ", value)
+        else -> String.format("%.0fđ", value)
     }
 }
 
@@ -848,7 +835,7 @@ private fun ComparisonDataRow(label: String, amount: Double, textPrimary: Color)
         )
 
         Text(
-            formatCurrency(amount),
+            formatCurrency(amount.toFloat()),
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
             color = textPrimary
@@ -915,7 +902,7 @@ private fun CompactCategoryAnalysisSection(
                         primaryColor = primaryColor
                     )
 
-                    Divider(
+                    HorizontalDivider(
                         color = textSecondary.copy(alpha = 0.1f),
                         thickness = 1.dp
                     )
@@ -1085,7 +1072,7 @@ private fun AnimatedCategoryListSection(
 
             // Divider (trừ item cuối)
             if (index < categoryData.size - 1) {
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier.padding(vertical = 1.dp),
                     thickness = 0.5.dp,
                     color = textSecondary.copy(alpha = 0.1f)
@@ -1245,14 +1232,16 @@ private fun AnimatedPieChart(
 ) {
     val totalAmount = categoryData.sumOf { it.amount }
 
-    // Animation cho pie chart khi load
-    var animatedProgress by remember { mutableStateOf(0f) }
+    // Animation cho pie chart khi load - Mượt mà hơn với animateFloatAsState
+    var animationTriggered by remember { mutableStateOf(false) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = if (animationTriggered) 1f else 0f,
+        animationSpec = tween(durationMillis = 1200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "pieChartEntrance"
+    )
+
     LaunchedEffect(Unit) {
-        animatedProgress = 0f
-        for (i in 0..100) {
-            animatedProgress = i / 100f
-            delay(3)
-        }
+        animationTriggered = true
     }
 
     // Animation cho selection
@@ -1518,12 +1507,18 @@ private fun getCategoryDataForTransactions(
 
     transactions.forEach { transaction ->
         val amount = transaction.amount.toDouble()
-        val categoryId = transaction.category
 
-        // Tìm tên danh mục
+        // Ưu tiên dùng categoryId để map đúng Category, fallback về transaction.category nếu cần
+        val categoryId = transaction.categoryId
+
         val categoryName = categories
             .find { it.id == categoryId }
-            ?.name ?: languageViewModel.getTranslation("unknown_category")
+            ?.name
+            ?: if (transaction.category.isNotBlank()) {
+                transaction.category
+            } else {
+                languageViewModel.getTranslation("unknown_category")
+            }
 
         categoryMap[categoryName] = categoryMap.getOrDefault(categoryName, 0.0) + amount
     }
@@ -1980,11 +1975,8 @@ private fun getDataTypeDisplayName(dataType: String, languageViewModel: Language
 }
 
 private fun formatCurrencyCompact(amount: Double): String {
-    return when {
-        amount >= 1000000 -> String.format("%.1fM", amount / 1000000)
-        amount >= 1000 -> String.format("%.0fK", amount / 1000)
-        else -> String.format("%.0f", amount)
-    }
+    val formatter = java.text.NumberFormat.getNumberInstance(java.util.Locale.forLanguageTag("vi-VN"))
+    return "${formatter.format(amount.toLong())} đ"
 }
 
 // Hàm tạo nhãn cho phần so sánh

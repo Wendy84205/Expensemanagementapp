@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -346,7 +348,7 @@ private fun SavingsGoalsHeader(
                 StatItem(
                     title = "Tỉ lệ tiết kiệm",
                     value = "${monthlyAnalysis.savingsRate.toInt()}%",
-                    icon = Icons.Default.TrendingUp,
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
@@ -375,7 +377,7 @@ private fun SavingsGoalsHeader(
                     }
 
                     LinearProgressIndicator(
-                        progress = totalProgress / 100,
+                        progress = { totalProgress / 100f },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(12.dp)
@@ -736,7 +738,7 @@ private fun SavingsGoalCard(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            progress = progress / 100,
+                            progress = { progress / 100f },
                             modifier = Modifier.size(56.dp),
                             strokeWidth = 3.dp,
                             color = progressColor,
@@ -797,7 +799,7 @@ private fun SavingsGoalCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 LinearProgressIndicator(
-                    progress = progress / 100,
+                    progress = { progress / 100f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(10.dp)
@@ -925,7 +927,7 @@ private fun getGoalIcon(category: String): androidx.compose.ui.graphics.vector.I
         "giáo dục", "education", "study" -> Icons.Default.School
         "sức khỏe", "health" -> Icons.Default.MedicalServices
         "hôn nhân", "wedding" -> Icons.Default.Favorite
-        "đầu tư", "investment" -> Icons.Default.TrendingUp
+        "đầu tư", "investment" -> Icons.AutoMirrored.Filled.TrendingUp
         "khẩn cấp", "emergency" -> Icons.Default.Warning
         "mua sắm", "shopping" -> Icons.Default.ShoppingCart
         "giải trí", "entertainment" -> Icons.Default.Movie

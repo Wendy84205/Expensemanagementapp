@@ -34,12 +34,14 @@ import com.example.financeapp.viewmodel.settings.LanguageViewModel
 @Composable
 fun AddCategoryScreen(
     navController: NavController,
-    viewModel: CategoryViewModel
+    viewModel: CategoryViewModel,
+    initialType: String = "expense",
+    initialParentCategoryId: String? = null
 ) {
     val categories by viewModel.categories.collectAsState()
     val languageViewModel = LocalLanguageViewModel.current
 
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableStateOf(if (initialType == "income") 1 else 0) }
     val tabTypes = listOf("expense", "income")
 
     var categoryName by remember { mutableStateOf(TextFieldValue("")) }
@@ -50,6 +52,12 @@ fun AddCategoryScreen(
 
     val mainCategories = remember(selectedTab, categories) {
         categories.filter { it.isMainCategory && it.type == tabTypes[selectedTab] }
+    }
+
+    LaunchedEffect(initialParentCategoryId, mainCategories) {
+        if (initialParentCategoryId != null && selectedMainCategory == null) {
+            selectedMainCategory = mainCategories.find { it.id == initialParentCategoryId }
+        }
     }
 
     // Colors

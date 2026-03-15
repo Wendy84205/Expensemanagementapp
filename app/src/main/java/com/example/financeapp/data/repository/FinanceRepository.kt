@@ -18,6 +18,7 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -582,13 +583,14 @@ class FinanceRepository @Inject constructor(
                 val userId = getCurrentUserId()
                 transactionDao.getTransactionsByUser(userId)
                     .map { it.map { entity -> entity.toTransaction() } }
+                    .first() // Extract snapshot list from flow
             } else {
                 // Fallback to legacy if not logged in
                 getAllTransactionsLegacy()
             }
 
             FinancialData(
-                transactions = transactions as List<Transaction>,
+                transactions = transactions,
                 accounts = emptyList(),
                 budgets = emptyList(),
                 userProfile = null

@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -162,7 +164,7 @@ fun SettingsScreen(
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
                     // 2. LANGUAGE SETTINGS
                     SettingsItem(
@@ -174,7 +176,7 @@ fun SettingsScreen(
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
                     // 3. EXTENSIONS
                     SettingsItem(
@@ -195,7 +197,7 @@ fun SettingsScreen(
                     languageViewModel = languageViewModel
                 ) {
                     SettingsItem(
-                        icon = Icons.Default.Help,
+                        icon = Icons.AutoMirrored.Filled.Help,
                         title = languageViewModel.getTranslation("help"),
                         subtitle = languageViewModel.getTranslation("frequently_asked_questions"),
                         onClick = { navController.navigate("help") },
@@ -203,7 +205,7 @@ fun SettingsScreen(
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
                     SettingsItem(
                         icon = Icons.Default.Info,
@@ -223,7 +225,7 @@ fun SettingsScreen(
                     languageViewModel = languageViewModel
                 ) {
                     SettingsItem(
-                        icon = Icons.Default.Logout,
+                        icon = Icons.AutoMirrored.Filled.Logout,
                         title = languageViewModel.getTranslation("logout"),
                         subtitle = languageViewModel.getTranslation("logout_account"),
                         onClick = { showLogoutDialog = true },
@@ -690,7 +692,7 @@ private fun LogoutConfirmationDialog(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Logout,
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
                     contentDescription = languageViewModel.getTranslation("logout"),
                     tint = errorColor,
                     modifier = Modifier.size(30.dp)

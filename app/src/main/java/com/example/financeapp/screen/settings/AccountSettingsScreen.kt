@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -168,7 +170,7 @@ fun AccountSettingsScreen(
                         )
                     }
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     // Email
                     Column(
@@ -199,7 +201,7 @@ fun AccountSettingsScreen(
                         )
                     }
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     // Số điện thoại (chỉ đọc)
                     Column(
@@ -340,7 +342,7 @@ fun AccountSettingsScreen(
                         color = subtitleColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     // Nhà cung cấp
                     InfoRow(
@@ -349,7 +351,7 @@ fun AccountSettingsScreen(
                         color = subtitleColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     // Trạng thái email
                     InfoRow(
@@ -361,7 +363,7 @@ fun AccountSettingsScreen(
                         valueColor = if (user?.isEmailVerified == true) successColor else warningColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     // Ngày tạo
                     InfoRow(
@@ -371,7 +373,7 @@ fun AccountSettingsScreen(
                         color = subtitleColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     // Lần đăng nhập cuối
                     InfoRow(

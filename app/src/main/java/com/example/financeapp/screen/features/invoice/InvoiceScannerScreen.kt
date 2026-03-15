@@ -32,6 +32,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Camera
@@ -57,7 +59,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -89,7 +91,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -188,7 +190,7 @@ fun InvoiceScannerScreen(
                         onClick = { navController.popBackStack() }
                     ) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Đóng",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -342,12 +344,20 @@ fun InvoiceScannerScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        // Scanning animation
+                        // Determine progress color based on progress value
+                        val progressColor = when {
+                            state.progressStep == 0 -> Color(0xFFEF4444) // Red for "Xử lý ảnh"
+                            state.progressStep == 1 -> Color(0xFFF59E0B) // Yellow for "Nhận diện chữ"
+                            state.progressStep == 2 -> Color(0xFF3B82F6) // Blue for "Trích xuất thông tin"
+                            else -> Color(0xFF10B981) // Green for completed or unknown
+                        }
+
                         CircularProgressIndicator(
-                            modifier = Modifier.size(80.dp),
-                            strokeWidth = 4.dp,
-                            color = Color(0xFF4CAF50),
-                            trackColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
+                            progress = { state.progressStep.toFloat() / 3f },
+                            modifier = Modifier.size(56.dp),
+                            strokeWidth = 3.dp,
+                            color = progressColor,
+                            trackColor = progressColor.copy(alpha = 0.2f)
                         )
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -448,7 +458,7 @@ fun InvoiceScannerScreen(
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color.White),
+                        border = ButtonDefaults.outlinedButtonBorder(enabled = true),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color.White
                         ),
@@ -798,7 +808,7 @@ fun ScanResultBottomSheet(
                     isHighlighted = true
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
                 // Amount
                 InfoRow(
@@ -808,7 +818,7 @@ fun ScanResultBottomSheet(
                     isHighlighted = true
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
                 // Date
                 InfoRow(
@@ -820,7 +830,7 @@ fun ScanResultBottomSheet(
 
                 // Category (if detected)
                 if (transaction.category.isNotEmpty()) {
-                    Divider(modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
                     InfoRow(
                         icon = Icons.Filled.Category,
                         label = "Danh mục",

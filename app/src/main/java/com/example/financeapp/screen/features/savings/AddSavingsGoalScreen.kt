@@ -14,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -157,7 +159,7 @@ fun AddSavingsGoalScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Icon(
-                    Icons.Default.Login,
+                    Icons.AutoMirrored.Filled.Login,
                     contentDescription = null,
                     tint = Color(0xFF64748B),
                     modifier = Modifier.size(60.dp)
@@ -620,7 +622,7 @@ fun AddSavingsGoalScreen(
                         }
 
                         LinearProgressIndicator(
-                            progress = progress / 100,
+                            progress = { progress / 100f },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp),
@@ -780,7 +782,7 @@ fun AddSavingsGoalScreen(
                                 maxLines = 1,
                                 leadingIcon = {
                                     Icon(
-                                        Icons.Default.Label,
+                                        Icons.AutoMirrored.Filled.Label,
                                         contentDescription = null,
                                         tint = Color(0xFF64748B)
                                     )
@@ -1151,7 +1153,7 @@ fun AddSavingsGoalScreen(
                                 contentColor = Color(0xFF10B981),
                                 containerColor = Color.White
                             ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                                 width = 2.dp
                             )
                         ) {

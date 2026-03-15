@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -105,7 +107,7 @@ fun LanguageSettingsScreen(navController: NavController, languageViewModel: Lang
                         )
 
                         if (index < availableLanguages.size - 1) {
-                            Divider(color = Color(0xFFEEEEEE))
+                            HorizontalDivider(color = Color(0xFFEEEEEE))
                         }
                     }
                 }
@@ -349,7 +351,7 @@ private fun ActionButtons(
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = accentColor
             ),
-            border = ButtonDefaults.outlinedButtonBorder.copy(
+            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                 width = 1.5.dp
             )
         ) {

@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.financeapp.components.theme.getAppColors
 import androidx.navigation.NavHostController
 import com.example.financeapp.data.models.Transaction
 import com.example.financeapp.rememberLanguageText
@@ -48,16 +51,17 @@ fun CalendarScreen(
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Màu sắc chủ đạo trắng sáng
-    val backgroundColor = Color(0xFFF8FAFC) // Xám rất nhạt
-    val surfaceColor = Color.White // Trắng
-    val primaryColor = Color(0xFF3B82F6) // Xanh dương
-    val secondaryColor = Color(0xFF10B981) // Xanh lá
-    val textPrimary = Color(0xFF1F2937) // Xám đen
-    val textSecondary = Color(0xFF6B7280) // Xám
-    val accentColor = Color(0xFFF59E0B) // Cam
-    val incomeColor = Color(0xFF10B981) // Xanh lá
-    val expenseColor = Color(0xFFEF4444) // Đỏ
+    // Sử dụng màu sắc đồng bộ từ AppColors
+    val appColors = getAppColors()
+    val backgroundColor = appColors.background
+    val surfaceColor = appColors.surface
+    val primaryColor = appColors.primary
+    val secondaryColor = appColors.secondary
+    val textPrimary = appColors.textPrimary
+    val textSecondary = appColors.textSecondary
+    val accentColor = appColors.accent
+    val incomeColor = appColors.income
+    val expenseColor = appColors.expense
 
     // Lấy các text đa ngôn ngữ
     val calendarText = rememberLanguageText("calendar")
@@ -127,14 +131,14 @@ fun CalendarScreen(
                             )
                     ) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = textPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.White,
+                    containerColor = appColors.surface,
                     titleContentColor = textPrimary,
                     navigationIconContentColor = textPrimary
                 )
@@ -465,7 +469,7 @@ fun CalendarHeader(
                 .clip(CircleShape)
         ) {
             Icon(
-                Icons.Default.KeyboardArrowLeft,
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = previousMonthText,
                 tint = primaryColor
             )
@@ -488,7 +492,7 @@ fun CalendarHeader(
                 .clip(CircleShape)
         ) {
             Icon(
-                Icons.Default.KeyboardArrowRight,
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = nextMonthText,
                 tint = primaryColor
             )
@@ -544,15 +548,12 @@ fun CalendarDayCell(
 
             // Hiển thị số tiền nếu có giao dịch
             if (hasTransactions && dayTotal.absoluteValue > 0) {
-                val displayAmount = dayTotal.absoluteValue / 1000
-                if (displayAmount >= 1) {
-                    Text(
-                        text = "%.0fK".format(displayAmount),
-                        color = if (dayTotal >= 0) incomeColor else expenseColor,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "${(dayTotal.absoluteValue / 1000).toInt()}đ",
+                    color = if (dayTotal >= 0) incomeColor else expenseColor,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -606,11 +607,11 @@ fun CalendarTransactionItem(
                         .clip(CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        if (transaction.isIncome) "↑" else "↓",
-                        color = if (transaction.isIncome) incomeColor else expenseColor,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                    Icon(
+                        imageVector = if (transaction.isIncome) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                        contentDescription = null,
+                        tint = if (transaction.isIncome) incomeColor else expenseColor,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -709,5 +710,6 @@ private fun getDayOfWeekText(
 }
 
 fun formatCurrency(amount: Double): String {
-    return "%,.0fđ".format(amount)
+    val formatter = java.text.NumberFormat.getNumberInstance(java.util.Locale.forLanguageTag("vi-VN"))
+    return "${formatter.format(amount.toLong())} đ"
 }

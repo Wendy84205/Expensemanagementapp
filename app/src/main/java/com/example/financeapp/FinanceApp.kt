@@ -14,6 +14,8 @@ import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.CategoryViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
+import com.facebook.FacebookSdk
+import com.facebook.appevents.AppEventsLogger
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.*
 
@@ -76,18 +78,44 @@ class FinanceApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        // 1. Khởi tạo Facebook SDK (Ưu tiên hàng đầu)
         try {
+            android.util.Log.d("FinanceApp", "Bắt đầu khởi tạo Facebook SDK")
+            
+            // Đảm bảo lấy được ID và Token
+            val facebookAppId = getString(R.string.facebook_app_id)
+            val facebookClientToken = getString(R.string.facebook_client_token)
+            
+            FacebookSdk.setApplicationId(facebookAppId)
+            FacebookSdk.setClientToken(facebookClientToken)
+            FacebookSdk.sdkInitialize(this)
+            
+            AppEventsLogger.activateApp(this)
+            
+            android.util.Log.d("FinanceApp", "Facebook SDK đã được khởi tạo: ${FacebookSdk.isInitialized()}")
+        } catch (e: Exception) {
+            android.util.Log.e("FinanceApp", "Lỗi khởi tạo Facebook SDK: ${e.message}")
+        }
+
+        // 2. Khởi tạo WorkManager
+        try {
+            android.util.Log.d("FinanceApp", "Đang khởi tạo WorkManager")
             val config = Configuration.Builder()
                 .setMinimumLoggingLevel(android.util.Log.DEBUG)
                 .build()
             WorkManager.initialize(this, config)
+        } catch (e: Exception) {
+            android.util.Log.w("FinanceApp", "WorkManager đã được khởi tạo trước đó hoặc lỗi: ${e.message}")
+        }
 
+        // 3. Khởi tạo các thành phần khác
+        try {
             initializeViewModels()
             initializeNotificationSystem()
             initializeServices()
             scheduleBackgroundWorkers()
-
         } catch (e: Exception) {
+            android.util.Log.e("FinanceApp", "Lỗi khởi tạo các thành phần phụ: ${e.message}")
         }
     }
 

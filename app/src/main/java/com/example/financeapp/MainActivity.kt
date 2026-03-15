@@ -40,12 +40,29 @@ import java.util.*
 class MainActivity : ComponentActivity() {
 
     private val authViewModel: AuthViewModel by viewModels()
-    private val transactionViewModel: TransactionViewModel by viewModels()
     private val languageViewModel: LanguageViewModel by viewModels()
+
+    // Dùng chung TransactionViewModel/BudgetViewModel/CategoryViewModel/RecurringExpenseViewModel với AI (FinanceApp)
+    private val transactionViewModel: TransactionViewModel by lazy {
+        (application as FinanceApp).transactionViewModel
+    }
+
+    private val budgetViewModel: BudgetViewModel by lazy {
+        (application as FinanceApp).budgetViewModel
+    }
+
+    private val categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel by lazy {
+        (application as FinanceApp).categoryViewModel
+    }
+
+    private val recurringExpenseViewModel: RecurringExpenseViewModel by lazy {
+        (application as FinanceApp).recurringExpenseViewModel
+    }
+
+    // AIViewModel vẫn là Activity-scoped, nhưng bên trong nó luôn tham chiếu FinanceApp.transactionViewModel
     private val aiViewModel: AIViewModel by viewModels()
-    private val budgetViewModel: BudgetViewModel by viewModels()
-    private val categoryViewModel: com.example.financeapp.viewmodel.transaction.CategoryViewModel by viewModels()
-    private val recurringExpenseViewModel: RecurringExpenseViewModel by viewModels()
+
+    // SavingsViewModel chỉ dùng cho UI/budget-savings, giữ Activity-scoped
     private val savingsViewModel: SavingsViewModel by viewModels()
 
     private lateinit var userPrefs: UserPreferencesDataStore
@@ -521,10 +538,10 @@ class MainActivity : ComponentActivity() {
 
     private fun formatCurrency(amount: Double): String {
         return try {
-            val formatter = NumberFormat.getInstance(Locale.getDefault())
-            "${formatter.format(amount)}đ"
+            val formatter = java.text.NumberFormat.getNumberInstance(java.util.Locale.forLanguageTag("vi-VN"))
+            "${formatter.format(amount.toLong())} đ"
         } catch (e: Exception) {
-            "${amount.toInt()}đ"
+            "${amount.toInt()} đ"
         }
     }
 

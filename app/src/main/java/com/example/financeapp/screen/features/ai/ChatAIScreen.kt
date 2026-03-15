@@ -5,13 +5,17 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +31,9 @@ import com.example.financeapp.viewmodel.ai.AIViewModel
 import com.example.financeapp.viewmodel.ai.ChatMessage
 import com.example.financeapp.viewmodel.savings.SavingsViewModel
 
+import com.example.financeapp.components.theme.getAppColors
+import androidx.compose.ui.graphics.vector.ImageVector
+
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +42,7 @@ fun ChatAIScreen(
     aiViewModel: AIViewModel = viewModel(),
     savingsViewModel: SavingsViewModel
 ) {
+    val colors = getAppColors()
     val messages by aiViewModel.messages.collectAsState()
     val isAITyping by aiViewModel.isAITyping
     val lastError by aiViewModel.lastError
@@ -43,16 +51,6 @@ fun ChatAIScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
-    // Colors
-    val primaryColor = Color(0xFF2196F3)
-    val backgroundColor = Color(0xFFF5F5F5)
-    val cardColor = Color.White
-    val textColor = Color(0xFF333333)
-    val subtitleColor = Color(0xFF666666)
-    val userBubbleColor = primaryColor
-    val aiBubbleColor = Color(0xFFEEEEEE)
-
-    // Auto scroll to bottom when new messages
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
@@ -61,95 +59,51 @@ fun ChatAIScreen(
 
     Scaffold(
         topBar = {
-            SimpleTopAppBar(
-                title = "Trợ lý WendyAI",
-                onBackClick = { navController.popBackStack() }
+            CenterAlignedTopAppBar(
+                title = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Wendy AI", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                        Text("Trợ lý tài chính thông minh", fontSize = 11.sp, color = colors.textSecondary)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         },
-        containerColor = backgroundColor
+        containerColor = colors.background
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Chat messages
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(vertical = 20.dp)
             ) {
                 items(messages.size) { index ->
-                    val message = messages[index]
-                    if (message.text.isNotBlank()) {
-                        ChatBubble(
-                            message = message,
-                            primaryColor = primaryColor,
-                            textColor = textColor,
-                            userBubbleColor = userBubbleColor,
-                            aiBubbleColor = aiBubbleColor
-                        )
-                    }
+                    ChatBubbleModern(message = messages[index])
                 }
 
-                // AI typing indicator
-                item {
-                    if (isAITyping) {
-                        TypingIndicator(primaryColor = primaryColor)
-                    }
+                if (isAITyping) {
+                    item { TypingIndicatorModern() }
                 }
             }
-
-            // Error display
-            lastError?.let { error ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFF44336).copy(alpha = 0.1f)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = "Error",
-                            tint = Color(0xFFF44336),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = error,
-                            color = Color(0xFF333333),
-                            fontSize = 14.sp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { aiViewModel.lastError.value = null },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Dismiss",
-                                tint = Color(0xFF666666)
-                            )
-                        }
-                    }
-                }
+            
+            // Quick Suggestions
+            if (messages.size <= 2) {
+                QuickSuggestionsRow(onSuggestionClick = { input = it })
             }
 
-            // Input section
-            ChatInputSection(
+            ChatInputModern(
                 input = input,
                 onInputChange = { input = it },
                 onSendClick = {
@@ -158,273 +112,129 @@ fun ChatAIScreen(
                         input = ""
                     }
                 },
-                isAITyping = isAITyping,
-                primaryColor = primaryColor
+                isAITyping = isAITyping
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SimpleTopAppBar(
-    title: String,
-    onBackClick: () -> Unit
-) {
-    CenterAlignedTopAppBar(
-        title = {
-            Text(
-                title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333)
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
-                    tint = Color(0xFF333333)
-                )
-            }
-        },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = Color.White
-        )
-    )
-}
-
-@Composable
-fun ChatBubble(
-    message: ChatMessage,
-    primaryColor: Color,
-    textColor: Color,
-    userBubbleColor: Color = primaryColor,
-    aiBubbleColor: Color = Color(0xFFEEEEEE)
-) {
+fun ChatBubbleModern(message: ChatMessage) {
+    val colors = getAppColors()
     val isUser = message.isUser
-    val bubbleColor = if (isUser) userBubbleColor else aiBubbleColor
-    val contentColor = if (isUser) Color.White else textColor
-
+    
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Top
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
         if (!isUser) {
-            // AI icon
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .background(primaryColor.copy(alpha = 0.1f), CircleShape),
+                    .size(36.dp)
+                    .background(colors.accentGradient, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.SmartToy,
-                    contentDescription = "AI",
-                    tint = primaryColor,
-                    modifier = Modifier.size(18.dp)
-                )
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        Card(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .shadow(
-                    elevation = 2.dp,
-                    shape = RoundedCornerShape(
-                        topStart = if (isUser) 16.dp else 4.dp,
-                        topEnd = 16.dp,
-                        bottomStart = 16.dp,
-                        bottomEnd = if (isUser) 4.dp else 16.dp
-                    ),
-                    clip = true
-                ),
+        Surface(
+            color = if (isUser) colors.primary else Color.White,
             shape = RoundedCornerShape(
-                topStart = if (isUser) 16.dp else 4.dp,
-                topEnd = 16.dp,
-                bottomStart = 16.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp
+                topStart = if (isUser) 20.dp else 4.dp,
+                topEnd = if (isUser) 4.dp else 20.dp,
+                bottomStart = 20.dp,
+                bottomEnd = 20.dp
             ),
-            colors = CardDefaults.cardColors(
-                containerColor = bubbleColor
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            shadowElevation = 1.dp,
+            modifier = Modifier.widthIn(max = 280.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = message.text,
-                    color = contentColor,
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp
-                )
-            }
-        }
-
-        if (isUser) {
-            Spacer(modifier = Modifier.width(8.dp))
-            // User icon
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(primaryColor.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = "User",
-                    tint = primaryColor,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+            Text(
+                text = message.text,
+                modifier = Modifier.padding(12.dp),
+                color = if (isUser) Color.White else colors.textPrimary,
+                fontSize = 15.sp,
+                lineHeight = 20.sp
+            )
         }
     }
 }
 
 @Composable
-fun ChatInputSection(
+fun ChatInputModern(
     input: String,
     onInputChange: (String) -> Unit,
     onSendClick: () -> Unit,
-    isAITyping: Boolean,
-    primaryColor: Color
+    isAITyping: Boolean
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    val colors = getAppColors()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
+        shadowElevation = 8.dp
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .navigationBarsPadding()
+                .imePadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
+            TextField(
                 value = input,
                 onValueChange = onInputChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 50.dp),
-                placeholder = {
-                    Text(
-                        "Nhập câu hỏi về tài chính...",
-                        color = Color(0xFF999999)
-                    )
-                },
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = primaryColor,
-                    unfocusedBorderColor = Color(0xFFDDDDDD),
-                    focusedTextColor = Color(0xFF333333),
-                    unfocusedTextColor = Color(0xFF333333),
-                    cursorColor = primaryColor
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Hỏi Wendy bất cứ điều gì...", fontSize = 14.sp) },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = colors.background,
+                    unfocusedContainerColor = colors.background,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
                 ),
-                singleLine = false,
-                maxLines = 3
+                shape = RoundedCornerShape(24.dp),
+                maxLines = 4
             )
-
+            
             Spacer(modifier = Modifier.width(12.dp))
-
+            
             IconButton(
                 onClick = onSendClick,
                 enabled = input.isNotBlank() && !isAITyping,
                 modifier = Modifier
                     .size(48.dp)
-                    .background(
-                        if (input.isNotBlank() && !isAITyping) primaryColor else Color(0xFFCCCCCC),
-                        CircleShape
-                    )
+                    .background(if (input.isNotBlank()) colors.primary else colors.background, CircleShape)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "Send",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = if (input.isNotBlank()) Color.White else colors.textMuted)
             }
         }
     }
 }
 
 @Composable
-fun TypingIndicator(primaryColor: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.Top
+fun QuickSuggestionsRow(onSuggestionClick: (String) -> Unit) {
+    val suggestions = listOf("Thêm chi tiêu 50k ăn phở", "Phân tích tuần này", "Mẹo tiết kiệm", "Sức khỏe tài chính")
+    LazyRow(
+        modifier = Modifier.padding(bottom = 12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .background(primaryColor.copy(alpha = 0.1f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.SmartToy,
-                contentDescription = "AI",
-                tint = primaryColor,
-                modifier = Modifier.size(18.dp)
+        items(suggestions) { suggestion ->
+            SuggestionChip(
+                onClick = { onSuggestionClick(suggestion) },
+                label = { Text(suggestion, fontSize = 12.sp) },
+                shape = RoundedCornerShape(20.dp)
             )
         }
+    }
+}
+
+@Composable
+fun TypingIndicatorModern() {
+    val colors = getAppColors()
+    Row(modifier = Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(24.dp).background(colors.accentGradient, CircleShape))
         Spacer(modifier = Modifier.width(8.dp))
-
-        Card(
-            modifier = Modifier
-                .widthIn(max = 120.dp),
-            shape = RoundedCornerShape(4.dp, 12.dp, 12.dp, 12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFEEEEEE)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "AI đang viết",
-                    color = Color(0xFF666666),
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-
-                // Dots animation
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(primaryColor)
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(primaryColor.copy(alpha = 0.5f))
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(primaryColor.copy(alpha = 0.3f))
-                )
-            }
-        }
+        Text("Wendy đang suy nghĩ...", fontSize = 12.sp, color = colors.textMuted)
     }
 }

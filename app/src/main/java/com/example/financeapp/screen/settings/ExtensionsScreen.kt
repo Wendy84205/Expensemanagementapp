@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -74,7 +76,7 @@ fun ExtensionsScreen(navController: NavController) {
                             onClick = { navController.navigate("categories") }
                         )
 
-                        Divider(color = Color(0xFFEEEEEE))
+                        HorizontalDivider(color = Color(0xFFEEEEEE))
 
                         // Ngân sách
                         ExtensionItem(
@@ -85,7 +87,7 @@ fun ExtensionsScreen(navController: NavController) {
                             onClick = { navController.navigate("budgets") }
                         )
 
-                        Divider(color = Color(0xFFEEEEEE))
+                        HorizontalDivider(color = Color(0xFFEEEEEE))
 
                         // Chi tiêu định kỳ
                         ExtensionItem(
@@ -96,7 +98,7 @@ fun ExtensionsScreen(navController: NavController) {
                             onClick = { navController.navigate("recurring_expenses") }
                         )
 
-                        Divider(color = Color(0xFFEEEEEE))
+                        HorizontalDivider(color = Color(0xFFEEEEEE))
 
                         ExtensionItem(
                             icon = Icons.Default.Savings,
@@ -108,7 +110,7 @@ fun ExtensionsScreen(navController: NavController) {
                             }
                         )
 
-                        Divider(color = Color(0xFFEEEEEE))
+                        HorizontalDivider(color = Color(0xFFEEEEEE))
                         // Quét hoá đơn
                         ExtensionItem(
                             icon = Icons.Default.Receipt,

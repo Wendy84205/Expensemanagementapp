@@ -4,7 +4,8 @@
 
     <!-- Facebook SDK -->
     <string name="facebook_app_id">1896096931250707</string>
-    <string name="fb_login_protocol_scheme">fb123456789012345</string>
+    <string name="facebook_client_token">f567b4d456a7890b1c2d3e4f5a6b7c8d</string>
+    <string name="fb_login_protocol_scheme">fb1896096931250707</string>
 
     <!-- Google SDK -->
     <string name="default_web_client_id">397779842229-dqp2k3qtiaupus7jule3p472gltmmfe3.apps.googleusercontent.com</string>

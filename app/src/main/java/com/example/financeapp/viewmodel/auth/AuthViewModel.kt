@@ -156,32 +156,42 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val transactionsRef = firestore.collection("transactions")
 
-            val oldTransactions = transactionsRef
-                .whereEqualTo("userId", "")
-                .get()
-                .await()
+            // Migrate các giao dịch cũ chưa gắn userId đúng (rỗng hoặc 'anonymous')
+            val oldTransactions = listOf("", "anonymous").flatMap { legacyId ->
+                transactionsRef
+                    .whereEqualTo("userId", legacyId)
+                    .get()
+                    .await()
+                    .documents
+            }
 
-            for (doc in oldTransactions.documents) {
+            for (doc in oldTransactions) {
                 doc.reference.update("userId", userId).await()
             }
 
             val budgetsRef = firestore.collection("budgets")
-            val oldBudgets = budgetsRef
-                .whereEqualTo("userId", "")
-                .get()
-                .await()
+            val oldBudgets = listOf("", "anonymous").flatMap { legacyId ->
+                budgetsRef
+                    .whereEqualTo("userId", legacyId)
+                    .get()
+                    .await()
+                    .documents
+            }
 
-            for (doc in oldBudgets.documents) {
+            for (doc in oldBudgets) {
                 doc.reference.update("userId", userId).await()
             }
 
             val categoriesRef = firestore.collection("categories")
-            val oldCategories = categoriesRef
-                .whereEqualTo("userId", "")
-                .get()
-                .await()
+            val oldCategories = listOf("", "anonymous").flatMap { legacyId ->
+                categoriesRef
+                    .whereEqualTo("userId", legacyId)
+                    .get()
+                    .await()
+                    .documents
+            }
 
-            for (doc in oldCategories.documents) {
+            for (doc in oldCategories) {
                 doc.reference.update("userId", userId).await()
             }
 

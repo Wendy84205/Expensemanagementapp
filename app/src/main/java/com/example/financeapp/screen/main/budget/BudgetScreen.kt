@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -811,7 +813,7 @@ private fun SimpleBudgetCard(
                                     color = Color(0xFF666666)
                                 )
                                 Icon(
-                                    Icons.Default.ArrowForward,
+                                    Icons.AutoMirrored.Filled.ArrowForward,
                                     contentDescription = null,
                                     tint = Color(0xFF666666),
                                     modifier = Modifier.size(10.dp)
@@ -876,7 +878,7 @@ private fun SimpleBudgetCard(
                             modifier = Modifier.height(42.dp)
                         )
 
-                        Divider(
+                        HorizontalDivider(
                             color = Color(0xFFEEEEEE),
                             thickness = 0.5.dp,
                             modifier = Modifier.padding(horizontal = 8.dp)
@@ -910,7 +912,7 @@ private fun SimpleBudgetCard(
                             modifier = Modifier.height(42.dp)
                         )
 
-                        Divider(
+                        HorizontalDivider(
                             color = Color(0xFFEEEEEE),
                             thickness = 0.5.dp,
                             modifier = Modifier.padding(horizontal = 8.dp)
@@ -1020,7 +1022,7 @@ private fun SimpleBudgetCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
-                        Icons.Default.Notes,
+                        Icons.AutoMirrored.Filled.Notes,
                         contentDescription = null,
                         tint = Color(0xFF666666),
                         modifier = Modifier

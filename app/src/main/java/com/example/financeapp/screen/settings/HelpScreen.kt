@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,18 +26,19 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
+import com.example.financeapp.components.theme.getAppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(navController: NavController) {
     val languageViewModel = LocalLanguageViewModel.current
 
-    // Colors
-    val primaryColor = Color(0xFF2196F3)
-    val backgroundColor = Color(0xFFF5F5F5)
-    val cardColor = Color.White
-    val textColor = Color(0xFF333333)
-    val subtitleColor = Color(0xFF666666)
+    val appColors = getAppColors()
+    val primaryColor = appColors.primary
+    val backgroundColor = appColors.background
+    val cardColor = appColors.surface
+    val textColor = appColors.textPrimary
+    val subtitleColor = appColors.textSecondary
 
     Scaffold(
         topBar = {
@@ -68,7 +71,7 @@ fun HelpScreen(navController: NavController) {
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     FAQItemExpandable(
                         question = languageViewModel.getTranslation("faq_how_to_add_wallet"),
@@ -77,7 +80,7 @@ fun HelpScreen(navController: NavController) {
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     FAQItemExpandable(
                         question = languageViewModel.getTranslation("faq_how_to_view_stats"),
@@ -86,7 +89,7 @@ fun HelpScreen(navController: NavController) {
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     FAQItemExpandable(
                         question = languageViewModel.getTranslation("faq_how_to_logout"),
@@ -112,7 +115,7 @@ fun HelpScreen(navController: NavController) {
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     ContactItem(
                         icon = Icons.Default.Language,
@@ -123,7 +126,7 @@ fun HelpScreen(navController: NavController) {
                         languageViewModel = languageViewModel
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     ContactItem(
                         icon = Icons.Default.AccessTime,
@@ -147,21 +150,21 @@ fun HelpScreen(navController: NavController) {
                         primaryColor = primaryColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     TipItem(
                         text = languageViewModel.getTranslation("tip_set_monthly_budget"),
                         primaryColor = primaryColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     TipItem(
                         text = languageViewModel.getTranslation("tip_use_recurring_expenses"),
                         primaryColor = primaryColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     TipItem(
                         text = languageViewModel.getTranslation("tip_view_weekly_stats"),
@@ -182,7 +185,7 @@ fun HelpScreen(navController: NavController) {
                         color = subtitleColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     InfoItem(
                         title = languageViewModel.getTranslation("release_date"),
@@ -190,7 +193,7 @@ fun HelpScreen(navController: NavController) {
                         color = subtitleColor
                     )
 
-                    Divider(color = Color(0xFFEEEEEE))
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
 
                     InfoItem(
                         title = languageViewModel.getTranslation("developer"),
@@ -216,20 +219,20 @@ private fun SimpleTopAppBar(
                 title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333)
+                color = getAppColors().textPrimary
             )
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = languageViewModel.getTranslation("back"),
-                    tint = Color(0xFF333333)
+                    tint = getAppColors().textPrimary
                 )
             }
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = Color.White
+            containerColor = getAppColors().surface
         )
     )
 }
@@ -244,7 +247,7 @@ private fun SettingsCard(
         modifier = Modifier
             .fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = getAppColors().surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -257,7 +260,7 @@ private fun SettingsCard(
                     text = it,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF333333),
+                    color = getAppColors().textPrimary,
                     modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp)
                 )
             }
@@ -299,7 +302,7 @@ private fun FAQItemExpandable(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Default.Help,
+                        Icons.AutoMirrored.Filled.Help,
                         contentDescription = languageViewModel.getTranslation("question"),
                         tint = primaryColor,
                         modifier = Modifier.size(16.dp)

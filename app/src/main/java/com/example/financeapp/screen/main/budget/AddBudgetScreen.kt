@@ -4,6 +4,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -12,18 +14,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
+import com.example.financeapp.components.theme.getAppColors
 import com.example.financeapp.data.models.Budget
 import com.example.financeapp.data.models.BudgetPeriodType
 import com.example.financeapp.data.models.calculateBudgetEndDate
-import com.example.financeapp.screen.features.formatCurrency
+import com.example.financeapp.utils.CurrencyUtils
 import com.example.financeapp.viewmodel.budget.BudgetViewModel
 import com.example.financeapp.viewmodel.settings.LanguageViewModel
 import com.example.financeapp.viewmodel.transaction.Category
@@ -36,29 +45,37 @@ import java.util.*
 @Composable
 fun AddBudgetScreen(
     navController: NavController,
+    onBack: () -> Unit,
     budgetViewModel: BudgetViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel(),
     existingBudget: Budget? = null
 ) {
     val languageViewModel = LocalLanguageViewModel.current
     val categories by categoryViewModel.categories.collectAsState()
+    val focusManager = LocalFocusManager.current
 
+    val colors = getAppColors()
+    val primaryColor = colors.primary
     val subCategories = remember(categories) {
         categories.filter { !it.isMainCategory }
     }
 
-    val primaryColor = Color(0xFF2196F3)
-    val backgroundColor = Color(0xFFF5F5F5)
-    val textColor = Color(0xFF333333)
-
     var selectedCategory by remember {
         mutableStateOf(
-            existingBudget?.let {
-                categories.find { cat -> cat.id == it.categoryId }
-            } ?: if (subCategories.isNotEmpty()) subCategories[0] else null
+            existingBudget?.let { budget ->
+                categories.find { cat -> cat.id == budget.categoryId }
+            } ?: subCategories.firstOrNull()
         )
     }
-    var amount by remember { mutableStateOf(existingBudget?.amount?.toString() ?: "") }
+    var amount by remember { 
+        mutableStateOf(
+            existingBudget?.amount?.let { 
+                if (it == 0.0) "" 
+                else if (it % 1.0 == 0.0) it.toLong().toString() 
+                else it.toString() 
+            } ?: ""
+        ) 
+    }
     var selectedPeriod by remember { mutableStateOf(existingBudget?.periodType ?: BudgetPeriodType.MONTH) }
     var note by remember { mutableStateOf(existingBudget?.note ?: "") }
     var expanded by remember { mutableStateOf(false) }
@@ -130,158 +147,162 @@ fun AddBudgetScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = colors.surface,
+                shadowElevation = 2.dp,
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = colors.textPrimary
+                        )
+                    }
                     Text(
                         if (existingBudget == null) languageViewModel.getTranslation("add_budget")
                         else languageViewModel.getTranslation("edit_budget"),
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = textColor,
-                        fontSize = 18.sp
+                        color = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = languageViewModel.getTranslation("back"),
-                            tint = textColor
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.White
-                )
-            )
+                    Spacer(modifier = Modifier.width(48.dp))
+                }
+            }
         },
-        containerColor = backgroundColor
+        containerColor = colors.background
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(backgroundColor)
                 .verticalScroll(rememberScrollState())
+                .padding(bottom = 32.dp)
         ) {
             if (showError) {
-                ErrorBanner(
-                    message = errorMessage,
-                    onDismiss = { showError = false }
-                )
+                ErrorBanner(errorMessage) { showError = false }
             }
 
-            Card(
+            // Prominent Amount Input (Momo/Premium style)
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(120.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = primaryColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    .padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = colors.surface,
+                shadowElevation = 4.dp
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            languageViewModel.getTranslation("budget"),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
-                        Text(
-                            currentDate,
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     Text(
-                        formatCurrency(amount.toDoubleOrNull() ?: 0.0),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        languageViewModel.getTranslation("budget_amount").uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.textSecondary,
+                        letterSpacing = 1.sp
                     )
-
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    selectedCategory?.let { category ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .background(Color.White.copy(alpha = 0.2f), CircleShape)
-                                    .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    category.icon,
-                                    fontSize = 12.sp,
-                                    color = Color.White
-                                )
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        BasicTextField(
+                            value = amount,
+                            onValueChange = { if (it.matches(Regex("^\\d*\\.?\\d*$"))) amount = it },
+                            textStyle = MaterialTheme.typography.headlineLarge.copy(
+                                color = primaryColor,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            ),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Decimal,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                            ),
+                            cursorBrush = SolidColor(primaryColor),
+                            modifier = Modifier.widthIn(min = 40.dp),
+                            decorationBox = { innerTextField ->
+                                if (amount.isEmpty()) {
+                                    Text(
+                                        "0",
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        color = colors.textMuted,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                                innerTextField()
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                category.name,
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            languageViewModel.getTranslation("currency_vnd"),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = primaryColor,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        currentDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textMuted
+                    )
                 }
             }
 
+            // Form Content
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = colors.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        languageViewModel.getTranslation("setup_budget"),
-                        fontSize = 18.sp,
+                        languageViewModel.getTranslation("details"),
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = textColor
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
 
                     CategorySelector(
                         selectedCategory = selectedCategory,
-                        subCategories = subCategories,
+                        onCategorySelected = { selectedCategory = it },
+                        categories = subCategories,
                         expanded = expanded,
                         onExpandedChange = { expanded = it },
-                        onCategorySelected = { selectedCategory = it },
                         languageViewModel = languageViewModel
                     )
 
-                    AmountInput(
-                        amount = amount,
-                        onAmountChanged = { amount = it },
-                        languageViewModel = languageViewModel
-                    )
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     PeriodSelector(
                         selectedPeriod = selectedPeriod,
                         onPeriodSelected = { selectedPeriod = it },
                         languageViewModel = languageViewModel
                     )
+
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     NoteInput(
                         note = note,
@@ -291,77 +312,48 @@ fun AddBudgetScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Action Button
             Button(
                 onClick = { saveBudget() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(50.dp),
-                enabled = selectedCategory != null && amount.toDoubleOrNull() != null,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryColor,
-                    disabledContainerColor = Color(0xFFCCCCCC)
-                )
+                    .padding(horizontal = 16.dp)
+                    .height(56.dp)
+                    .shadow(8.dp, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
             ) {
                 Text(
-                    if (existingBudget == null) languageViewModel.getTranslation("add_budget_button").uppercase()
-                    else languageViewModel.getTranslation("update").uppercase(),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    if (existingBudget == null) languageViewModel.getTranslation("create_budget")
+                    else languageViewModel.getTranslation("update_budget"),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun ErrorBanner(
-    message: String,
-    onDismiss: () -> Unit
-) {
-    Card(
+private fun ErrorBanner(message: String, onDismiss: () -> Unit) {
+    val colors = getAppColors()
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFEBEE)
-        ),
-        border = BorderStroke(1.dp, Color(0xFFF44336).copy(alpha = 0.3f))
+            .padding(16.dp)
+            .clickable { onDismiss() },
+        color = Color(0xFFFEE2E2),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Default.Error,
-                contentDescription = null,
-                tint = Color(0xFFF44336),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                message,
-                fontSize = 14.sp,
-                color = Color(0xFFF44336),
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = null,
-                    tint = Color(0xFFF44336),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFEF4444))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(message, color = Color(0xFFB91C1C), fontSize = 14.sp)
         }
     }
 }
@@ -369,24 +361,24 @@ private fun ErrorBanner(
 @Composable
 private fun CategorySelector(
     selectedCategory: Category?,
-    subCategories: List<Category>,
+    onCategorySelected: (Category) -> Unit,
+    categories: List<Category>,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
-    onCategorySelected: (Category) -> Unit,
     languageViewModel: LanguageViewModel
 ) {
-    val primaryColor = Color(0xFF2196F3)
+    val colors = getAppColors()
+    val primaryColor = colors.primary
 
     Column {
         Text(
             languageViewModel.getTranslation("category"),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF333333),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.textSecondary,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-
-        Box(modifier = Modifier.fillMaxWidth()) {
+        
+        Box {
             OutlinedTextField(
                 value = selectedCategory?.name ?: languageViewModel.getTranslation("select_category"),
                 onValueChange = {},
@@ -394,38 +386,33 @@ private fun CategorySelector(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onExpandedChange(!expanded) },
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = primaryColor,
-                    unfocusedBorderColor = Color(0xFFDDDDDD),
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = if (selectedCategory != null) Color.Black else Color(0xFF888888),
-                    cursorColor = primaryColor
+                    unfocusedBorderColor = colors.divider,
+                    focusedTextColor = colors.textPrimary,
+                    unfocusedTextColor = if (selectedCategory != null) colors.textPrimary else colors.textMuted,
+                    cursorColor = primaryColor,
+                    focusedContainerColor = colors.background.copy(alpha = 0.3f),
+                    unfocusedContainerColor = colors.background.copy(alpha = 0.3f)
                 ),
                 leadingIcon = {
                     selectedCategory?.let {
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
-                                .background(
-                                    parseColor(it.color).copy(alpha = 0.1f),
-                                    CircleShape
-                                ),
+                                .size(32.dp)
+                                .background(parseColor(it.color).copy(alpha = 0.15f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                selectedCategory.icon,
-                                fontSize = 12.sp
-                            )
+                            Text(it.icon, fontSize = 16.sp)
                         }
                     }
                 },
                 trailingIcon = {
                     Icon(
                         Icons.Default.KeyboardArrowDown,
-                        contentDescription = languageViewModel.getTranslation("select_category"),
-                        tint = Color(0xFF666666),
-                        modifier = Modifier.clickable { onExpandedChange(!expanded) }
+                        contentDescription = null,
+                        tint = colors.textMuted
                     )
                 }
             )
@@ -435,106 +422,32 @@ private fun CategorySelector(
                 onDismissRequest = { onExpandedChange(false) },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .background(Color.White)
+                    .background(colors.surface)
             ) {
-                if (subCategories.isEmpty()) {
+                categories.forEach { category ->
                     DropdownMenuItem(
                         text = {
-                            Text(
-                                languageViewModel.getTranslation("no_categories"),
-                                color = Color(0xFF666666)
-                            )
-                        },
-                        onClick = { onExpandedChange(false) }
-                    )
-                } else {
-                    subCategories.forEach { category ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(parseColor(category.color).copy(alpha = 0.15f), CircleShape),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .background(
-                                                parseColor(category.color).copy(alpha = 0.1f),
-                                                CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(category.icon, fontSize = 14.sp)
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        category.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (selectedCategory?.id == category.id) FontWeight.Medium else FontWeight.Normal,
-                                        color = if (selectedCategory?.id == category.id) primaryColor else Color(0xFF333333)
-                                    )
+                                    Text(category.icon, fontSize = 16.sp)
                                 }
-                            },
-                            onClick = {
-                                onCategorySelected(category)
-                                onExpandedChange(false)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(category.name, color = colors.textPrimary)
                             }
-                        )
-                    }
+                        },
+                        onClick = {
+                            onCategorySelected(category)
+                            onExpandedChange(false)
+                        }
+                    )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun AmountInput(
-    amount: String,
-    onAmountChanged: (String) -> Unit,
-    languageViewModel: LanguageViewModel
-) {
-    val primaryColor = Color(0xFF2196F3)
-
-    Column {
-        Text(
-            languageViewModel.getTranslation("amount"),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF333333),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        OutlinedTextField(
-            value = amount,
-            onValueChange = {
-                if (it.matches(Regex("^\\d*\\.?\\d*$")) && it.length <= 15) {
-                    onAmountChanged(it)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = {
-                Text(
-                    "0",
-                    color = Color(0xFF888888)
-                )
-            },
-            shape = RoundedCornerShape(8.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = primaryColor,
-                unfocusedBorderColor = Color(0xFFDDDDDD),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                cursorColor = primaryColor
-            ),
-            singleLine = true,
-            trailingIcon = {
-                Text(
-                    languageViewModel.getTranslation("currency_vnd"),
-                    color = Color(0xFF666666),
-                    fontSize = 14.sp
-                )
-            }
-        )
     }
 }
 
@@ -544,42 +457,43 @@ private fun PeriodSelector(
     onPeriodSelected: (BudgetPeriodType) -> Unit,
     languageViewModel: LanguageViewModel
 ) {
-    val primaryColor = Color(0xFF2196F3)
+    val colors = getAppColors()
+    val primaryColor = colors.primary
 
     Column {
         Text(
             languageViewModel.getTranslation("period"),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF333333),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.textSecondary,
             modifier = Modifier.padding(bottom = 8.dp)
         )
+        
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.background.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            BudgetPeriodType.values().forEach { period ->
-                val isSelected = selectedPeriod == period
-                val backgroundColor = if (isSelected) primaryColor else Color.Transparent
-                val textColor = if (isSelected) Color.White else Color(0xFF666666)
-
-                TextButton(
-                    onClick = { onPeriodSelected(period) },
-                    colors = ButtonDefaults.textButtonColors(
-                        containerColor = backgroundColor,
-                        contentColor = textColor
-                    ),
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) primaryColor else Color(0xFFDDDDDD)
-                    )
+            BudgetPeriodType.values().forEach { type ->
+                val isSelected = selectedPeriod == type
+                Surface(
+                    onClick = { onPeriodSelected(type) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSelected) primaryColor else Color.Transparent,
+                    contentColor = if (isSelected) Color.White else colors.textSecondary
                 ) {
-                    Text(
-                        period.getDisplayName(languageViewModel),
-                        fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
-                    )
+                    Box(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            type.getDisplayName(languageViewModel),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
             }
         }
@@ -592,14 +506,14 @@ private fun NoteInput(
     onNoteChanged: (String) -> Unit,
     languageViewModel: LanguageViewModel
 ) {
-    val primaryColor = Color(0xFF2196F3)
+    val colors = getAppColors()
+    val focusManager = LocalFocusManager.current
 
     Column {
         Text(
-            languageViewModel.getTranslation("note"),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF333333),
+            languageViewModel.getTranslation("notes"),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.textSecondary,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         OutlinedTextField(
@@ -607,38 +521,35 @@ private fun NoteInput(
             onValueChange = { if (it.length <= 200) onNoteChanged(it) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp),
+                .height(100.dp),
             placeholder = {
                 Text(
                     languageViewModel.getTranslation("add_note_placeholder"),
-                    color = Color(0xFF888888)
+                    color = colors.textMuted
                 )
             },
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = primaryColor,
-                unfocusedBorderColor = Color(0xFFDDDDDD),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                cursorColor = primaryColor
+                focusedBorderColor = colors.primary,
+                unfocusedBorderColor = colors.divider,
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary,
+                cursorColor = colors.primary,
+                focusedContainerColor = colors.background.copy(alpha = 0.3f),
+                unfocusedContainerColor = colors.background.copy(alpha = 0.3f)
             ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             singleLine = false,
-            maxLines = 3
-        )
-        Text(
-            "${note.length}/200",
-            fontSize = 12.sp,
-            color = Color(0xFF888888),
-            modifier = Modifier.align(Alignment.End)
+            maxLines = 4
         )
     }
 }
 
 private fun parseColor(colorString: String): Color {
-    val hex = if (colorString.startsWith("#")) colorString else "#$colorString"
     return try {
-        Color(android.graphics.Color.parseColor(hex))
+        Color(android.graphics.Color.parseColor(colorString))
     } catch (e: Exception) {
-        Color(0xFF2196F3)
+        Color.Gray
     }
 }

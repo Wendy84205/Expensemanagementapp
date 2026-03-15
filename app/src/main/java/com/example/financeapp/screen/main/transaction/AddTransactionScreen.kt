@@ -15,6 +15,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.ripple.rememberRipple
@@ -39,6 +41,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.financeapp.LocalLanguageViewModel
@@ -55,6 +60,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.cos
 import kotlin.math.sin
+import com.example.financeapp.components.theme.getAppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,14 +68,18 @@ fun AddTransactionScreen(
     navController: NavController,
     onBack: () -> Unit,
     onSave: (Transaction) -> Unit,
-    transactionViewModel: TransactionViewModel = viewModel(),
-    budgetViewModel: BudgetViewModel = viewModel(),
-    categoryViewModel: CategoryViewModel = viewModel(),
+    transactionViewModel: TransactionViewModel,
+    budgetViewModel: BudgetViewModel? = null,
+    categoryViewModel: CategoryViewModel? = null,
     existingTransaction: Transaction? = null,
     onDelete: (() -> Unit)? = null,
     savingsViewModel: SavingsViewModel
 ) {
     val languageViewModel = LocalLanguageViewModel.current
+    val colors = getAppColors()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
 
     // State management
     var amount by remember { mutableStateOf(existingTransaction?.amount?.toString() ?: "") }
@@ -87,8 +97,24 @@ fun AddTransactionScreen(
     val transactionTypeTransition = updateTransition(targetState = isIncome, label = "transactionType")
     val saveButtonEnabled by remember { derivedStateOf { amount.isNotBlank() && categoryId.isNotBlank() } }
 
+    // Colors based on transaction type with smooth transitions
+    val primaryColor by transactionTypeTransition.animateColor(
+        transitionSpec = { tween(durationMillis = 300) },
+        label = "primaryColor"
+    ) { isInc ->
+        if (isInc) colors.income else colors.expense
+    }
+
+    val secondaryColor by transactionTypeTransition.animateColor(
+        transitionSpec = { tween(durationMillis = 300) },
+        label = "secondaryColor"
+    ) { isInc ->
+        if (isInc) colors.secondary else colors.expense.copy(alpha = 0.8f)
+    }
+
     val transactionType = if (isIncome) "income" else "expense"
-    val selectableCategoriesMap by categoryViewModel.selectableCategories.collectAsState()
+    val resolvedCategoryViewModel = categoryViewModel ?: viewModel()
+    val selectableCategoriesMap by resolvedCategoryViewModel.selectableCategories.collectAsState()
     val selectableCategories = remember(selectableCategoriesMap, transactionType) {
         selectableCategoriesMap[transactionType] ?: emptyList()
     }
@@ -106,7 +132,7 @@ fun AddTransactionScreen(
 
     LaunchedEffect(scannedTransaction) {
         scannedTransaction?.let { transaction ->
-            amount = transaction.amount.toString()
+            amount = if (transaction.amount % 1.0 == 0.0) transaction.amount.toLong().toString() else transaction.amount.toString()
             categoryId = transaction.category
             isIncome = transaction.isIncome
             description = transaction.description ?: ""
@@ -119,47 +145,66 @@ fun AddTransactionScreen(
         }
     }
 
-    // Colors based on transaction type with smooth transitions
-    val primaryColor by transactionTypeTransition.animateColor(
-        transitionSpec = { tween(durationMillis = 300) },
-        label = "primaryColor"
-    ) { isIncome ->
-        if (isIncome) Color(0xFF10B981) else Color(0xFFEF4444)
+    // Clear messages when entering screen
+    LaunchedEffect(Unit) {
+        transactionViewModel.clearError()
+        transactionViewModel.clearSuccessMessage()
     }
 
-    val secondaryColor by transactionTypeTransition.animateColor(
-        transitionSpec = { tween(durationMillis = 300) },
-        label = "secondaryColor"
-    ) { isIncome ->
-        if (isIncome) Color(0xFF059669) else Color(0xFFDC2626)
+    // Auto-dismiss on success
+    val successMessage by transactionViewModel.successMessage.collectAsState()
+    val errorMessage by transactionViewModel.errorMessage.collectAsState()
+    val warningMessage by transactionViewModel.warningMessage.collectAsState()
+
+    LaunchedEffect(successMessage) {
+        successMessage?.let {
+            scope.launch {
+                snackbarHostState.showSnackbar(it)
+            }
+            delay(1500)
+            onBack()
+        }
+    }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            scope.launch {
+                snackbarHostState.showSnackbar("❌ $it")
+                transactionViewModel.clearError()
+            }
+        }
+    }
+
+    LaunchedEffect(warningMessage) {
+        warningMessage?.let {
+            scope.launch {
+                snackbarHostState.showSnackbar("⚠️ $it")
+                transactionViewModel.clearWarning()
+            }
+        }
     }
 
     // Gradient background
     val gradientBackground = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFFF8FAFC),
-            Color(0xFFF1F5F9),
-            Color(0xFFE2E8F0)
-        ),
-        startY = 0f,
-        endY = 1000f
+            colors.background,
+            colors.background.copy(alpha = 0.95f),
+            colors.background
+        )
     )
 
     Scaffold(
         topBar = {
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(bottom = 8.dp),
-                color = Color.White,
-                shadowElevation = 4.dp,
-                shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                color = colors.surface,
+                shadowElevation = 2.dp,
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
@@ -168,26 +213,25 @@ fun AddTransactionScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = languageViewModel.getTranslation("back"),
-                            tint = Color(0xFF475569),
-                            modifier = Modifier.size(24.dp)
+                            contentDescription = null,
+                            tint = colors.textPrimary
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
                     Text(
                         if (existingTransaction != null) languageViewModel.getTranslation("edit_transaction")
                         else languageViewModel.getTranslation("add_new_transaction"),
-                        fontSize = 20.sp,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B),
-                        modifier = Modifier.weight(1f)
+                        color = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.width(48.dp))
                 }
             }
         },
-        containerColor = Color(0xFFF8FAFC)
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = colors.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -220,16 +264,93 @@ fun AddTransactionScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
                             .animateContentSize(),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = colors.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
                     ) {
                         Column(
                             modifier = Modifier
-                                .padding(24.dp)
+                                .padding(20.dp)
                                 .fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(24.dp)
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
+                            // Prominent Amount Input (Momo/Premium style)
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                color = colors.background.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, colors.divider)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        languageViewModel.getTranslation("amount").uppercase(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = colors.textSecondary,
+                                        letterSpacing = 1.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            "₫",
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            color = primaryColor,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        )
+                                        BasicTextField(
+                                            value = amount,
+                                            onValueChange = { 
+                                                if (it.matches(Regex("^[\\d.,]*$")) || it.isEmpty()) {
+                                                    amount = it
+                                                }
+                                            },
+                                            textStyle = MaterialTheme.typography.headlineLarge.copy(
+                                                color = primaryColor,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                textAlign = TextAlign.Center
+                                            ),
+                                            keyboardOptions = KeyboardOptions(
+                                                keyboardType = KeyboardType.Number,
+                                                imeAction = ImeAction.Next
+                                            ),
+                                            keyboardActions = KeyboardActions(
+                                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                                            ),
+                                            cursorBrush = SolidColor(primaryColor),
+                                            modifier = Modifier.widthIn(min = 40.dp).focusRequester(focusRequester),
+                                            decorationBox = { innerTextField ->
+                                                if (amount.isEmpty()) {
+                                                    Text(
+                                                        "0",
+                                                        style = MaterialTheme.typography.headlineLarge,
+                                                        color = colors.textMuted,
+                                                        textAlign = TextAlign.Center
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                        )
+                                    }
+ 
+                                    if (amount.isNotBlank()) {
+                                        Text(
+                                            formatCurrencyDisplay(amount),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = primaryColor.copy(alpha = 0.7f),
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+ 
                             // Transaction type selector with enhanced animation
                             TransactionTypeSelector(
                                 isIncome = isIncome,
@@ -241,22 +362,7 @@ fun AddTransactionScreen(
                                 primaryColor = primaryColor
                             )
 
-                            Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
-
-                            // Amount input with focus animation
-                            AmountInputField(
-                                amount = amount,
-                                onAmountChange = { newValue ->
-                                    if (newValue.matches(Regex("^\\d*\\.?\\d*$")) || newValue.isEmpty()) {
-                                        amount = newValue
-                                    }
-                                },
-                                languageViewModel = languageViewModel,
-                                primaryColor = primaryColor,
-                                focusRequester = focusRequester
-                            )
-
-                            Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = colors.divider.copy(alpha = 0.5f), thickness = 1.dp)
 
                             // Category selector mới với horizontal scroll
                             CategorySectionHorizontal(
@@ -269,7 +375,7 @@ fun AddTransactionScreen(
                                 primaryColor = primaryColor
                             )
 
-                            Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = colors.divider.copy(alpha = 0.5f), thickness = 1.dp)
 
                             // Date selector with calendar animation
                             DateSelector(
@@ -280,7 +386,7 @@ fun AddTransactionScreen(
                                 onClick = { showDatePicker = true }
                             )
 
-                            Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = colors.divider.copy(alpha = 0.5f), thickness = 1.dp)
 
                             // Description field with character counter
                             DescriptionField(
@@ -300,12 +406,15 @@ fun AddTransactionScreen(
                                 secondaryColor = secondaryColor,
                                 onClick = {
                                     val selectedCategoryInfo = selectableCategories.find { it.id == categoryId }
+                                    // Robust amount parsing: remove dot and comma for VND
+                                    val parsedAmount = amount.replace(".", "").replace(",", "").toDoubleOrNull() ?: 0.0
+                                    
                                     val transaction = Transaction(
                                         id = existingTransaction?.id ?: generateTransactionId(),
                                         date = transactionDate,
                                         dayOfWeek = transactionDayOfWeek,
                                         category = selectedCategoryInfo?.name ?: categoryId,
-                                        amount = amount.toDoubleOrNull() ?: 0.0,
+                                        amount = parsedAmount,
                                         isIncome = isIncome,
                                         group = if (isIncome) languageViewModel.getTranslation("income")
                                         else languageViewModel.getTranslation("spending"),
@@ -329,23 +438,6 @@ fun AddTransactionScreen(
                                 )
                             }
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Warning messages
-                val warning by transactionViewModel.warningMessage.collectAsState()
-                warning?.let { message ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = scaleIn() + fadeIn(),
-                        exit = scaleOut() + fadeOut()
-                    ) {
-                        WarningCard(
-                            message = message,
-                            onDismiss = { transactionViewModel.clearWarning() }
-                        )
                     }
                 }
 
@@ -447,7 +539,7 @@ private fun TransactionTypeSelector(
             languageViewModel.getTranslation("transaction_type"),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF334155),
+            color = getAppColors().textPrimary,
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
@@ -455,7 +547,7 @@ private fun TransactionTypeSelector(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+            colors = CardDefaults.cardColors(containerColor = getAppColors().background),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Row(
@@ -471,7 +563,7 @@ private fun TransactionTypeSelector(
                         .height(56.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isIncome) Color(0xFF10B981) else Color.Transparent
+                            if (isIncome) getAppColors().income else Color.Transparent
                         )
                         .clickable {
                             if (!isIncome) {
@@ -486,14 +578,14 @@ private fun TransactionTypeSelector(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
-                            Icons.Outlined.TrendingUp,
+                            Icons.AutoMirrored.Outlined.TrendingUp,
                             contentDescription = "Thu nhập",
-                            tint = if (isIncome) Color.White else Color(0xFF10B981),
+                            tint = if (isIncome) Color.White else getAppColors().income,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             languageViewModel.getTranslation("income"),
-                            color = if (isIncome) Color.White else Color(0xFF10B981),
+                            color = if (isIncome) Color.White else getAppColors().income,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp
                         )
@@ -507,7 +599,7 @@ private fun TransactionTypeSelector(
                         .height(56.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (!isIncome) Color(0xFFEF4444) else Color.Transparent
+                            if (!isIncome) getAppColors().expense else Color.Transparent
                         )
                         .clickable {
                             if (isIncome) {
@@ -522,14 +614,14 @@ private fun TransactionTypeSelector(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
-                            Icons.Outlined.TrendingDown,
+                            Icons.AutoMirrored.Outlined.TrendingDown,
                             contentDescription = "Chi tiêu",
-                            tint = if (!isIncome) Color.White else Color(0xFFEF4444),
+                            tint = if (!isIncome) Color.White else getAppColors().expense,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             languageViewModel.getTranslation("spending"),
-                            color = if (!isIncome) Color.White else Color(0xFFEF4444),
+                            color = if (!isIncome) Color.White else getAppColors().expense,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp
                         )
@@ -553,7 +645,7 @@ private fun TransactionTypeSelector(
                     Card(
                         modifier = Modifier.padding(start = 8.dp),
                         shape = RoundedCornerShape(4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF10B981))
+                        colors = CardDefaults.cardColors(containerColor = getAppColors().income)
                     ) {
                         Text(
                             languageViewModel.getTranslation("you_are_receiving_money"),
@@ -574,7 +666,7 @@ private fun TransactionTypeSelector(
                     Card(
                         modifier = Modifier.padding(end = 8.dp),
                         shape = RoundedCornerShape(4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFEF4444))
+                        colors = CardDefaults.cardColors(containerColor = getAppColors().expense)
                     ) {
                         Text(
                             languageViewModel.getTranslation("you_are_spending_money"),
@@ -608,7 +700,7 @@ private fun AmountInputField(
             languageViewModel.getTranslation("amount"),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF334155),
+            color = getAppColors().textPrimary,
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
@@ -616,11 +708,11 @@ private fun AmountInputField(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isFocused) primaryColor.copy(alpha = 0.05f) else Color(0xFFF8FAFC)
+                containerColor = if (isFocused) primaryColor.copy(alpha = 0.08f) else getAppColors().background.copy(alpha = 0.5f)
             ),
             border = BorderStroke(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) primaryColor else Color(0xFFE2E8F0)
+                width = if (isFocused) 2.5.dp else 1.dp,
+                color = if (isFocused) primaryColor else getAppColors().divider
             )
         ) {
             Row(
@@ -633,8 +725,7 @@ private fun AmountInputField(
                 AnimatedContent(
                     targetState = amount.isNotBlank(),
                     transitionSpec = {
-                        scaleIn(animationSpec = tween(durationMillis = 200)) + fadeIn() with
-                                scaleOut(animationSpec = tween(durationMillis = 200)) + fadeOut()
+                        scaleIn(animationSpec = tween(durationMillis = 200)) + fadeIn() togetherWith scaleOut(animationSpec = tween(durationMillis = 200)) + fadeOut()
                     },
                     label = "currencyAnimation"
                 ) { hasAmount ->
@@ -675,9 +766,10 @@ private fun AmountInputField(
                             isFocused = focusState.isFocused
                         },
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                    textStyle = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = getAppColors().textPrimary,
+                        fontSize = 32.sp
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
@@ -687,7 +779,7 @@ private fun AmountInputField(
                         if (amount.isEmpty()) {
                             Text(
                                 "0",
-                                color = Color(0xFF94A3B8),
+                                color = getAppColors().textMuted,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -743,7 +835,7 @@ private fun CategorySectionHorizontal(
                 languageViewModel.getTranslation("category"),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF334155)
+                color = getAppColors().textPrimary
             )
 
             if (selectedCategoryId.isNotBlank()) {
@@ -785,7 +877,7 @@ private fun CategorySectionHorizontal(
                 ) {
                     Text(
                         languageViewModel.getTranslation("no_categories_available"),
-                        color = Color(0xFF94A3B8),
+                        color = getAppColors().textMuted,
                         fontSize = 14.sp
                     )
                 }
@@ -878,7 +970,7 @@ private fun HorizontalCategoryItem(
     )
 
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) primaryColor else Color(0xFFE2E8F0),
+        targetValue = if (isSelected) primaryColor else getAppColors().divider,
         animationSpec = tween(durationMillis = 200),
         label = "categoryBorder"
     )
@@ -910,6 +1002,7 @@ private fun HorizontalCategoryItem(
             .background(backgroundColor, RoundedCornerShape(14.dp))
             .clickable(
                 interactionSource = interactionSource,
+                indication = null,
                 onClick = onClick
             )
             .padding(4.dp),
@@ -949,13 +1042,13 @@ private fun HorizontalCategoryItem(
             // Category name với ellipsis
             Text(
                 category.name,
-                color = if (isSelected) primaryColor else Color(0xFF374151),
+                color = if (isSelected) primaryColor else getAppColors().textPrimary,
                 fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                lineHeight = 12.sp,
+                lineHeight = 13.sp,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -1037,7 +1130,7 @@ private fun DateSelector(
             languageViewModel.getTranslation("transaction_date"),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF334155),
+            color = getAppColors().textSecondary,
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
@@ -1045,11 +1138,11 @@ private fun DateSelector(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFF8FAFC)
+                containerColor = getAppColors().background.copy(alpha = 0.5f)
             ),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            border = BorderStroke(1.dp, getAppColors().divider)
         ) {
             Row(
                 modifier = Modifier
@@ -1086,7 +1179,7 @@ private fun DateSelector(
                         Text(
                             date,
                             fontSize = 14.sp,
-                            color = Color(0xFF64748B)
+                            color = getAppColors().textSecondary
                         )
                     }
                 }
@@ -1139,7 +1232,7 @@ private fun DescriptionField(
                 languageViewModel.getTranslation("note"),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF334155)
+                color = getAppColors().textSecondary
             )
 
             // Character counter
@@ -1163,11 +1256,11 @@ private fun DescriptionField(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isFocused) primaryColor.copy(alpha = 0.05f) else Color(0xFFF8FAFC)
+                containerColor = if (isFocused) primaryColor.copy(alpha = 0.08f) else getAppColors().background.copy(alpha = 0.5f)
             ),
             border = BorderStroke(
                 width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) primaryColor else Color(0xFFE2E8F0)
+                color = if (isFocused) primaryColor else getAppColors().divider
             )
         ) {
             BasicTextField(
@@ -1177,7 +1270,7 @@ private fun DescriptionField(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(100.dp)
                     .padding(16.dp)
                     .onFocusChanged { focusState ->
                         isFocused = focusState.isFocused
@@ -1185,21 +1278,21 @@ private fun DescriptionField(
                 singleLine = false,
                 maxLines = 4,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = Color(0xFF0F172A)
+                    color = getAppColors().textPrimary
                 ),
                 decorationBox = { innerTextField ->
                     if (description.isEmpty()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Outlined.Notes,
+                                Icons.AutoMirrored.Outlined.Notes,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = getAppColors().textMuted,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 languageViewModel.getTranslation("enter_transaction_description"),
-                                color = Color(0xFF94A3B8)
+                                color = getAppColors().textMuted
                             )
                         }
                     }
@@ -1247,7 +1340,7 @@ private fun AnimatedSaveButton(
                 shape = RoundedCornerShape(16.dp),
                 clip = true
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = buttonColor,
             disabledContainerColor = Color(0xFFE2E8F0)
@@ -1266,8 +1359,7 @@ private fun AnimatedSaveButton(
             AnimatedContent(
                 targetState = isEnabled,
                 transitionSpec = {
-                    scaleIn(animationSpec = tween(durationMillis = 200)) + fadeIn() with
-                            scaleOut(animationSpec = tween(durationMillis = 200)) + fadeOut()
+                    scaleIn(animationSpec = tween(durationMillis = 200)) + fadeIn() togetherWith scaleOut(animationSpec = tween(durationMillis = 200)) + fadeOut()
                 },
                 label = "saveIconAnimation"
             ) { enabled ->
@@ -1292,8 +1384,7 @@ private fun AnimatedSaveButton(
             AnimatedContent(
                 targetState = Triple(isEnabled, isEditing, isIncome),
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(durationMillis = 200)) with
-                            fadeOut(animationSpec = tween(durationMillis = 200))
+                    fadeIn(animationSpec = tween(durationMillis = 200)) togetherWith fadeOut(animationSpec = tween(durationMillis = 200))
                 },
                 label = "saveTextAnimation"
             ) { (enabled, editing, income) ->
@@ -1411,21 +1502,21 @@ private fun WarningCard(
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color(0xFFFBBF24).copy(alpha = 0.1f), CircleShape)
+                            .background(getAppColors().accent.copy(alpha = 0.1f), CircleShape)
                             .clip(CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Outlined.Warning,
                             contentDescription = "Cảnh báo",
-                            tint = Color(0xFFD97706),
+                            tint = getAppColors().accent,
                             modifier = Modifier.size(20.dp)
                         )
                     }
 
                     Text(
                         message,
-                        color = Color(0xFF92400E),
+                        color = getAppColors().textPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.weight(1f)
                     )
@@ -1441,7 +1532,7 @@ private fun WarningCard(
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Đóng",
-                        tint = Color(0xFF92400E),
+                        tint = getAppColors().textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1469,7 +1560,7 @@ private fun AnimatedDatePicker(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White,
+        containerColor = getAppColors().surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
             Box(
@@ -1502,7 +1593,7 @@ private fun AnimatedDatePicker(
                     "Chọn ngày",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B)
+                    color = getAppColors().textPrimary
                 )
 
                 IconButton(
@@ -1512,7 +1603,7 @@ private fun AnimatedDatePicker(
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Đóng",
-                        tint = Color(0xFF64748B)
+                        tint = getAppColors().textSecondary
                     )
                 }
             }
@@ -1527,8 +1618,8 @@ private fun AnimatedDatePicker(
                     selectedDayContentColor = Color.White,
                     todayDateBorderColor = primaryColor,
                     todayContentColor = primaryColor,
-                    dayContentColor = Color(0xFF334155),
-                    weekdayContentColor = Color(0xFF64748B)
+                    dayContentColor = getAppColors().textSecondary,
+                    weekdayContentColor = getAppColors().textMuted
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1564,8 +1655,8 @@ private fun AnimatedDatePicker(
                             )
                             Text(
                                 "$dayOfWeek, $formattedDate",
-                                color = Color(0xFF1E293B),
-                                fontWeight = FontWeight.SemiBold,
+                                color = getAppColors().textPrimary,
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
                         }
@@ -1593,7 +1684,7 @@ private fun AnimatedDatePicker(
                         .weight(1f)
                         .height(52.dp),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    border = BorderStroke(1.dp, getAppColors().divider)
                 ) {
                     Text("Huỷ", color = Color(0xFF64748B))
                 }
@@ -1633,21 +1724,21 @@ private fun DeleteConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = getAppColors().surface,
         shape = RoundedCornerShape(24.dp),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color(0xFFFEE2E2), CircleShape)
+                        .background(getAppColors().expense.copy(alpha = 0.1f), CircleShape)
                         .clip(CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Outlined.Delete,
                         contentDescription = null,
-                        tint = Color(0xFFDC2626),
+                        tint = getAppColors().expense,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -1655,14 +1746,14 @@ private fun DeleteConfirmationDialog(
                 Text(
                     languageViewModel.getTranslation("delete_transaction"),
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B)
+                    color = getAppColors().textPrimary
                 )
             }
         },
         text = {
             Text(
                 languageViewModel.getTranslation("delete_transaction_description"),
-                color = Color(0xFF64748B)
+                color = getAppColors().textSecondary
             )
         },
         confirmButton = {
@@ -1678,7 +1769,7 @@ private fun DeleteConfirmationDialog(
                 ) {
                     Text(
                         languageViewModel.getTranslation("cancel"),
-                        color = Color(0xFF64748B)
+                        color = getAppColors().textSecondary
                     )
                 }
 
@@ -1687,7 +1778,7 @@ private fun DeleteConfirmationDialog(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDC2626)
+                        containerColor = getAppColors().expense
                     )
                 ) {
                     Text(
@@ -1757,7 +1848,9 @@ private fun getDayOfWeekFromDate(date: Date, languageViewModel: LanguageViewMode
 private fun formatCurrencyDisplay(amount: String): String {
     return if (amount.isBlank()) "0 đ"
     else {
-        val number = amount.replace(".", "").toDoubleOrNull() ?: 0.0
+        // Remove both dots and commas for parsing
+        val numberString = amount.replace(".", "").replace(",", "")
+        val number = numberString.toDoubleOrNull() ?: 0.0
         String.format("%,.0f đ", number).replace(",", ".")
     }
 }

@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.financeapp.rememberLanguageText
-
+import com.example.financeapp.components.theme.getAppColors
 
 data class NavItem(
     val title: String,
@@ -23,35 +23,37 @@ data class NavItem(
     val selectedIcon: ImageVector? = null,
 )
 
+
 @Composable
 fun BottomNavBar(
     navController: NavController,
     modifier: Modifier = Modifier,
 ) {
+    val colors = getAppColors()
     val homeText = rememberLanguageText("home")
     val transactionsText = rememberLanguageText("transactions")
     val statisticsText = rememberLanguageText("statistics")
     val settingsText = rememberLanguageText("settings")
-    val aiText = "AI"
+    val aiText = "Wendy"
 
     val items = listOf(
         NavItem(
             title = homeText,
             route = "home",
-            icon = Icons.Outlined.Dashboard,
-            selectedIcon = Icons.Filled.Dashboard
+            icon = Icons.Outlined.Home,
+            selectedIcon = Icons.Filled.Home
         ),
         NavItem(
             title = transactionsText,
             route = "transactions",
-            icon = Icons.Outlined.ReceiptLong,
-            selectedIcon = Icons.Filled.ReceiptLong
+            icon = Icons.Outlined.AccountBalanceWallet,
+            selectedIcon = Icons.Filled.AccountBalanceWallet
         ),
         NavItem(
             title = aiText,
             route = "chat_ai",
-            icon = Icons.Outlined.SmartToy,
-            selectedIcon = Icons.Filled.SmartToy
+            icon = Icons.Outlined.AutoAwesome,
+            selectedIcon = Icons.Filled.AutoAwesome
         ),
         NavItem(
             title = statisticsText,
@@ -73,15 +75,11 @@ fun BottomNavBar(
     NavigationBar(
         modifier = modifier,
         containerColor = Color.White,
-        tonalElevation = 8.dp
+        tonalElevation = 0.dp
     ) {
         items.forEach { item ->
-            val isSelected = currentRoute == item.route
-            val iconToDisplay = if (isSelected && item.selectedIcon != null) {
-                item.selectedIcon
-            } else {
-                item.icon
-            }
+            val isSelected = (currentRoute == item.route) || (item.route == "home" && currentRoute == null)
+            val iconToDisplay = if (isSelected && item.selectedIcon != null) item.selectedIcon else item.icon
 
             NavigationBarItem(
                 selected = isSelected,
@@ -100,19 +98,19 @@ fun BottomNavBar(
                     Icon(
                         imageVector = iconToDisplay,
                         contentDescription = item.title,
-                        tint = if (isSelected) Color(0xFF3B82F6) else Color(0xFF64748B)
+                        tint = if (isSelected) colors.primary else colors.textMuted
                     )
                 },
                 label = {
                     Text(
                         text = item.title,
                         fontSize = 11.sp,
-                        color = if (isSelected) Color(0xFF3B82F6) else Color(0xFF64748B),
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                        color = if (isSelected) colors.primary else colors.textMuted,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color(0xFFEFF6FF)
+                    indicatorColor = colors.primary.copy(alpha = 0.08f)
                 )
             )
         }

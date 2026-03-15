@@ -37,8 +37,9 @@ class AIButlerWorker(
 
     companion object {
         private const val WORK_NAME = "wendyai_butler_periodic_work"
-        private const val REPEAT_INTERVAL_HOURS = 6L
-        private const val FLEX_INTERVAL_HOURS = 1L
+        // Chạy thường xuyên hơn để đảm bảo thông báo đúng thời điểm
+        private const val REPEAT_INTERVAL_HOURS = 1L
+        private const val FLEX_INTERVAL_HOURS = 0L
         private const val END_OF_MONTH_DAYS = 3
         private const val EVENING_START_HOUR = 18
         private const val EVENING_END_HOUR = 20
@@ -48,7 +49,8 @@ class AIButlerWorker(
         fun schedule(context: Context): Boolean {
             return try {
                 val constraints = Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    // Cho phép chạy cả khi offline, chỉ yêu cầu mạng khi cần sync
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
                     .setRequiresBatteryNotLow(false)
                     .setRequiresCharging(false)
                     .build()

@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.financeapp.viewmodel.auth.AuthViewModel
 import kotlinx.coroutines.delay
+import com.example.financeapp.components.theme.getAppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,14 +49,14 @@ fun RegisterScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
-    // Màu xanh dương và trắng theo yêu cầu
-    val primaryBlue = Color(0xFF1E3A8A) // Xanh dương đậm
-    val secondaryBlue = Color(0xFF2563EB) // Xanh dương sáng
-    val accentOrange = Color(0xFFF97316) // Cam nhấn
-    val white = Color.White
-    val lightGray = Color(0xFFF8FAFC)
-    val textGray = Color(0xFF64748B)
-    val darkText = Color(0xFF0F172A)
+    val appColors = getAppColors()
+    val primaryBlue = appColors.primary
+    val secondaryBlue = appColors.secondary
+    val accentOrange = appColors.accent
+    val white = appColors.surface
+    val lightGray = appColors.background
+    val textGray = appColors.textSecondary
+    val darkText = appColors.textPrimary
 
     val cardElevation by animateDpAsState(
         targetValue = if (isLoading) 8.dp else 24.dp,
@@ -121,7 +124,7 @@ fun RegisterScreen(
                         .border(1.dp, Color(0xFFE2E8F0), CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Quay lại",
                         tint = primaryBlue
                     )
@@ -492,7 +495,7 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Divider(
+                    HorizontalDivider(
                         color = Color(0xFFE2E8F0),
                         thickness = 1.dp,
                         modifier = Modifier.fillMaxWidth()

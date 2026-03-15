@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +50,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
+import com.example.financeapp.components.theme.getAppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,14 +70,14 @@ fun AuthScreen(
     val googleSignInClient = remember { createGoogleSignInClient(context) }
     val callbackManager = remember { CallbackManager.Factory.create() }
 
-    // Màu xanh dương và trắng
-    val primaryBlue = Color(0xFF1E3A8A) // Xanh dương đậm
-    val secondaryBlue = Color(0xFF2563EB) // Xanh dương sáng
-    val accentOrange = Color(0xFFF97316) // Cam nhấn
-    val white = Color.White
-    val lightGray = Color(0xFFF8FAFC)
-    val textGray = Color(0xFF64748B)
-    val darkText = Color(0xFF0F172A)
+    val appColors = getAppColors()
+    val primaryBlue = appColors.primary
+    val secondaryBlue = appColors.secondary
+    val accentOrange = appColors.accent
+    val white = appColors.surface
+    val lightGray = appColors.background
+    val textGray = appColors.textSecondary
+    val darkText = appColors.textPrimary
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -228,7 +231,7 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Divider(
+                    HorizontalDivider(
                         color = Color(0xFFE2E8F0),
                         thickness = 1.dp,
                         modifier = Modifier.fillMaxWidth()
@@ -654,7 +657,7 @@ private fun SignUpRedirect(
                 Text("Đăng ký ngay", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    imageVector = Icons.Default.ArrowForward,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

@@ -41,6 +41,7 @@ import com.example.financeapp.viewmodel.features.RecurringExpenseViewModel
 import com.example.financeapp.viewmodel.transaction.TransactionViewModel
 import com.example.financeapp.screen.settings.HelpScreen
 import com.example.financeapp.components.ui.CategorySelectionScreen
+import com.example.financeapp.screen.features.invoice.InvoiceScannerScreen
 import com.example.financeapp.screen.features.ai.ChatAIScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -48,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -149,7 +152,6 @@ fun NavGraph(
                         transaction = transaction,
                         budgetViewModel = budgetViewModel
                     )
-                    navController.popBackStack()
                 },
                 savingsViewModel = savingsViewModel // THÊM VÀO ADD TRANSACTION
             )
@@ -183,21 +185,16 @@ fun NavGraph(
                 savingsViewModel = savingsViewModel,
                 onBack = { navController.popBackStack() },
                 onSave = { transaction ->
-                    coroutineScope.launch {
-                        if (existingTransaction == null) {
-                            transactionViewModel.addTransaction(
-                                transaction = transaction,
-                                budgetViewModel = budgetViewModel
-                            )
-                            delay(800)
-                        } else {
-                            transactionViewModel.updateTransaction(
-                                updatedTransaction = transaction,
-                                budgetViewModel = budgetViewModel
-                            )
-                            delay(800)
-                        }
-                        navController.popBackStack()
+                    if (existingTransaction == null) {
+                        transactionViewModel.addTransaction(
+                            transaction = transaction,
+                            budgetViewModel = budgetViewModel
+                        )
+                    } else {
+                        transactionViewModel.updateTransaction(
+                            updatedTransaction = transaction,
+                            budgetViewModel = budgetViewModel
+                        )
                     }
                 },
                 onDelete = existingTransaction?.let { transaction ->
@@ -206,7 +203,6 @@ fun NavGraph(
                             transactionId = transaction.id,
                             budgetViewModel = budgetViewModel
                         )
-                        navController.popBackStack()
                     }
                 }
             )
@@ -292,10 +288,29 @@ fun NavGraph(
             )
         }
 
-        composable("add_category") {
+        composable(
+            route = "add_category?type={type}&parentId={parentId}",
+            arguments = listOf(
+                navArgument("type") {
+                    type = NavType.StringType
+                    defaultValue = "expense"
+                    nullable = false
+                },
+                navArgument("parentId") {
+                    type = NavType.StringType
+                    defaultValue = null
+                    nullable = true
+                }
+            )
+        ) { entry ->
+            val typeArg = entry.arguments?.getString("type") ?: "expense"
+            val parentIdArg = entry.arguments?.getString("parentId")
+
             AddCategoryScreen(
                 navController = navController,
-                viewModel = categoryViewModel
+                viewModel = categoryViewModel,
+                initialType = typeArg,
+                initialParentCategoryId = parentIdArg
             )
         }
 
@@ -311,6 +326,7 @@ fun NavGraph(
         composable("add_budget") {
             AddBudgetScreen(
                 navController = navController,
+                onBack = { navController.popBackStack() },
                 budgetViewModel = budgetViewModel,
                 categoryViewModel = categoryViewModel
             )
@@ -332,6 +348,7 @@ fun NavGraph(
 
             AddBudgetScreen(
                 navController = navController,
+                onBack = { navController.popBackStack() },
                 budgetViewModel = budgetViewModel,
                 categoryViewModel = categoryViewModel,
                 existingBudget = existingBudget
@@ -339,22 +356,25 @@ fun NavGraph(
         }
 
         composable("calendar") {
-            // Cần lấy categories từ ViewModel
-            val transactionViewModel: TransactionViewModel = viewModel()
-            val categoryViewModel: CategoryViewModel = viewModel()
-
-            val transactions by transactionViewModel.transactions.collectAsState()
-            val categories by categoryViewModel.categories.collectAsState()
+            val calendarTransactions by transactionViewModel.transactions.collectAsState()
+            val calendarCategories by categoryViewModel.categories.collectAsState()
 
             CalendarScreen(
                 navController = navController,
-                transactions = transactions,
-                categories = categories
+                transactions = calendarTransactions,
+                categories = calendarCategories
             )
         }
 
         composable("extensions") {
             ExtensionsScreen(navController = navController)
+        }
+
+        // 🔹 Invoice Scanner (quét hóa đơn -> AddTransaction)
+        composable("invoice_scanner") {
+            InvoiceScannerScreen(
+                navController = navController
+            )
         }
 
         composable("help") {
@@ -371,6 +391,7 @@ fun NavGraph(
         composable("add_recurring_expense") {
             AddRecurringExpenseScreen(
                 navController = navController,
+                onBack = { navController.popBackStack() },
                 recurringExpenseViewModel = recurringExpenseViewModel,
                 categoryViewModel = categoryViewModel
             )
@@ -391,6 +412,7 @@ fun NavGraph(
 
             AddRecurringExpenseScreen(
                 navController = navController,
+                onBack = { navController.popBackStack() },
                 recurringExpenseViewModel = recurringExpenseViewModel,
                 categoryViewModel = categoryViewModel,
                 existingExpense = existingExpense
@@ -440,7 +462,7 @@ fun LanguageSettingsScreen(
                 navigationIcon = {
                     androidx.compose.material3.IconButton(onClick = { navController.popBackStack() }) {
                         androidx.compose.material3.Icon(
-                            androidx.compose.material.icons.Icons.Default.ArrowBack,
+                            androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }

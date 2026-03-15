@@ -247,7 +247,9 @@ fun CategoryGroupComposable(
                 if (mainCategory.name != "Khác" && viewModel.canAddSubCategory(mainCategory.id)) {
                     IconButton(
                         onClick = {
-                            navController.navigate("add_sub_category?parentId=${mainCategory.id}")
+                            navController.navigate(
+                                "add_category?type=${mainCategory.type}&parentId=${mainCategory.id}"
+                            )
                         }
                     ) {
                         Icon(
